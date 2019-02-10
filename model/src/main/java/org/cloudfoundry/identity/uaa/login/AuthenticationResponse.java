@@ -20,51 +20,57 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 @JsonInclude(JsonInclude.Include.NON_EMPTY)
-@JsonAutoDetect(fieldVisibility = Visibility.ANY, getterVisibility = Visibility.NONE, setterVisibility = Visibility.NONE)
+@JsonAutoDetect(
+    fieldVisibility = Visibility.ANY,
+    getterVisibility = Visibility.NONE,
+    setterVisibility = Visibility.NONE)
 public class AuthenticationResponse {
-    private String error;
-    private String username;
-    private String origin;
-    @JsonProperty("user_id") private String userId;
-    private String email;
+  private String error;
+  private String username;
+  private String origin;
 
-    public void setError(String error) {
-        this.error = error;
-    }
+  @JsonProperty("user_id")
+  private String userId;
 
-    public String getError() {
-        return error;
-    }
+  private String email;
 
-    public void setUsername(String username) {
-        this.username = username;
-    }
+  public void setError(String error) {
+    this.error = error;
+  }
 
-    public String getUsername() {
-        return username;
-    }
+  public String getError() {
+    return error;
+  }
 
-    public void setOrigin(String origin) {
-        this.origin = origin;
-    }
+  public void setUsername(String username) {
+    this.username = username;
+  }
 
-    public String getOrigin() {
-        return origin;
-    }
+  public String getUsername() {
+    return username;
+  }
 
-    public void setUserId(String userId) {
-        this.userId = userId;
-    }
+  public void setOrigin(String origin) {
+    this.origin = origin;
+  }
 
-    public String getUserId() {
-        return userId;
-    }
+  public String getOrigin() {
+    return origin;
+  }
 
-    public void setEmail(String email) {
-        this.email = email;
-    }
+  public void setUserId(String userId) {
+    this.userId = userId;
+  }
 
-    public String getEmail() {
-        return email;
-    }
+  public String getUserId() {
+    return userId;
+  }
+
+  public void setEmail(String email) {
+    this.email = email;
+  }
+
+  public String getEmail() {
+    return email;
+  }
 }

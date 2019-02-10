@@ -5,15 +5,15 @@ import org.cloudfoundry.identity.uaa.zone.BrandingInformation.Banner;
 import java.util.Map;
 
 public interface BrandingInformationSource {
-    Banner getBanner();
+  Banner getBanner();
 
-    String getCompanyName();
+  String getCompanyName();
 
-    String getProductLogo();
+  String getProductLogo();
 
-    String getSquareLogo();
+  String getSquareLogo();
 
-    String getFooterLegalText();
+  String getFooterLegalText();
 
-    Map<String, String> getFooterLinks();
+  Map<String, String> getFooterLinks();
 }

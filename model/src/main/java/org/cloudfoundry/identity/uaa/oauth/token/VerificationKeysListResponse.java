@@ -20,11 +20,9 @@ import org.cloudfoundry.identity.uaa.oauth.jwk.JsonWebKeySet;
 import java.util.List;
 
 @Deprecated
-/**
- * Use {@link JsonWebKeySet}
- */
+/** Use {@link JsonWebKeySet} */
 public class VerificationKeysListResponse extends JsonWebKeySet<VerificationKeyResponse> {
-    public VerificationKeysListResponse(List<VerificationKeyResponse> keys) {
-        super(keys);
-    }
+  public VerificationKeysListResponse(List<VerificationKeyResponse> keys) {
+    super(keys);
+  }
 }

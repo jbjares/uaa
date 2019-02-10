@@ -27,26 +27,25 @@ import static java.util.Collections.unmodifiableList;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class UserConfig {
 
-    public static List<String> DEFAULT_ZONE_GROUPS = unmodifiableList(
-            asList(
-                "openid",
-                "password.write",
-                "uaa.user",
-                "approvals.me",
-                "profile",
-                "roles",
-                "user_attributes",
-                "uaa.offline_token"
-            )
-    );
+  public static List<String> DEFAULT_ZONE_GROUPS =
+      unmodifiableList(
+          asList(
+              "openid",
+              "password.write",
+              "uaa.user",
+              "approvals.me",
+              "profile",
+              "roles",
+              "user_attributes",
+              "uaa.offline_token"));
 
-    private List<String> defaultGroups = DEFAULT_ZONE_GROUPS;
+  private List<String> defaultGroups = DEFAULT_ZONE_GROUPS;
 
-    public List<String> getDefaultGroups() {
-        return defaultGroups;
-    }
+  public List<String> getDefaultGroups() {
+    return defaultGroups;
+  }
 
-    public void setDefaultGroups(List<String> defaultGroups) {
-        this.defaultGroups = defaultGroups;
-    }
+  public void setDefaultGroups(List<String> defaultGroups) {
+    this.defaultGroups = defaultGroups;
+  }
 }

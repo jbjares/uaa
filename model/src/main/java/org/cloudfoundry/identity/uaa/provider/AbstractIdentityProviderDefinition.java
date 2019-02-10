@@ -21,52 +21,54 @@ import java.util.Map;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class AbstractIdentityProviderDefinition {
-    public static final String EMAIL_DOMAIN_ATTR = "emailDomain";
-    public static final String PROVIDER_DESCRIPTION = "providerDescription";
+  public static final String EMAIL_DOMAIN_ATTR = "emailDomain";
+  public static final String PROVIDER_DESCRIPTION = "providerDescription";
 
-    private List<String> emailDomain;
-    private Map<String,Object> additionalConfiguration;
-    private String providerDescription;
+  private List<String> emailDomain;
+  private Map<String, Object> additionalConfiguration;
+  private String providerDescription;
 
-    public List<String> getEmailDomain() {
-        return emailDomain;
-    }
+  public List<String> getEmailDomain() {
+    return emailDomain;
+  }
 
-    public AbstractIdentityProviderDefinition setEmailDomain(List<String> emailDomain) {
-        this.emailDomain = emailDomain;
-        return this;
-    }
+  public AbstractIdentityProviderDefinition setEmailDomain(List<String> emailDomain) {
+    this.emailDomain = emailDomain;
+    return this;
+  }
 
-    public Map<String, Object> getAdditionalConfiguration() {
-        return additionalConfiguration;
-    }
+  public Map<String, Object> getAdditionalConfiguration() {
+    return additionalConfiguration;
+  }
 
-    public AbstractIdentityProviderDefinition setAdditionalConfiguration(Map<String, Object> additionalConfiguration) {
-        this.additionalConfiguration = additionalConfiguration;
-        return this;
-    }
+  public AbstractIdentityProviderDefinition setAdditionalConfiguration(
+      Map<String, Object> additionalConfiguration) {
+    this.additionalConfiguration = additionalConfiguration;
+    return this;
+  }
 
-    public String getProviderDescription() {
-        return providerDescription;
-    }
+  public String getProviderDescription() {
+    return providerDescription;
+  }
 
-    public void setProviderDescription(String description) {
-        this.providerDescription = description;
-    }
+  public void setProviderDescription(String description) {
+    this.providerDescription = description;
+  }
 
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
 
-        AbstractIdentityProviderDefinition that = (AbstractIdentityProviderDefinition) o;
+    AbstractIdentityProviderDefinition that = (AbstractIdentityProviderDefinition) o;
 
-        return !(emailDomain != null ? !emailDomain.equals(that.emailDomain) : that.emailDomain != null);
+    return !(emailDomain != null
+        ? !emailDomain.equals(that.emailDomain)
+        : that.emailDomain != null);
+  }
 
-    }
-
-    @Override
-    public int hashCode() {
-        return emailDomain != null ? emailDomain.hashCode() : 0;
-    }
+  @Override
+  public int hashCode() {
+    return emailDomain != null ? emailDomain.hashCode() : 0;
+  }
 }

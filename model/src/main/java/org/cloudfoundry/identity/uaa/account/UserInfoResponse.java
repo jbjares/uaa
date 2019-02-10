@@ -21,152 +21,140 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 import java.util.Map;
 
-import static org.cloudfoundry.identity.uaa.oauth.token.ClaimConstants.EMAIL;
-import static org.cloudfoundry.identity.uaa.oauth.token.ClaimConstants.EMAIL_VERIFIED;
-import static org.cloudfoundry.identity.uaa.oauth.token.ClaimConstants.FAMILY_NAME;
-import static org.cloudfoundry.identity.uaa.oauth.token.ClaimConstants.GIVEN_NAME;
-import static org.cloudfoundry.identity.uaa.oauth.token.ClaimConstants.NAME;
-import static org.cloudfoundry.identity.uaa.oauth.token.ClaimConstants.PHONE_NUMBER;
-import static org.cloudfoundry.identity.uaa.oauth.token.ClaimConstants.PREVIOUS_LOGON_TIME;
-import static org.cloudfoundry.identity.uaa.oauth.token.ClaimConstants.ROLES;
-import static org.cloudfoundry.identity.uaa.oauth.token.ClaimConstants.SUB;
-import static org.cloudfoundry.identity.uaa.oauth.token.ClaimConstants.USER_ATTRIBUTES;
-import static org.cloudfoundry.identity.uaa.oauth.token.ClaimConstants.USER_ID;
-import static org.cloudfoundry.identity.uaa.oauth.token.ClaimConstants.USER_NAME;
+import static org.cloudfoundry.identity.uaa.oauth.token.ClaimConstants.*;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class UserInfoResponse {
-    @JsonProperty(USER_ID)
-    public String userId;
+  @JsonProperty(USER_ID)
+  public String userId;
 
-    @JsonProperty(USER_NAME)
-    public String userName;
+  @JsonProperty(USER_NAME)
+  public String userName;
 
-    @JsonProperty(NAME)
-    public String name;
+  @JsonProperty(NAME)
+  public String name;
 
-    @JsonProperty(GIVEN_NAME)
-    public String givenName;
+  @JsonProperty(GIVEN_NAME)
+  public String givenName;
 
-    @JsonProperty(FAMILY_NAME)
-    public String familyName;
+  @JsonProperty(FAMILY_NAME)
+  public String familyName;
 
-    @JsonProperty(PHONE_NUMBER)
-    public String phoneNumber;
+  @JsonProperty(PHONE_NUMBER)
+  public String phoneNumber;
 
-    @JsonProperty(EMAIL)
-    public String email;
+  @JsonProperty(EMAIL)
+  public String email;
 
-    @JsonProperty(EMAIL_VERIFIED)
-    public boolean emailVerified;
+  @JsonProperty(EMAIL_VERIFIED)
+  public boolean emailVerified;
 
-    @JsonInclude(JsonInclude.Include.ALWAYS)
-    @JsonProperty(PREVIOUS_LOGON_TIME)
-    public Long previousLogonSuccess;
+  @JsonInclude(JsonInclude.Include.ALWAYS)
+  @JsonProperty(PREVIOUS_LOGON_TIME)
+  public Long previousLogonSuccess;
 
-    @JsonProperty(USER_ATTRIBUTES)
-    public Map<String, List<String>> userAttributes;
+  @JsonProperty(USER_ATTRIBUTES)
+  public Map<String, List<String>> userAttributes;
 
-    @JsonProperty(ROLES)
-    public List<String> roles;
+  @JsonProperty(ROLES)
+  public List<String> roles;
 
-    @JsonProperty(NAME)
-    public String getFullName() {
-        return (givenName != null ? givenName : "")
-            + (familyName != null ? " " + familyName : "");
-    }
+  @JsonProperty(NAME)
+  public String getFullName() {
+    return (givenName != null ? givenName : "") + (familyName != null ? " " + familyName : "");
+  }
 
-    @JsonProperty(SUB)
-    public String getSub() {
-        return userId;
-    }
+  @JsonProperty(SUB)
+  public String getSub() {
+    return userId;
+  }
 
-    public String getEmail() {
-        return email;
-    }
+  public String getEmail() {
+    return email;
+  }
 
-    public String getGivenName() {
-        return givenName;
-    }
+  public String getGivenName() {
+    return givenName;
+  }
 
-    public String getFamilyName() {
-        return familyName;
-    }
+  public String getFamilyName() {
+    return familyName;
+  }
 
-    public String getPhoneNumber() {
-        return phoneNumber;
-    }
+  public String getPhoneNumber() {
+    return phoneNumber;
+  }
 
-    public String getUserId() {
-        return userId;
-    }
+  public String getUserId() {
+    return userId;
+  }
 
-    public String getUserName() {
-        return userName;
-    }
+  public String getUserName() {
+    return userName;
+  }
 
-    public boolean isEmailVerified() {
-        return emailVerified;
-    }
+  public boolean isEmailVerified() {
+    return emailVerified;
+  }
 
-    public void setUserId(String userId) {
-        this.userId = userId;
-    }
+  public void setUserId(String userId) {
+    this.userId = userId;
+  }
 
-    public void setUserName(String userName) {
-        this.userName = userName;
-    }
+  public void setUserName(String userName) {
+    this.userName = userName;
+  }
 
-    public String getName() {
-        return name;
-    }
+  public String getName() {
+    return name;
+  }
 
-    public void setName(String name) {
-        this.name = name;
-    }
+  public void setName(String name) {
+    this.name = name;
+  }
 
-    public void setGivenName(String givenName) {
-        this.givenName = givenName;
-    }
+  public void setGivenName(String givenName) {
+    this.givenName = givenName;
+  }
 
-    public void setFamilyName(String familyName) {
-        this.familyName = familyName;
-    }
+  public void setFamilyName(String familyName) {
+    this.familyName = familyName;
+  }
 
-    public void setPhoneNumber(String phoneNumber) {
-        this.phoneNumber = phoneNumber;
-    }
+  public void setPhoneNumber(String phoneNumber) {
+    this.phoneNumber = phoneNumber;
+  }
 
-    public void setEmail(String email) {
-        this.email = email;
-    }
+  public void setEmail(String email) {
+    this.email = email;
+  }
 
-    public void setEmailVerified(boolean emailVerified) {
-        this.emailVerified = emailVerified;
-    }
+  public void setEmailVerified(boolean emailVerified) {
+    this.emailVerified = emailVerified;
+  }
 
-    public Long getPreviousLogonSuccess() {
-        return previousLogonSuccess;
-    }
+  public Long getPreviousLogonSuccess() {
+    return previousLogonSuccess;
+  }
 
-    public void setPreviousLogonSuccess(Long previousLogonSuccess) {
-        this.previousLogonSuccess = previousLogonSuccess;
-    }
+  public void setPreviousLogonSuccess(Long previousLogonSuccess) {
+    this.previousLogonSuccess = previousLogonSuccess;
+  }
 
-    public Map<String, List<String>> getUserAttributes() {
-        return userAttributes;
-    }
+  public Map<String, List<String>> getUserAttributes() {
+    return userAttributes;
+  }
 
-    public void setUserAttributes(Map<String, List<String>> userAttributes) {
-        this.userAttributes = userAttributes;
-    }
+  public void setUserAttributes(Map<String, List<String>> userAttributes) {
+    this.userAttributes = userAttributes;
+  }
 
-    public List<String> getRoles() {
-        return roles;
-    }
+  public List<String> getRoles() {
+    return roles;
+  }
 
-    public void setRoles(List<String> roles) {
-        this.roles = roles;
-    }
+  public void setRoles(List<String> roles) {
+    this.roles = roles;
+  }
 }

@@ -22,35 +22,36 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class GoogleMfaProviderConfig extends AbstractMfaProviderConfig {
 
-    private String providerDescription;
+  private String providerDescription;
 
-    public void validate() {}
+  public void validate() {}
 
-    public String getProviderDescription() {
-        return providerDescription;
-    }
+  public String getProviderDescription() {
+    return providerDescription;
+  }
 
-    public GoogleMfaProviderConfig setProviderDescription(String providerDescription) {
-        this.providerDescription = providerDescription;
-        return this;
-    }
+  public GoogleMfaProviderConfig setProviderDescription(String providerDescription) {
+    this.providerDescription = providerDescription;
+    return this;
+  }
 
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
 
-        GoogleMfaProviderConfig that = (GoogleMfaProviderConfig) o;
+    GoogleMfaProviderConfig that = (GoogleMfaProviderConfig) o;
 
-        if (providerDescription != null ? !providerDescription.equals(that.providerDescription) : that.providerDescription != null)
-            return false;
-        return super.equals(that);
-    }
+    if (providerDescription != null
+        ? !providerDescription.equals(that.providerDescription)
+        : that.providerDescription != null) return false;
+    return super.equals(that);
+  }
 
-    @Override
-    public int hashCode() {
-        int result = super.hashCode();
-        result += providerDescription != null ? providerDescription.hashCode() : 0;
-        return result;
-    }
+  @Override
+  public int hashCode() {
+    int result = super.hashCode();
+    result += providerDescription != null ? providerDescription.hashCode() : 0;
+    return result;
+  }
 }

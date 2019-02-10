@@ -19,43 +19,50 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 @JsonInclude(JsonInclude.Include.NON_EMPTY)
-@JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY, getterVisibility = JsonAutoDetect.Visibility.NONE, setterVisibility = JsonAutoDetect.Visibility.NONE)
+@JsonAutoDetect(
+    fieldVisibility = JsonAutoDetect.Visibility.ANY,
+    getterVisibility = JsonAutoDetect.Visibility.NONE,
+    setterVisibility = JsonAutoDetect.Visibility.NONE)
 public class LostPasswordChangeResponse {
 
-    @JsonProperty("code") private String loginCode;
-    @JsonProperty("user_id") private String userId;
-    private String username;
-    private String email;
+  @JsonProperty("code")
+  private String loginCode;
 
-    public void setLoginCode(String loginCode) {
-        this.loginCode = loginCode;
-    }
+  @JsonProperty("user_id")
+  private String userId;
 
-    public String getLoginCode() {
-        return loginCode;
-    }
+  private String username;
+  private String email;
 
-    public void setUserId(String userId) {
-        this.userId = userId;
-    }
+  public void setLoginCode(String loginCode) {
+    this.loginCode = loginCode;
+  }
 
-    public String getUserId() {
-        return userId;
-    }
+  public String getLoginCode() {
+    return loginCode;
+  }
 
-    public void setUsername(String username) {
-        this.username = username;
-    }
+  public void setUserId(String userId) {
+    this.userId = userId;
+  }
 
-    public String getUsername() {
-        return username;
-    }
+  public String getUserId() {
+    return userId;
+  }
 
-    public void setEmail(String email) {
-        this.email = email;
-    }
+  public void setUsername(String username) {
+    this.username = username;
+  }
 
-    public String getEmail() {
-        return email;
-    }
+  public String getUsername() {
+    return username;
+  }
+
+  public void setEmail(String email) {
+    this.email = email;
+  }
+
+  public String getEmail() {
+    return email;
+  }
 }

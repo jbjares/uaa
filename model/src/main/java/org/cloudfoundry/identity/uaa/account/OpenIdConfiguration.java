@@ -18,186 +18,228 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class OpenIdConfiguration {
 
-    @JsonProperty("issuer")
-    private String issuer;
-    @JsonProperty("authorization_endpoint")
-    private String authUrl;
-    @JsonProperty("token_endpoint")
-    private String tokenUrl;
-    @JsonProperty("token_endpoint_auth_methods_supported")
-    private String[] tokenAMR = new String[]{"client_secret_basic", "client_secret_post"};
-    @JsonProperty("token_endpoint_auth_signing_alg_values_supported")
-    private String[] tokenEndpointAuthSigningValues = new String[]{"RS256", "HS256"};
-    @JsonProperty("userinfo_endpoint")
-    private String userInfoUrl;
-    @JsonProperty("jwks_uri")
-    private String jwksUri;
-    @JsonProperty("scopes_supported")
-    private String[] scopes = new String[]{"openid", "profile", "email", "phone", "roles", "user_attributes"};
-    @JsonProperty("response_types_supported")
-    private String[] responseTypes = new String[]{"code", "code id_token", "id_token", "token id_token"};
-    @JsonProperty("subject_types_supported")
-    private String[] subjectTypesSupported = new String[]{"public"};
-    @JsonProperty("id_token_signing_alg_values_supported")
-    private String[] idTokenSigningAlgValues = new String[]{"RS256", "HS256"};
-    @JsonProperty("id_token_encryption_alg_values_supported")
-    private String[] requestObjectSigningAlgValues = new String[]{"none"};
-    @JsonProperty("claim_types_supported")
-    private String[] claimTypesSupported = new String[]{"normal"};
-    @JsonProperty("claims_supported")
-    private String[] claimsSupported = new String[]{"sub", "user_name", "origin", "iss", "auth_time", "amr", "acr", "client_id",
-        "aud", "zid", "grant_type", "user_id", "azp", "scope", "exp", "iat", "jti", "rev_sig", "cid", "given_name", "family_name", "phone_number", "email"};
-    @JsonProperty("claims_parameter_supported")
-    private boolean claimsParameterSupported = false;
-    @JsonProperty("service_documentation")
-    private String serviceDocumentation = "http://docs.cloudfoundry.org/api/uaa/";
-    @JsonProperty("ui_locales_supported")
-    private String[] uiLocalesSupported = new String[]{"en-US"};
+  @JsonProperty("issuer")
+  private String issuer;
 
-    //For json serialization
-    public OpenIdConfiguration() {}
+  @JsonProperty("authorization_endpoint")
+  private String authUrl;
 
-    public OpenIdConfiguration(String contextPath, String issuer) {
-        this.issuer = issuer;
-        this.authUrl = contextPath + "/oauth/authorize";
-        this.tokenUrl = contextPath + "/oauth/token";
-        this.userInfoUrl = contextPath + "/userinfo";
-        this.jwksUri = contextPath + "/token_keys";
-    }
+  @JsonProperty("token_endpoint")
+  private String tokenUrl;
 
-    public String getIssuer() {
-        return issuer;
-    }
+  @JsonProperty("token_endpoint_auth_methods_supported")
+  private String[] tokenAMR = new String[] {"client_secret_basic", "client_secret_post"};
 
-    public void setIssuer(String issuer) {
-        this.issuer = issuer;
-    }
+  @JsonProperty("token_endpoint_auth_signing_alg_values_supported")
+  private String[] tokenEndpointAuthSigningValues = new String[] {"RS256", "HS256"};
 
-    public String getAuthUrl() {
-        return authUrl;
-    }
+  @JsonProperty("userinfo_endpoint")
+  private String userInfoUrl;
 
-    public void setAuthUrl(String authUrl) {
-        this.authUrl = authUrl;
-    }
+  @JsonProperty("jwks_uri")
+  private String jwksUri;
 
-    public String getTokenUrl() {
-        return tokenUrl;
-    }
+  @JsonProperty("scopes_supported")
+  private String[] scopes =
+      new String[] {"openid", "profile", "email", "phone", "roles", "user_attributes"};
 
-    public void setTokenUrl(String tokenUrl) {
-        this.tokenUrl = tokenUrl;
-    }
+  @JsonProperty("response_types_supported")
+  private String[] responseTypes =
+      new String[] {"code", "code id_token", "id_token", "token id_token"};
 
-    public String[] getTokenAMR() {
-        return tokenAMR;
-    }
+  @JsonProperty("subject_types_supported")
+  private String[] subjectTypesSupported = new String[] {"public"};
 
-    public void setTokenAMR(String[] tokenAMR) {
-        this.tokenAMR = tokenAMR;
-    }
+  @JsonProperty("id_token_signing_alg_values_supported")
+  private String[] idTokenSigningAlgValues = new String[] {"RS256", "HS256"};
 
-    public String[] getTokenEndpointAuthSigningValues() {
-        return tokenEndpointAuthSigningValues;
-    }
+  @JsonProperty("id_token_encryption_alg_values_supported")
+  private String[] requestObjectSigningAlgValues = new String[] {"none"};
 
-    public void setTokenEndpointAuthSigningValues(String[] tokenEndpointAuthSigningValues) {
-        this.tokenEndpointAuthSigningValues = tokenEndpointAuthSigningValues;
-    }
+  @JsonProperty("claim_types_supported")
+  private String[] claimTypesSupported = new String[] {"normal"};
 
-    public String getUserInfoUrl() {
-        return userInfoUrl;
-    }
+  @JsonProperty("claims_supported")
+  private String[] claimsSupported =
+      new String[] {
+        "sub",
+        "user_name",
+        "origin",
+        "iss",
+        "auth_time",
+        "amr",
+        "acr",
+        "client_id",
+        "aud",
+        "zid",
+        "grant_type",
+        "user_id",
+        "azp",
+        "scope",
+        "exp",
+        "iat",
+        "jti",
+        "rev_sig",
+        "cid",
+        "given_name",
+        "family_name",
+        "phone_number",
+        "email"
+      };
 
-    public void setUserInfoUrl(String userInfoUrl) {
-        this.userInfoUrl = userInfoUrl;
-    }
+  @JsonProperty("claims_parameter_supported")
+  private boolean claimsParameterSupported = false;
 
-    public String getJwksUri() {
-        return jwksUri;
-    }
+  @JsonProperty("service_documentation")
+  private String serviceDocumentation = "http://docs.cloudfoundry.org/api/uaa/";
 
-    public void setJwksUri(String jwksUri) {
-        this.jwksUri = jwksUri;
-    }
+  @JsonProperty("ui_locales_supported")
+  private String[] uiLocalesSupported = new String[] {"en-US"};
 
-    public String[] getScopes() {
-        return scopes;
-    }
+  // For json serialization
+  public OpenIdConfiguration() {}
 
-    public void setScopes(String[] scopes) {
-        this.scopes = scopes;
-    }
+  public OpenIdConfiguration(String contextPath, String issuer) {
+    this.issuer = issuer;
+    this.authUrl = contextPath + "/oauth/authorize";
+    this.tokenUrl = contextPath + "/oauth/token";
+    this.userInfoUrl = contextPath + "/userinfo";
+    this.jwksUri = contextPath + "/token_keys";
+  }
 
-    public String[] getResponseTypes() {
-        return responseTypes;
-    }
+  public String getIssuer() {
+    return issuer;
+  }
 
-    public void setResponseTypes(String[] responseTypes) {
-        this.responseTypes = responseTypes;
-    }
+  public void setIssuer(String issuer) {
+    this.issuer = issuer;
+  }
 
-    public String[] getSubjectTypesSupported() {
-        return subjectTypesSupported;
-    }
+  public String getAuthUrl() {
+    return authUrl;
+  }
 
-    public void setSubjectTypesSupported(String[] subjectTypesSupported) {
-        this.subjectTypesSupported = subjectTypesSupported;
-    }
+  public void setAuthUrl(String authUrl) {
+    this.authUrl = authUrl;
+  }
 
-    public String[] getIdTokenSigningAlgValues() {
-        return idTokenSigningAlgValues;
-    }
+  public String getTokenUrl() {
+    return tokenUrl;
+  }
 
-    public void setIdTokenSigningAlgValues(String[] idTokenSigningAlgValues) {
-        this.idTokenSigningAlgValues = idTokenSigningAlgValues;
-    }
+  public void setTokenUrl(String tokenUrl) {
+    this.tokenUrl = tokenUrl;
+  }
 
-    public String[] getRequestObjectSigningAlgValues() {
-        return requestObjectSigningAlgValues;
-    }
+  public String[] getTokenAMR() {
+    return tokenAMR;
+  }
 
-    public void setRequestObjectSigningAlgValues(String[] requestObjectSigningAlgValues) {
-        this.requestObjectSigningAlgValues = requestObjectSigningAlgValues;
-    }
+  public void setTokenAMR(String[] tokenAMR) {
+    this.tokenAMR = tokenAMR;
+  }
 
-    public String[] getClaimTypesSupported() {
-        return claimTypesSupported;
-    }
+  public String[] getTokenEndpointAuthSigningValues() {
+    return tokenEndpointAuthSigningValues;
+  }
 
-    public void setClaimTypesSupported(String[] claimTypesSupported) {
-        this.claimTypesSupported = claimTypesSupported;
-    }
+  public void setTokenEndpointAuthSigningValues(String[] tokenEndpointAuthSigningValues) {
+    this.tokenEndpointAuthSigningValues = tokenEndpointAuthSigningValues;
+  }
 
-    public String[] getClaimsSupported() {
-        return claimsSupported;
-    }
+  public String getUserInfoUrl() {
+    return userInfoUrl;
+  }
 
-    public void setClaimsSupported(String[] claimsSupported) {
-        this.claimsSupported = claimsSupported;
-    }
+  public void setUserInfoUrl(String userInfoUrl) {
+    this.userInfoUrl = userInfoUrl;
+  }
 
-    public boolean isClaimsParameterSupported() {
-        return claimsParameterSupported;
-    }
+  public String getJwksUri() {
+    return jwksUri;
+  }
 
-    public void setClaimsParameterSupported(boolean claimsParameterSupported) {
-        this.claimsParameterSupported = claimsParameterSupported;
-    }
+  public void setJwksUri(String jwksUri) {
+    this.jwksUri = jwksUri;
+  }
 
-    public String getServiceDocumentation() {
-        return serviceDocumentation;
-    }
+  public String[] getScopes() {
+    return scopes;
+  }
 
-    public void setServiceDocumentation(String serviceDocumentation) {
-        this.serviceDocumentation = serviceDocumentation;
-    }
+  public void setScopes(String[] scopes) {
+    this.scopes = scopes;
+  }
 
-    public String[] getUiLocalesSupported() {
-        return uiLocalesSupported;
-    }
+  public String[] getResponseTypes() {
+    return responseTypes;
+  }
 
-    public void setUiLocalesSupported(String[] uiLocalesSupported) {
-        this.uiLocalesSupported = uiLocalesSupported;
-    }
+  public void setResponseTypes(String[] responseTypes) {
+    this.responseTypes = responseTypes;
+  }
+
+  public String[] getSubjectTypesSupported() {
+    return subjectTypesSupported;
+  }
+
+  public void setSubjectTypesSupported(String[] subjectTypesSupported) {
+    this.subjectTypesSupported = subjectTypesSupported;
+  }
+
+  public String[] getIdTokenSigningAlgValues() {
+    return idTokenSigningAlgValues;
+  }
+
+  public void setIdTokenSigningAlgValues(String[] idTokenSigningAlgValues) {
+    this.idTokenSigningAlgValues = idTokenSigningAlgValues;
+  }
+
+  public String[] getRequestObjectSigningAlgValues() {
+    return requestObjectSigningAlgValues;
+  }
+
+  public void setRequestObjectSigningAlgValues(String[] requestObjectSigningAlgValues) {
+    this.requestObjectSigningAlgValues = requestObjectSigningAlgValues;
+  }
+
+  public String[] getClaimTypesSupported() {
+    return claimTypesSupported;
+  }
+
+  public void setClaimTypesSupported(String[] claimTypesSupported) {
+    this.claimTypesSupported = claimTypesSupported;
+  }
+
+  public String[] getClaimsSupported() {
+    return claimsSupported;
+  }
+
+  public void setClaimsSupported(String[] claimsSupported) {
+    this.claimsSupported = claimsSupported;
+  }
+
+  public boolean isClaimsParameterSupported() {
+    return claimsParameterSupported;
+  }
+
+  public void setClaimsParameterSupported(boolean claimsParameterSupported) {
+    this.claimsParameterSupported = claimsParameterSupported;
+  }
+
+  public String getServiceDocumentation() {
+    return serviceDocumentation;
+  }
+
+  public void setServiceDocumentation(String serviceDocumentation) {
+    this.serviceDocumentation = serviceDocumentation;
+  }
+
+  public String[] getUiLocalesSupported() {
+    return uiLocalesSupported;
+  }
+
+  public void setUiLocalesSupported(String[] uiLocalesSupported) {
+    this.uiLocalesSupported = uiLocalesSupported;
+  }
 }

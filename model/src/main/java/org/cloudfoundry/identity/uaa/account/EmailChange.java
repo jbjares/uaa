@@ -17,36 +17,36 @@ package org.cloudfoundry.identity.uaa.account;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class EmailChange {
-    @JsonProperty("userId")
-    private String userId;
+  @JsonProperty("userId")
+  private String userId;
 
-    @JsonProperty("email")
-    private String email;
+  @JsonProperty("email")
+  private String email;
 
-    @JsonProperty("client_id")
-    private String clientId;
+  @JsonProperty("client_id")
+  private String clientId;
 
-    public String getUserId() {
-        return userId;
-    }
+  public String getUserId() {
+    return userId;
+  }
 
-    public void setUserId(String userId) {
-        this.userId = userId;
-    }
+  public void setUserId(String userId) {
+    this.userId = userId;
+  }
 
-    public String getEmail() {
-        return email;
-    }
+  public String getEmail() {
+    return email;
+  }
 
-    public void setEmail(String email) {
-        this.email = email;
-    }
+  public void setEmail(String email) {
+    this.email = email;
+  }
 
-    public String getClientId() {
-        return clientId;
-    }
+  public String getClientId() {
+    return clientId;
+  }
 
-    public void setClientId(String clientId) {
-        this.clientId = clientId;
-    }
+  public void setClientId(String clientId) {
+    this.clientId = clientId;
+  }
 }

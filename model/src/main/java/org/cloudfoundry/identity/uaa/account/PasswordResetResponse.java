@@ -19,25 +19,31 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 @JsonInclude(JsonInclude.Include.NON_EMPTY)
-@JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY, getterVisibility = JsonAutoDetect.Visibility.NONE, setterVisibility = JsonAutoDetect.Visibility.NONE)
+@JsonAutoDetect(
+    fieldVisibility = JsonAutoDetect.Visibility.ANY,
+    getterVisibility = JsonAutoDetect.Visibility.NONE,
+    setterVisibility = JsonAutoDetect.Visibility.NONE)
 public class PasswordResetResponse {
 
-    @JsonProperty("code") private String changeCode;
-    @JsonProperty("user_id") private String userId;
+  @JsonProperty("code")
+  private String changeCode;
 
-    public void setChangeCode(String changeCode) {
-        this.changeCode = changeCode;
-    }
+  @JsonProperty("user_id")
+  private String userId;
 
-    public String getChangeCode() {
-        return changeCode;
-    }
+  public void setChangeCode(String changeCode) {
+    this.changeCode = changeCode;
+  }
 
-    public void setUserId(String userId) {
-        this.userId = userId;
-    }
+  public String getChangeCode() {
+    return changeCode;
+  }
 
-    public String getUserId() {
-        return userId;
-    }
+  public void setUserId(String userId) {
+    this.userId = userId;
+  }
+
+  public String getUserId() {
+    return userId;
+  }
 }
