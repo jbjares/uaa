@@ -46,28 +46,33 @@ class ClientMetadataAdminEndpointDocs extends AdminClientCreator {
   private String adminClientTokenWithClientsWrite;
   private String adminUserToken;
   private UaaTestAccounts testAccounts;
-  private static final String RESOURCE_OWNER_GUID = "The user guid of the resource owner who created this client";
+  private static final String RESOURCE_OWNER_GUID =
+      "The user guid of the resource owner who created this client";
   private static final String CLIENT_ID_DESC = "Client identifier, unique within identity zone";
   private static final String CLIENT_NAME_DESC = "Human readable display name for the client";
   private static final String SHOW_ON_HOME_PAGE_DESC = "Flag to control visibility on home page";
   private static final String APP_LAUNCH_URL_DESC = "URL to which the app is linked to";
   private static final String APP_ICON_DESC = "Base64 encoded image file";
-  private Snippet responseFields = responseFields(
-    fieldWithPath("clientId").description(CLIENT_ID_DESC),
-    fieldWithPath("showOnHomePage").description(SHOW_ON_HOME_PAGE_DESC),
-    fieldWithPath("appLaunchUrl").description(APP_LAUNCH_URL_DESC),
-    fieldWithPath("appIcon").description(APP_ICON_DESC),
-    fieldWithPath("createdBy").description(RESOURCE_OWNER_GUID).type(JsonFieldType.STRING).optional()
-  );
+  private Snippet responseFields =
+      responseFields(
+          fieldWithPath("clientId").description(CLIENT_ID_DESC),
+          fieldWithPath("showOnHomePage").description(SHOW_ON_HOME_PAGE_DESC),
+          fieldWithPath("appLaunchUrl").description(APP_LAUNCH_URL_DESC),
+          fieldWithPath("appIcon").description(APP_ICON_DESC),
+          fieldWithPath("createdBy")
+              .description(RESOURCE_OWNER_GUID)
+              .type(JsonFieldType.STRING)
+              .optional());
 
   @BeforeEach
   void setUp() throws Exception {
     testAccounts = UaaTestAccounts.standard(null);
     clients = webApplicationContext.getBean(MultitenantJdbcClientDetailsService.class);
-    adminClientTokenWithClientsWrite = testClient.getClientCredentialsOAuthAccessToken(
-      testAccounts.getAdminClientId(),
-      testAccounts.getAdminClientSecret(),
-      "clients.write,uaa.admin");
+    adminClientTokenWithClientsWrite =
+        testClient.getClientCredentialsOAuthAccessToken(
+            testAccounts.getAdminClientId(),
+            testAccounts.getAdminClientSecret(),
+            "clients.write,uaa.admin");
 
     ClientDetails adminClient = createAdminClient(adminClientTokenWithClientsWrite);
 
@@ -76,22 +81,27 @@ class ClientMetadataAdminEndpointDocs extends AdminClientCreator {
     ScimUserEndpoints scimUserEndpoints = webApplicationContext.getBean(ScimUserEndpoints.class);
     ScimGroupEndpoints scimGroupEndpoints = webApplicationContext.getBean(ScimGroupEndpoints.class);
 
-    SearchResults<Map<String, Object>> marissa = (SearchResults<Map<String, Object>>)scimUserEndpoints.findUsers("id,userName", "userName eq \"marissa\"", "userName", "asc", 0, 1);
-    String marissaId = (String)marissa.getResources().iterator().next().get("id");
+    SearchResults<Map<String, Object>> marissa =
+        (SearchResults<Map<String, Object>>)
+            scimUserEndpoints.findUsers(
+                "id,userName", "userName eq \"marissa\"", "userName", "asc", 0, 1);
+    String marissaId = (String) marissa.getResources().iterator().next().get("id");
 
-    //add marissa to uaa.admin
-    SearchResults<Map<String, Object>> uaaAdmin = (SearchResults<Map<String, Object>>) scimGroupEndpoints.listGroups("id,displayName", "displayName eq \"uaa.admin\"", "displayName", "asc", 1, 1);
-    String groupId = (String)uaaAdmin.getResources().iterator().next().get("id");
+    // add marissa to uaa.admin
+    SearchResults<Map<String, Object>> uaaAdmin =
+        (SearchResults<Map<String, Object>>)
+            scimGroupEndpoints.listGroups(
+                "id,displayName", "displayName eq \"uaa.admin\"", "displayName", "asc", 1, 1);
+    String groupId = (String) uaaAdmin.getResources().iterator().next().get("id");
     ScimGroup group = scimGroupEndpoints.getGroup(groupId, mockResponse);
     ScimGroupMember gm = new ScimGroupMember(marissaId, ScimGroupMember.Type.USER);
     group.getMembers().add(gm);
-    scimGroupEndpoints.updateGroup(group, groupId, String.valueOf(group.getVersion()), mockResponse);
+    scimGroupEndpoints.updateGroup(
+        group, groupId, String.valueOf(group.getVersion()), mockResponse);
 
-   adminUserToken = testClient.getUserOAuthAccessToken(adminClient.getClientId(),
-        "secret",
-        "marissa",
-        "koala",
-        "uaa.admin");
+    adminUserToken =
+        testClient.getUserOAuthAccessToken(
+            adminClient.getClientId(), "secret", "marissa", "koala", "uaa.admin");
   }
 
   @Test
@@ -101,25 +111,27 @@ class ClientMetadataAdminEndpointDocs extends AdminClientCreator {
     updateClientMetadata(clientId);
     String marissaToken = getUserAccessToken(clientId);
 
-    MockHttpServletRequestBuilder get = get("/oauth/clients/{clientId}/meta", clientId)
-      .header("Authorization", "Bearer " + marissaToken)
-      .accept(APPLICATION_JSON);
+    MockHttpServletRequestBuilder get =
+        get("/oauth/clients/{clientId}/meta", clientId)
+            .header("Authorization", "Bearer " + marissaToken)
+            .accept(APPLICATION_JSON);
 
-    Snippet pathParameters = pathParameters(
-      parameterWithName("clientId").description(CLIENT_ID_DESC)
-    );
+    Snippet pathParameters =
+        pathParameters(parameterWithName("clientId").description(CLIENT_ID_DESC));
 
-    Snippet requestHeaders = requestHeaders(
-      headerWithName("Authorization").description("Bearer token")
-    );
+    Snippet requestHeaders =
+        requestHeaders(headerWithName("Authorization").description("Bearer token"));
 
-    mockMvc.perform(get).andExpect(status().isOk())
-    .andDo(document("{ClassName}/{methodName}",
-      preprocessResponse(prettyPrint()),
-      pathParameters,
-      requestHeaders,
-      responseFields
-    ));
+    mockMvc
+        .perform(get)
+        .andExpect(status().isOk())
+        .andDo(
+            document(
+                "{ClassName}/{methodName}",
+                preprocessResponse(prettyPrint()),
+                pathParameters,
+                requestHeaders,
+                responseFields));
   }
 
   @Test
@@ -151,27 +163,30 @@ class ClientMetadataAdminEndpointDocs extends AdminClientCreator {
     client4Metadata.setAppIcon("aWNvbiBmb3IgY2xpZW50IDQ=");
     performUpdate(client4Metadata);
 
-    Snippet requestHeaders = requestHeaders(
-      headerWithName("Authorization").description("Bearer token")
-    );
+    Snippet requestHeaders =
+        requestHeaders(headerWithName("Authorization").description("Bearer token"));
 
-    Snippet responseFields = responseFields(
-      fieldWithPath("[].clientId").description(CLIENT_ID_DESC),
-      fieldWithPath("[].clientName").description(CLIENT_NAME_DESC),
-      fieldWithPath("[].showOnHomePage").description(SHOW_ON_HOME_PAGE_DESC),
-      fieldWithPath("[].appLaunchUrl").description(APP_LAUNCH_URL_DESC),
-      fieldWithPath("[].appIcon").description(APP_ICON_DESC),
-      fieldWithPath("[].createdBy").description(RESOURCE_OWNER_GUID)
-    );
+    Snippet responseFields =
+        responseFields(
+            fieldWithPath("[].clientId").description(CLIENT_ID_DESC),
+            fieldWithPath("[].clientName").description(CLIENT_NAME_DESC),
+            fieldWithPath("[].showOnHomePage").description(SHOW_ON_HOME_PAGE_DESC),
+            fieldWithPath("[].appLaunchUrl").description(APP_LAUNCH_URL_DESC),
+            fieldWithPath("[].appIcon").description(APP_ICON_DESC),
+            fieldWithPath("[].createdBy").description(RESOURCE_OWNER_GUID));
 
-    mockMvc.perform(get("/oauth/clients/meta")
-      .header("Authorization", "Bearer " + marissaToken)
-      .accept(APPLICATION_JSON)).andExpect(status().isOk())
-      .andDo(document("{ClassName}/{methodName}",
-        preprocessResponse(prettyPrint()),
-        requestHeaders,
-        responseFields
-    ));
+    mockMvc
+        .perform(
+            get("/oauth/clients/meta")
+                .header("Authorization", "Bearer " + marissaToken)
+                .accept(APPLICATION_JSON))
+        .andExpect(status().isOk())
+        .andDo(
+            document(
+                "{ClassName}/{methodName}",
+                preprocessResponse(prettyPrint()),
+                requestHeaders,
+                responseFields));
   }
 
   @Test
@@ -186,51 +201,62 @@ class ClientMetadataAdminEndpointDocs extends AdminClientCreator {
 
     ResultActions perform = performUpdate(updatedClientMetadata);
 
-    Snippet requestHeaders = requestHeaders(
-      headerWithName("Authorization").description("Bearer token containing `clients.read`, `clients.admin` or `zones.{zone.id}.admin`"),
-      headerWithName("X-Identity-Zone-Id").description("May include this header to administer another zone if using `zones.<zone.id>.admin` or `uaa.admin` scope against the default UAA zone.").optional()
-    );
+    Snippet requestHeaders =
+        requestHeaders(
+            headerWithName("Authorization")
+                .description(
+                    "Bearer token containing `clients.read`, `clients.admin` or `zones.{zone.id}.admin`"),
+            headerWithName("X-Identity-Zone-Id")
+                .description(
+                    "May include this header to administer another zone if using `zones.<zone.id>.admin` or `uaa.admin` scope against the default UAA zone.")
+                .optional());
 
-    perform.andExpect(status().isOk())
-      .andDo(document("{ClassName}/{methodName}",
-        preprocessResponse(prettyPrint()),
-        requestHeaders,
-        responseFields
-    ));
-
+    perform
+        .andExpect(status().isOk())
+        .andDo(
+            document(
+                "{ClassName}/{methodName}",
+                preprocessResponse(prettyPrint()),
+                requestHeaders,
+                responseFields));
   }
 
   private String getUserAccessToken(String clientId) throws Exception {
-    return testClient.getUserOAuthAccessToken(clientId, "secret", "marissa", "koala", "oauth.approvals");
+    return testClient.getUserOAuthAccessToken(
+        clientId, "secret", "marissa", "koala", "oauth.approvals");
   }
 
-    private void updateClientMetadata(String clientId) throws Exception {
-        ClientMetadata clientMetaData = new ClientMetadata();
-        clientMetaData.setClientId(clientId);
-        clientMetaData.setAppIcon("aWNvbiBmb3IgY2xpZW50IDQ=");
-        clientMetaData.setAppLaunchUrl(new URL("http://myloginpage.com"));
-        clientMetaData.setShowOnHomePage(true);
-        performUpdate(clientMetaData);
-    }
+  private void updateClientMetadata(String clientId) throws Exception {
+    ClientMetadata clientMetaData = new ClientMetadata();
+    clientMetaData.setClientId(clientId);
+    clientMetaData.setAppIcon("aWNvbiBmb3IgY2xpZW50IDQ=");
+    clientMetaData.setAppLaunchUrl(new URL("http://myloginpage.com"));
+    clientMetaData.setShowOnHomePage(true);
+    performUpdate(clientMetaData);
+  }
 
-    private void createClient(String clientId) throws Exception {
-        BaseClientDetails newClient = new BaseClientDetails(clientId, "oauth", "oauth.approvals", "password", "oauth.login","http://redirect.url");
-        newClient.setClientSecret("secret");
-        MockHttpServletRequestBuilder createClient = post("/oauth/clients")
+  private void createClient(String clientId) throws Exception {
+    BaseClientDetails newClient =
+        new BaseClientDetails(
+            clientId, "oauth", "oauth.approvals", "password", "oauth.login", "http://redirect.url");
+    newClient.setClientSecret("secret");
+    MockHttpServletRequestBuilder createClient =
+        post("/oauth/clients")
             .header("Authorization", "Bearer " + adminUserToken)
             .accept(APPLICATION_JSON)
             .contentType(APPLICATION_JSON)
             .content(JsonUtils.writeValueAsString(newClient));
-        mockMvc.perform(createClient);
-    }
+    mockMvc.perform(createClient);
+  }
 
-    private ResultActions performUpdate(ClientMetadata updatedClientMetadata) throws Exception {
-    MockHttpServletRequestBuilder updateClientPut = put("/oauth/clients/" + updatedClientMetadata.getClientId() + "/meta")
-      .header("Authorization", "Bearer " + adminClientTokenWithClientsWrite)
-      .header("If-Match", "0")
-      .accept(APPLICATION_JSON)
-      .contentType(APPLICATION_JSON)
-      .content(JsonUtils.writeValueAsString(updatedClientMetadata));
+  private ResultActions performUpdate(ClientMetadata updatedClientMetadata) throws Exception {
+    MockHttpServletRequestBuilder updateClientPut =
+        put("/oauth/clients/" + updatedClientMetadata.getClientId() + "/meta")
+            .header("Authorization", "Bearer " + adminClientTokenWithClientsWrite)
+            .header("If-Match", "0")
+            .accept(APPLICATION_JSON)
+            .contentType(APPLICATION_JSON)
+            .content(JsonUtils.writeValueAsString(updatedClientMetadata));
     return mockMvc.perform(updateClientPut);
   }
 }

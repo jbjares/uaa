@@ -1,15 +1,15 @@
-/*******************************************************************************
- *     Cloud Foundry
- *     Copyright (c) [2009-2016] Pivotal Software, Inc. All Rights Reserved.
+/**
+ * ***************************************************************************** Cloud Foundry
+ * Copyright (c) [2009-2016] Pivotal Software, Inc. All Rights Reserved.
  *
- *     This product is licensed to you under the Apache License, Version 2.0 (the "License").
- *     You may not use this product except in compliance with the License.
+ * <p>This product is licensed to you under the Apache License, Version 2.0 (the "License"). You may
+ * not use this product except in compliance with the License.
  *
- *     This product includes a number of subcomponents with
- *     separate copyright notices and license terms. Your use of these
- *     subcomponents is subject to the terms and conditions of the
- *     subcomponent's license, as noted in the LICENSE file.
- *******************************************************************************/
+ * <p>This product includes a number of subcomponents with separate copyright notices and license
+ * terms. Your use of these subcomponents is subject to the terms and conditions of the
+ * subcomponent's license, as noted in the LICENSE file.
+ * *****************************************************************************
+ */
 package org.cloudfoundry.identity.uaa.mock.oauth;
 
 import org.cloudfoundry.identity.uaa.SpringServletAndHoneycombTestConfig;
@@ -17,7 +17,6 @@ import org.cloudfoundry.identity.uaa.test.HoneycombAuditEventTestListenerExtensi
 import org.cloudfoundry.identity.uaa.test.HoneycombJdbcInterceptorExtension;
 import org.cloudfoundry.identity.uaa.zone.ClientServicesExtension;
 import org.junit.Assert;
-
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -29,6 +28,7 @@ import org.springframework.test.context.web.WebAppConfiguration;
 import org.springframework.web.context.WebApplicationContext;
 
 import java.util.Set;
+
 @ExtendWith(SpringExtension.class)
 @ExtendWith(HoneycombJdbcInterceptorExtension.class)
 @ExtendWith(HoneycombAuditEventTestListenerExtension.class)
@@ -36,12 +36,12 @@ import java.util.Set;
 @WebAppConfiguration
 @ContextConfiguration(classes = SpringServletAndHoneycombTestConfig.class)
 public class CheckDefaultAuthoritiesMvcMockTests {
-    @Autowired
-    public WebApplicationContext webApplicationContext;
+  @Autowired public WebApplicationContext webApplicationContext;
 
-    ClientServicesExtension clientRegistrationService;
-    private Set<String> defaultAuthorities;
-    public static final String[] EXPECTED_DEFAULT_GROUPS = new String[]{
+  ClientServicesExtension clientRegistrationService;
+  private Set<String> defaultAuthorities;
+  public static final String[] EXPECTED_DEFAULT_GROUPS =
+      new String[] {
         "openid",
         "scim.me",
         "cloud_controller.read",
@@ -56,20 +56,20 @@ public class CheckDefaultAuthoritiesMvcMockTests {
         "roles",
         "user_attributes",
         "uaa.offline_token"
-    };
+      };
 
-    @BeforeEach
-    public void setUp() throws Exception {
-        clientRegistrationService = webApplicationContext.getBean(ClientServicesExtension.class);
+  @BeforeEach
+  public void setUp() throws Exception {
+    clientRegistrationService = webApplicationContext.getBean(ClientServicesExtension.class);
 
-        defaultAuthorities = (Set<String>) webApplicationContext.getBean("defaultUserAuthorities");
+    defaultAuthorities = (Set<String>) webApplicationContext.getBean("defaultUserAuthorities");
+  }
+
+  @Test
+  public void testDefaultAuthorities() throws Exception {
+    Assert.assertEquals(14, defaultAuthorities.size());
+    for (String s : EXPECTED_DEFAULT_GROUPS) {
+      Assert.assertTrue("Expecting authority to be present:" + s, defaultAuthorities.contains(s));
     }
-
-    @Test
-    public void testDefaultAuthorities() throws Exception {
-        Assert.assertEquals(14, defaultAuthorities.size());
-        for (String s : EXPECTED_DEFAULT_GROUPS) {
-            Assert.assertTrue("Expecting authority to be present:"+s,defaultAuthorities.contains(s));
-        }
-    }
+  }
 }

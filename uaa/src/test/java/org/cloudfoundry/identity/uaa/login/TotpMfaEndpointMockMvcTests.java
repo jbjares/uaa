@@ -53,439 +53,477 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @DefaultTestContext
 class TotpMfaEndpointMockMvcTests {
 
-    private String adminToken;
-    @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
-    @Autowired
-    private JdbcUserGoogleMfaCredentialsProvisioning jdbcUserGoogleMfaCredentialsProvisioning;
-    private IdentityZoneConfiguration uaaZoneConfig;
-    private MfaProvider mfaProvider;
-    private MfaProvider otherMfaProvider;
-    private String password;
-    @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
-    @Autowired
-    private UserGoogleMfaCredentialsProvisioning userGoogleMfaCredentialsProvisioning;
-    private ScimUser scimUser;
-    private MockHttpSession mockHttpSession;
-    private ApplicationListener<AbstractUaaEvent> applicationListener;
+  private String adminToken;
 
-    @Autowired
-    private MockMvc mockMvc;
+  @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
+  @Autowired
+  private JdbcUserGoogleMfaCredentialsProvisioning jdbcUserGoogleMfaCredentialsProvisioning;
 
-    @Autowired
-    private WebApplicationContext webApplicationContext;
+  private IdentityZoneConfiguration uaaZoneConfig;
+  private MfaProvider mfaProvider;
+  private MfaProvider otherMfaProvider;
+  private String password;
 
-    @BeforeAll
-    static void key() {
-        Security.setProperty("crypto.policy", "unlimited");
+  @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
+  @Autowired
+  private UserGoogleMfaCredentialsProvisioning userGoogleMfaCredentialsProvisioning;
+
+  private ScimUser scimUser;
+  private MockHttpSession mockHttpSession;
+  private ApplicationListener<AbstractUaaEvent> applicationListener;
+
+  @Autowired private MockMvc mockMvc;
+
+  @Autowired private WebApplicationContext webApplicationContext;
+
+  @BeforeAll
+  static void key() {
+    Security.setProperty("crypto.policy", "unlimited");
+  }
+
+  @BeforeEach
+  void setup(
+      @Autowired TestClient testClient,
+      @Autowired ConfigurableApplicationContext configurableApplicationContext,
+      @Autowired ScimUserProvisioning scimUserProvisioning)
+      throws Exception {
+    adminToken =
+        testClient.getClientCredentialsOAuthAccessToken(
+            "admin",
+            "adminsecret",
+            "clients.read clients.write clients.secret clients.admin uaa.admin");
+
+    mfaProvider = createMfaProvider(webApplicationContext, IdentityZone.getUaa());
+    otherMfaProvider = createMfaProvider(webApplicationContext, IdentityZone.getUaa());
+
+    uaaZoneConfig =
+        MockMvcUtils.getZoneConfiguration(webApplicationContext, IdentityZone.getUaa().getId());
+    uaaZoneConfig.getMfaConfig().setEnabled(true).setProviderName(mfaProvider.getName());
+    MockMvcUtils.setZoneConfiguration(
+        webApplicationContext, IdentityZone.getUaa().getId(), uaaZoneConfig);
+
+    //noinspection unchecked
+    applicationListener = (ApplicationListener<AbstractUaaEvent>) mock(ApplicationListener.class);
+    configurableApplicationContext.addApplicationListener(applicationListener);
+
+    password = "sec3Tas";
+    scimUser = createUser(scimUserProvisioning, password);
+    mockHttpSession = new MockHttpSession();
+  }
+
+  @AfterEach
+  void cleanup() {
+    uaaZoneConfig.getMfaConfig().setEnabled(false).setProviderName(null);
+    MockMvcUtils.setZoneConfiguration(webApplicationContext, "uaa", uaaZoneConfig);
+    MockMvcUtils.removeEventListener(webApplicationContext, applicationListener);
+  }
+
+  @Test
+  void testRedirectToMfaAfterLogin() throws Exception {
+    redirectToMFARegistration(mockMvc, mockHttpSession, scimUser, password);
+
+    MockHttpServletResponse response =
+        mockMvc.perform(get("/profile").session(mockHttpSession)).andReturn().getResponse();
+    assertTrue(response.getRedirectedUrl().contains("/login"));
+  }
+
+  @Test
+  void testRedirectToLoginPageAfterClickingBackFromMfaRegistrationPage() throws Exception {
+    redirectToMFARegistration(mockMvc, mockHttpSession, scimUser, password);
+
+    MockHttpServletResponse response =
+        mockMvc.perform(get("/logout.do").session(mockHttpSession)).andReturn().getResponse();
+
+    assertTrue(response.getRedirectedUrl().endsWith("/login"));
+  }
+
+  @Test
+  void testGoogleAuthenticatorLoginFlow() throws Exception {
+    redirectToMFARegistration(mockMvc, mockHttpSession, scimUser, password);
+
+    performGetMfaRegister(mockMvc, mockHttpSession)
+        .andDo(print())
+        .andExpect(view().name("mfa/qr_code"));
+
+    assertFalse(
+        userGoogleMfaCredentialsProvisioning.activeUserCredentialExists(
+            scimUser.getId(), mfaProvider.getId()));
+
+    int code = MockMvcUtils.getMFACodeFromSession(mockHttpSession);
+
+    String location = MockMvcUtils.performMfaPostVerifyWithCode(code, mockMvc, mockHttpSession);
+
+    ArgumentCaptor<AbstractUaaEvent> eventCaptor = ArgumentCaptor.forClass(AbstractUaaEvent.class);
+    verify(applicationListener, atLeast(1)).onApplicationEvent(eventCaptor.capture());
+    assertEquals(8, eventCaptor.getAllValues().size());
+    assertThat(eventCaptor.getAllValues().get(6), instanceOf(MfaAuthenticationSuccessEvent.class));
+
+    mockMvc
+        .perform(get(location).session(mockHttpSession))
+        .andExpect(status().isFound())
+        .andExpect(redirectedUrl("http://localhost/"));
+
+    mockHttpSession = new MockHttpSession();
+    performLoginWithSession(mockMvc, mockHttpSession, scimUser, password);
+    MockMvcUtils.performMfaPostVerifyWithCode(code, mockMvc, mockHttpSession);
+
+    eventCaptor = ArgumentCaptor.forClass(AbstractUaaEvent.class);
+    verify(applicationListener, atLeast(1)).onApplicationEvent(eventCaptor.capture());
+    assertEquals(14, eventCaptor.getAllValues().size());
+    assertThat(eventCaptor.getAllValues().get(12), instanceOf(MfaAuthenticationSuccessEvent.class));
+  }
+
+  @Test
+  void testLockedOutAfterExceededMfaAttempts() throws Exception {
+    redirectToMFARegistration(mockMvc, mockHttpSession, scimUser, password);
+    performGetMfaRegister(mockMvc, mockHttpSession)
+        .andDo(print())
+        .andExpect(view().name("mfa/qr_code"));
+
+    assertFalse(
+        userGoogleMfaCredentialsProvisioning.activeUserCredentialExists(
+            scimUser.getId(), mfaProvider.getId()));
+    int code = MockMvcUtils.getMFACodeFromSession(mockHttpSession);
+
+    for (int i = 0; i < 5; i++) {
+      mockMvc
+          .perform(
+              post("/login/mfa/verify.do")
+                  .param("code", Integer.toString(-1))
+                  .header("Host", "localhost")
+                  .session(mockHttpSession)
+                  .with(cookieCsrf()))
+          .andExpect(status().isOk());
     }
 
-    @BeforeEach
-    void setup(
-            @Autowired TestClient testClient,
-            @Autowired ConfigurableApplicationContext configurableApplicationContext,
-            @Autowired ScimUserProvisioning scimUserProvisioning
-    ) throws Exception {
-        adminToken = testClient.getClientCredentialsOAuthAccessToken(
-                "admin",
-                "adminsecret",
-                "clients.read clients.write clients.secret clients.admin uaa.admin"
-        );
-
-        mfaProvider = createMfaProvider(webApplicationContext, IdentityZone.getUaa());
-        otherMfaProvider = createMfaProvider(webApplicationContext, IdentityZone.getUaa());
-
-        uaaZoneConfig = MockMvcUtils.getZoneConfiguration(webApplicationContext, IdentityZone.getUaa().getId());
-        uaaZoneConfig.getMfaConfig().setEnabled(true).setProviderName(mfaProvider.getName());
-        MockMvcUtils.setZoneConfiguration(webApplicationContext, IdentityZone.getUaa().getId(), uaaZoneConfig);
-
-        //noinspection unchecked
-        applicationListener = (ApplicationListener<AbstractUaaEvent>) mock(ApplicationListener.class);
-        configurableApplicationContext.addApplicationListener(applicationListener);
-
-        password = "sec3Tas";
-        scimUser = createUser(scimUserProvisioning, password);
-        mockHttpSession = new MockHttpSession();
-    }
-
-    @AfterEach
-    void cleanup() {
-        uaaZoneConfig.getMfaConfig().setEnabled(false).setProviderName(null);
-        MockMvcUtils.setZoneConfiguration(webApplicationContext, "uaa", uaaZoneConfig);
-        MockMvcUtils.removeEventListener(webApplicationContext, applicationListener);
-    }
-
-    @Test
-    void testRedirectToMfaAfterLogin() throws Exception {
-        redirectToMFARegistration(mockMvc, mockHttpSession, scimUser, password);
-
-        MockHttpServletResponse response = mockMvc.perform(get("/profile")
-                .session(mockHttpSession)).andReturn().getResponse();
-        assertTrue(response.getRedirectedUrl().contains("/login"));
-    }
-
-    @Test
-    void testRedirectToLoginPageAfterClickingBackFromMfaRegistrationPage() throws Exception {
-        redirectToMFARegistration(mockMvc, mockHttpSession, scimUser, password);
-
-        MockHttpServletResponse response = mockMvc.perform(get("/logout.do")
-                .session(mockHttpSession)).andReturn().getResponse();
-
-        assertTrue(response.getRedirectedUrl().endsWith("/login"));
-    }
-
-    @Test
-    void testGoogleAuthenticatorLoginFlow() throws Exception {
-        redirectToMFARegistration(mockMvc, mockHttpSession, scimUser, password);
-
-        performGetMfaRegister(mockMvc, mockHttpSession)
-                .andDo(print())
-                .andExpect(view().name("mfa/qr_code"));
-
-        assertFalse(userGoogleMfaCredentialsProvisioning.activeUserCredentialExists(scimUser.getId(), mfaProvider.getId()));
-
-        int code = MockMvcUtils.getMFACodeFromSession(mockHttpSession);
-
-        String location = MockMvcUtils.performMfaPostVerifyWithCode(code, mockMvc, mockHttpSession);
-
-        ArgumentCaptor<AbstractUaaEvent> eventCaptor = ArgumentCaptor.forClass(AbstractUaaEvent.class);
-        verify(applicationListener, atLeast(1)).onApplicationEvent(eventCaptor.capture());
-        assertEquals(8, eventCaptor.getAllValues().size());
-        assertThat(eventCaptor.getAllValues().get(6), instanceOf(MfaAuthenticationSuccessEvent.class));
-
-        mockMvc.perform(get(location)
-                .session(mockHttpSession))
-                .andExpect(status().isFound())
-                .andExpect(redirectedUrl("http://localhost/"));
-
-        mockHttpSession = new MockHttpSession();
-        performLoginWithSession(mockMvc, mockHttpSession, scimUser, password);
-        MockMvcUtils.performMfaPostVerifyWithCode(code, mockMvc, mockHttpSession);
-
-        eventCaptor = ArgumentCaptor.forClass(AbstractUaaEvent.class);
-        verify(applicationListener, atLeast(1)).onApplicationEvent(eventCaptor.capture());
-        assertEquals(14, eventCaptor.getAllValues().size());
-        assertThat(eventCaptor.getAllValues().get(12), instanceOf(MfaAuthenticationSuccessEvent.class));
-    }
-
-    @Test
-    void testLockedOutAfterExceededMfaAttempts() throws Exception {
-        redirectToMFARegistration(mockMvc, mockHttpSession, scimUser, password);
-        performGetMfaRegister(mockMvc, mockHttpSession)
-                .andDo(print())
-                .andExpect(view().name("mfa/qr_code"));
-
-        assertFalse(userGoogleMfaCredentialsProvisioning.activeUserCredentialExists(scimUser.getId(), mfaProvider.getId()));
-        int code = MockMvcUtils.getMFACodeFromSession(mockHttpSession);
-
-        for (int i = 0; i < 5; i++) {
-            mockMvc.perform(post("/login/mfa/verify.do")
-                    .param("code", Integer.toString(-1))
+    String location =
+        mockMvc
+            .perform(
+                post("/login/mfa/verify.do")
+                    .param("code", Integer.toString(code))
                     .header("Host", "localhost")
                     .session(mockHttpSession)
                     .with(cookieCsrf()))
-                    .andExpect(status().isOk());
-        }
+            .andExpect(status().is3xxRedirection())
+            .andReturn()
+            .getResponse()
+            .getRedirectedUrl();
 
+    assertThat(location, is(containsString("login?error=account_locked")));
+  }
 
-        String location = mockMvc.perform(post("/login/mfa/verify.do")
-                .param("code", Integer.toString(code))
-                .header("Host", "localhost")
-                .session(mockHttpSession)
-                .with(cookieCsrf()))
-                .andExpect(status().is3xxRedirection())
-                .andReturn().getResponse().getRedirectedUrl();
+  @Test
+  void testMFARegistrationHonorsRedirectUri() throws Exception {
+    ClientDetailsModification client =
+        MockMvcUtils.getClientDetailsModification(
+            "auth-client-id",
+            "secret",
+            Collections.emptyList(),
+            Collections.singletonList("openid"),
+            Collections.singletonList(GRANT_TYPE_AUTHORIZATION_CODE),
+            "uaa.resource",
+            Collections.singleton("http://example.com"));
+    client.setAutoApproveScopes(Collections.singletonList("openid"));
+    Map<String, String> information = new HashMap<>();
+    information.put("autoapprove", "true");
+    client.setAdditionalInformation(information);
 
-        assertThat(location, is(containsString("login?error=account_locked")));
-    }
+    MockMvcUtils.createClient(
+        mockMvc, adminToken, client, IdentityZone.getUaa(), status().isCreated());
 
-    @Test
-    void testMFARegistrationHonorsRedirectUri() throws Exception {
-        ClientDetailsModification client =
-                MockMvcUtils.getClientDetailsModification(
-                        "auth-client-id",
-                        "secret",
-                        Collections.emptyList(),
-                        Collections.singletonList("openid"),
-                        Collections.singletonList(GRANT_TYPE_AUTHORIZATION_CODE),
-                        "uaa.resource",
-                        Collections.singleton("http://example.com"));
-        client.setAutoApproveScopes(Collections.singletonList("openid"));
-        Map<String, String> information = new HashMap<>();
-        information.put("autoapprove", "true");
-        client.setAdditionalInformation(information);
+    // Not using param function because params won't end up in paramsMap.
+    String oauthUrl =
+        "/oauth/authorize?client_id=auth-client-id&client_secret=secret&redirect_uri=http://example.com";
+    mockMvc
+        .perform(get(oauthUrl).session(mockHttpSession).with(cookieCsrf()))
+        .andExpect(status().is3xxRedirection())
+        .andDo(print())
+        .andExpect(redirectedUrl("http://localhost/login"));
 
-        MockMvcUtils.createClient(mockMvc, adminToken, client, IdentityZone.getUaa(), status().isCreated());
+    performLoginWithSession(mockMvc, mockHttpSession, scimUser, password)
+        .andExpect(redirectedUrl("http://localhost" + oauthUrl));
 
-        //Not using param function because params won't end up in paramsMap.
-        String oauthUrl = "/oauth/authorize?client_id=auth-client-id&client_secret=secret&redirect_uri=http://example.com";
-        mockMvc.perform(get(oauthUrl)
-                .session(mockHttpSession)
-                .with(cookieCsrf()))
-                .andExpect(status().is3xxRedirection())
-                .andDo(print())
-                .andExpect(redirectedUrl("http://localhost/login"));
+    mockMvc
+        .perform(get(oauthUrl).session(mockHttpSession).with(cookieCsrf()))
+        .andExpect(status().is3xxRedirection())
+        .andDo(print())
+        .andExpect(redirectedUrl("/login/mfa/register"));
 
-        performLoginWithSession(mockMvc, mockHttpSession, scimUser, password).andExpect(redirectedUrl("http://localhost" + oauthUrl));
+    performGetMfaRegister(mockMvc, mockHttpSession);
 
-        mockMvc.perform(get(oauthUrl)
-                .session(mockHttpSession)
-                .with(cookieCsrf()))
-                .andExpect(status().is3xxRedirection())
-                .andDo(print())
-                .andExpect(redirectedUrl("/login/mfa/register"));
+    int code = MockMvcUtils.getMFACodeFromSession(mockHttpSession);
+    MockMvcUtils.performMfaPostVerifyWithCode(code, mockMvc, mockHttpSession);
 
-        performGetMfaRegister(mockMvc, mockHttpSession);
+    mockMvc
+        .perform(get("/login/mfa/completed").session(mockHttpSession).with(cookieCsrf()))
+        .andExpect(status().is3xxRedirection())
+        .andDo(print())
+        .andExpect(
+            redirectedUrl(
+                "http://localhost/oauth/authorize?client_id=auth-client-id&client_secret=secret&redirect_uri=http://example.com"));
+  }
 
-        int code = MockMvcUtils.getMFACodeFromSession(mockHttpSession);
-        MockMvcUtils.performMfaPostVerifyWithCode(code, mockMvc, mockHttpSession);
+  @Test
+  void testQRCodeCannotBeSubmittedWithoutLoggedInSession() throws Exception {
+    mockMvc
+        .perform(post("/login/mfa/verify.do").param("code", "1234").with(cookieCsrf()))
+        .andExpect(status().is3xxRedirection())
+        .andExpect(redirectedUrl("http://localhost/login"));
+  }
 
-        mockMvc.perform(get("/login/mfa/completed")
-                .session(mockHttpSession)
-                .with(cookieCsrf()))
-                .andExpect(status().is3xxRedirection())
-                .andDo(print())
-                .andExpect(redirectedUrl("http://localhost/oauth/authorize?client_id=auth-client-id&client_secret=secret&redirect_uri=http://example.com"));
-    }
+  @Test
+  void testOtpValidationFails() throws Exception {
+    redirectToMFARegistration(mockMvc, mockHttpSession, scimUser, password);
 
-    @Test
-    void testQRCodeCannotBeSubmittedWithoutLoggedInSession() throws Exception {
-        mockMvc.perform(post("/login/mfa/verify.do")
-                .param("code", "1234")
-                .with(cookieCsrf()))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("http://localhost/login"));
-    }
+    assertFalse(
+        userGoogleMfaCredentialsProvisioning.activeUserCredentialExists(
+            scimUser.getId(), mfaProvider.getId()));
 
-    @Test
-    void testOtpValidationFails() throws Exception {
-        redirectToMFARegistration(mockMvc, mockHttpSession, scimUser, password);
+    performGetMfaManualRegister(mockMvc, mockHttpSession)
+        .andExpect((view().name("mfa/manual_registration")));
 
-        assertFalse(userGoogleMfaCredentialsProvisioning.activeUserCredentialExists(scimUser.getId(), mfaProvider.getId()));
+    int code = MockMvcUtils.getMFACodeFromSession(mockHttpSession);
 
-        performGetMfaManualRegister(mockMvc, mockHttpSession).andExpect((view().name("mfa/manual_registration")));
+    String location = MockMvcUtils.performMfaPostVerifyWithCode(code, mockMvc, mockHttpSession);
+    assertEquals("/login/mfa/completed", location);
 
-        int code = MockMvcUtils.getMFACodeFromSession(mockHttpSession);
+    ArgumentCaptor<AbstractUaaEvent> eventCaptor = ArgumentCaptor.forClass(AbstractUaaEvent.class);
+    verify(applicationListener, atLeast(1)).onApplicationEvent(eventCaptor.capture());
+    assertEquals(8, eventCaptor.getAllValues().size());
+    assertThat(eventCaptor.getAllValues().get(6), instanceOf(MfaAuthenticationSuccessEvent.class));
 
-        String location = MockMvcUtils.performMfaPostVerifyWithCode(code, mockMvc, mockHttpSession);
-        assertEquals("/login/mfa/completed", location);
+    mockMvc
+        .perform(get("/").session(mockHttpSession))
+        .andExpect(status().isOk())
+        .andExpect(view().name("home"));
 
-        ArgumentCaptor<AbstractUaaEvent> eventCaptor = ArgumentCaptor.forClass(AbstractUaaEvent.class);
-        verify(applicationListener, atLeast(1)).onApplicationEvent(eventCaptor.capture());
-        assertEquals(8, eventCaptor.getAllValues().size());
-        assertThat(eventCaptor.getAllValues().get(6), instanceOf(MfaAuthenticationSuccessEvent.class));
+    mockMvc.perform(get("/logout.do")).andReturn();
 
-        mockMvc.perform(get("/")
-                .session(mockHttpSession))
-                .andExpect(status().isOk())
-                .andExpect(view().name("home"));
+    mockHttpSession = new MockHttpSession();
+    performLoginWithSession(mockMvc, mockHttpSession, scimUser, password);
 
-        mockMvc.perform(get("/logout.do")).andReturn();
-
-        mockHttpSession = new MockHttpSession();
-        performLoginWithSession(mockMvc, mockHttpSession, scimUser, password);
-
-        mockMvc.perform(post("/login/mfa/verify.do")
+    mockMvc
+        .perform(
+            post("/login/mfa/verify.do")
                 .param("code", Integer.toString(code + 1))
                 .header("Host", "localhost")
                 .session(mockHttpSession)
                 .with(cookieCsrf()))
-                .andExpect(status().is2xxSuccessful())
-                .andExpect(view().name("mfa/enter_code"));
+        .andExpect(status().is2xxSuccessful())
+        .andExpect(view().name("mfa/enter_code"));
 
-        eventCaptor = ArgumentCaptor.forClass(AbstractUaaEvent.class);
-        verify(applicationListener, atLeast(1)).onApplicationEvent(eventCaptor.capture());
-        assertEquals(14, eventCaptor.getAllValues().size());
-        assertThat(eventCaptor.getAllValues().get(12), instanceOf(MfaAuthenticationFailureEvent.class));
+    eventCaptor = ArgumentCaptor.forClass(AbstractUaaEvent.class);
+    verify(applicationListener, atLeast(1)).onApplicationEvent(eventCaptor.capture());
+    assertEquals(14, eventCaptor.getAllValues().size());
+    assertThat(eventCaptor.getAllValues().get(12), instanceOf(MfaAuthenticationFailureEvent.class));
 
-        mockMvc.perform(post("/login/mfa/verify.do")
+    mockMvc
+        .perform(
+            post("/login/mfa/verify.do")
                 .param("code", "ABCDEF")
                 .header("Host", "localhost")
                 .session(mockHttpSession)
                 .with(cookieCsrf()))
-                .andExpect(status().is2xxSuccessful())
-                .andExpect(view().name("mfa/enter_code"));
+        .andExpect(status().is2xxSuccessful())
+        .andExpect(view().name("mfa/enter_code"));
 
-        eventCaptor = ArgumentCaptor.forClass(AbstractUaaEvent.class);
-        verify(applicationListener, atLeast(1)).onApplicationEvent(eventCaptor.capture());
-        assertEquals(16, eventCaptor.getAllValues().size());
-        assertThat(eventCaptor.getAllValues().get(14), instanceOf(MfaAuthenticationFailureEvent.class));
-    }
+    eventCaptor = ArgumentCaptor.forClass(AbstractUaaEvent.class);
+    verify(applicationListener, atLeast(1)).onApplicationEvent(eventCaptor.capture());
+    assertEquals(16, eventCaptor.getAllValues().size());
+    assertThat(eventCaptor.getAllValues().get(14), instanceOf(MfaAuthenticationFailureEvent.class));
+  }
 
-    @Test
-    void testQRCodeRedirectIfCodeValidated() throws Exception {
+  @Test
+  void testQRCodeRedirectIfCodeValidated() throws Exception {
 
-        redirectToMFARegistration(mockMvc, mockHttpSession, scimUser, password);
+    redirectToMFARegistration(mockMvc, mockHttpSession, scimUser, password);
 
-        performGetMfaRegister(mockMvc, mockHttpSession).andExpect(view().name("mfa/qr_code"));
+    performGetMfaRegister(mockMvc, mockHttpSession).andExpect(view().name("mfa/qr_code"));
 
-        int code = MockMvcUtils.getMFACodeFromSession(mockHttpSession);
+    int code = MockMvcUtils.getMFACodeFromSession(mockHttpSession);
 
-        MockMvcUtils.performMfaPostVerifyWithCode(code, mockMvc, mockHttpSession);
+    MockMvcUtils.performMfaPostVerifyWithCode(code, mockMvc, mockHttpSession);
 
-        UserGoogleMfaCredentials activeCreds = jdbcUserGoogleMfaCredentialsProvisioning.retrieve(scimUser.getId(), mfaProvider.getId());
-        assertNotNull(activeCreds);
-        assertEquals(mfaProvider.getId(), activeCreds.getMfaProviderId());
-        mockMvc.perform(get("/logout.do")).andReturn();
+    UserGoogleMfaCredentials activeCreds =
+        jdbcUserGoogleMfaCredentialsProvisioning.retrieve(scimUser.getId(), mfaProvider.getId());
+    assertNotNull(activeCreds);
+    assertEquals(mfaProvider.getId(), activeCreds.getMfaProviderId());
+    mockMvc.perform(get("/logout.do")).andReturn();
 
-        mockHttpSession = new MockHttpSession();
-        performLoginWithSession(mockMvc, mockHttpSession, scimUser, password);
+    mockHttpSession = new MockHttpSession();
+    performLoginWithSession(mockMvc, mockHttpSession, scimUser, password);
 
-        performGetMfaRegister(mockMvc, mockHttpSession).andExpect(redirectedUrl("/login/mfa/verify"));
-    }
+    performGetMfaRegister(mockMvc, mockHttpSession).andExpect(redirectedUrl("/login/mfa/verify"));
+  }
 
-    @Test
-    void testRegisterFlowWithMfaProviderSwitch() throws Exception {
+  @Test
+  void testRegisterFlowWithMfaProviderSwitch() throws Exception {
 
-        redirectToMFARegistration(mockMvc, mockHttpSession, scimUser, password);
+    redirectToMFARegistration(mockMvc, mockHttpSession, scimUser, password);
 
-        performGetMfaRegister(mockMvc, mockHttpSession).andExpect(view().name("mfa/qr_code"));
+    performGetMfaRegister(mockMvc, mockHttpSession).andExpect(view().name("mfa/qr_code"));
 
-        int code = MockMvcUtils.getMFACodeFromSession(mockHttpSession);
+    int code = MockMvcUtils.getMFACodeFromSession(mockHttpSession);
 
-        String location = MockMvcUtils.performMfaPostVerifyWithCode(code, mockMvc, mockHttpSession);
+    String location = MockMvcUtils.performMfaPostVerifyWithCode(code, mockMvc, mockHttpSession);
 
-        location = mockMvc.perform(
-                get(location)
-                        .session(mockHttpSession)
-        )
-                .andExpect(status().isFound())
-                .andReturn().getResponse().getRedirectedUrl();
+    location =
+        mockMvc
+            .perform(get(location).session(mockHttpSession))
+            .andExpect(status().isFound())
+            .andReturn()
+            .getResponse()
+            .getRedirectedUrl();
 
-        mockMvc.perform(
-                get(location)
-                        .session(mockHttpSession)
-        )
-                .andExpect(status().isOk())
-                .andExpect(view().name("home"));
+    mockMvc
+        .perform(get(location).session(mockHttpSession))
+        .andExpect(status().isOk())
+        .andExpect(view().name("home"));
 
+    UserGoogleMfaCredentials activeCreds =
+        jdbcUserGoogleMfaCredentialsProvisioning.retrieve(scimUser.getId(), mfaProvider.getId());
+    assertNotNull(activeCreds);
+    assertEquals(mfaProvider.getId(), activeCreds.getMfaProviderId());
+    mockMvc.perform(get("/logout.do")).andReturn();
 
-        UserGoogleMfaCredentials activeCreds = jdbcUserGoogleMfaCredentialsProvisioning.retrieve(scimUser.getId(), mfaProvider.getId());
-        assertNotNull(activeCreds);
-        assertEquals(mfaProvider.getId(), activeCreds.getMfaProviderId());
-        mockMvc.perform(get("/logout.do")).andReturn();
+    uaaZoneConfig = MockMvcUtils.getZoneConfiguration(webApplicationContext, "uaa");
+    uaaZoneConfig.getMfaConfig().setProviderName(otherMfaProvider.getName());
+    MockMvcUtils.setZoneConfiguration(webApplicationContext, "uaa", uaaZoneConfig);
 
-        uaaZoneConfig = MockMvcUtils.getZoneConfiguration(webApplicationContext, "uaa");
-        uaaZoneConfig.getMfaConfig().setProviderName(otherMfaProvider.getName());
-        MockMvcUtils.setZoneConfiguration(webApplicationContext, "uaa", uaaZoneConfig);
+    mockHttpSession = new MockHttpSession();
+    performLoginWithSession(mockMvc, mockHttpSession, scimUser, password);
 
-        mockHttpSession = new MockHttpSession();
-        performLoginWithSession(mockMvc, mockHttpSession, scimUser, password);
+    performGetMfaRegister(mockMvc, mockHttpSession).andExpect(view().name("mfa/qr_code"));
 
-        performGetMfaRegister(mockMvc, mockHttpSession).andExpect(view().name("mfa/qr_code"));
+    code = MockMvcUtils.getMFACodeFromSession(mockHttpSession);
 
-        code = MockMvcUtils.getMFACodeFromSession(mockHttpSession);
+    location = MockMvcUtils.performMfaPostVerifyWithCode(code, mockMvc, mockHttpSession);
 
-        location = MockMvcUtils.performMfaPostVerifyWithCode(code, mockMvc, mockHttpSession);
+    location =
+        mockMvc
+            .perform(get(location).session(mockHttpSession))
+            .andExpect(status().isFound())
+            .andReturn()
+            .getResponse()
+            .getRedirectedUrl();
 
-        location = mockMvc.perform(
-                get(location)
-                        .session(mockHttpSession)
-        )
-                .andExpect(status().isFound())
-                .andReturn().getResponse().getRedirectedUrl();
+    mockMvc
+        .perform(get(location).session(mockHttpSession))
+        .andExpect(status().isOk())
+        .andExpect(view().name("home"));
+  }
 
-        mockMvc.perform(
-                get(location)
-                        .session(mockHttpSession)
-        )
-                .andExpect(status().isOk())
-                .andExpect(view().name("home"));
-    }
+  @Test
+  void testQRCodeRedirectIfCodeNotValidated() throws Exception {
+    redirectToMFARegistration(mockMvc, mockHttpSession, scimUser, password);
 
-    @Test
-    void testQRCodeRedirectIfCodeNotValidated() throws Exception {
-        redirectToMFARegistration(mockMvc, mockHttpSession, scimUser, password);
+    performGetMfaRegister(mockMvc, mockHttpSession).andExpect(view().name("mfa/qr_code"));
 
-        performGetMfaRegister(mockMvc, mockHttpSession).andExpect(view().name("mfa/qr_code"));
+    UserGoogleMfaCredentials inActiveCreds =
+        (UserGoogleMfaCredentials) mockHttpSession.getAttribute("uaaMfaCredentials");
+    assertNotNull(inActiveCreds);
 
-        UserGoogleMfaCredentials inActiveCreds = (UserGoogleMfaCredentials) mockHttpSession.getAttribute("uaaMfaCredentials");
-        assertNotNull(inActiveCreds);
+    performGetMfaRegister(mockMvc, mockHttpSession).andExpect(view().name("mfa/qr_code"));
+  }
 
-        performGetMfaRegister(mockMvc, mockHttpSession).andExpect(view().name("mfa/qr_code"));
-    }
+  @Test
+  void testManualRegistrationFlow() throws Exception {
+    redirectToMFARegistration(mockMvc, mockHttpSession, scimUser, password);
 
-    @Test
-    void testManualRegistrationFlow() throws Exception {
-        redirectToMFARegistration(mockMvc, mockHttpSession, scimUser, password);
+    assertFalse(
+        userGoogleMfaCredentialsProvisioning.activeUserCredentialExists(
+            scimUser.getId(), mfaProvider.getId()));
 
-        assertFalse(userGoogleMfaCredentialsProvisioning.activeUserCredentialExists(scimUser.getId(), mfaProvider.getId()));
+    performGetMfaManualRegister(mockMvc, mockHttpSession)
+        .andExpect((view().name("mfa/manual_registration")));
 
-        performGetMfaManualRegister(mockMvc, mockHttpSession).andExpect((view().name("mfa/manual_registration")));
+    int code = MockMvcUtils.getMFACodeFromSession(mockHttpSession);
 
-        int code = MockMvcUtils.getMFACodeFromSession(mockHttpSession);
+    String location = MockMvcUtils.performMfaPostVerifyWithCode(code, mockMvc, mockHttpSession);
+    assertEquals("/login/mfa/completed", location);
 
-        String location = MockMvcUtils.performMfaPostVerifyWithCode(code, mockMvc, mockHttpSession);
-        assertEquals("/login/mfa/completed", location);
+    ArgumentCaptor<AbstractUaaEvent> eventCaptor = ArgumentCaptor.forClass(AbstractUaaEvent.class);
+    verify(applicationListener, atLeast(1)).onApplicationEvent(eventCaptor.capture());
+    assertEquals(8, eventCaptor.getAllValues().size());
+    assertThat(eventCaptor.getAllValues().get(6), instanceOf(MfaAuthenticationSuccessEvent.class));
 
-        ArgumentCaptor<AbstractUaaEvent> eventCaptor = ArgumentCaptor.forClass(AbstractUaaEvent.class);
-        verify(applicationListener, atLeast(1)).onApplicationEvent(eventCaptor.capture());
-        assertEquals(8, eventCaptor.getAllValues().size());
-        assertThat(eventCaptor.getAllValues().get(6), instanceOf(MfaAuthenticationSuccessEvent.class));
+    mockMvc
+        .perform(get("/").session(mockHttpSession))
+        .andExpect(status().isOk())
+        .andExpect(view().name("home"));
 
-        mockMvc.perform(get("/")
-                .session(mockHttpSession))
-                .andExpect(status().isOk())
-                .andExpect(view().name("home"));
+    mockMvc.perform(get("/logout.do")).andReturn();
 
-        mockMvc.perform(get("/logout.do")).andReturn();
+    mockHttpSession = new MockHttpSession();
+    performLoginWithSession(mockMvc, mockHttpSession, scimUser, password);
+    MockMvcUtils.performMfaPostVerifyWithCode(code, mockMvc, mockHttpSession);
 
-        mockHttpSession = new MockHttpSession();
-        performLoginWithSession(mockMvc, mockHttpSession, scimUser, password);
-        MockMvcUtils.performMfaPostVerifyWithCode(code, mockMvc, mockHttpSession);
+    eventCaptor = ArgumentCaptor.forClass(AbstractUaaEvent.class);
+    verify(applicationListener, atLeast(1)).onApplicationEvent(eventCaptor.capture());
+    assertEquals(15, eventCaptor.getAllValues().size());
+    assertThat(eventCaptor.getAllValues().get(13), instanceOf(MfaAuthenticationSuccessEvent.class));
+  }
 
-        eventCaptor = ArgumentCaptor.forClass(AbstractUaaEvent.class);
-        verify(applicationListener, atLeast(1)).onApplicationEvent(eventCaptor.capture());
-        assertEquals(15, eventCaptor.getAllValues().size());
-        assertThat(eventCaptor.getAllValues().get(13), instanceOf(MfaAuthenticationSuccessEvent.class));
-    }
+  @Test
+  void testQRDoesNotChangeDuringOneSession() throws Exception {
+    redirectToMFARegistration(mockMvc, mockHttpSession, scimUser, password);
+    assertFalse(
+        userGoogleMfaCredentialsProvisioning.activeUserCredentialExists(
+            scimUser.getId(), mfaProvider.getId()));
 
-    @Test
-    void testQRDoesNotChangeDuringOneSession() throws Exception {
-        redirectToMFARegistration(mockMvc, mockHttpSession, scimUser, password);
-        assertFalse(userGoogleMfaCredentialsProvisioning.activeUserCredentialExists(scimUser.getId(), mfaProvider.getId()));
-
-        MvcResult res = performGetMfaRegister(mockMvc, mockHttpSession).andExpect(view().name("mfa/qr_code")).andReturn();
-        String qrUrl = (String) res.getModelAndView().getModel().get("qrurl");
-
+    MvcResult res =
         performGetMfaRegister(mockMvc, mockHttpSession)
-                .andExpect(view().name("mfa/qr_code"))
-                .andExpect(model().attribute("qrurl", qrUrl));
-    }
+            .andExpect(view().name("mfa/qr_code"))
+            .andReturn();
+    String qrUrl = (String) res.getModelAndView().getModel().get("qrurl");
 
-    private static ScimUser createUser(ScimUserProvisioning scimUserProvisioning, String password) {
-        ScimUser user = new ScimUser(null, new RandomValueStringGenerator(5).generate(), "first", "last");
+    performGetMfaRegister(mockMvc, mockHttpSession)
+        .andExpect(view().name("mfa/qr_code"))
+        .andExpect(model().attribute("qrurl", qrUrl));
+  }
 
-        user.setPrimaryEmail(user.getUserName());
-        user.setPassword(password);
-        user = scimUserProvisioning.createUser(user, user.getPassword(), IdentityZoneHolder.getUaaZone().getId());
-        return user;
-    }
+  private static ScimUser createUser(ScimUserProvisioning scimUserProvisioning, String password) {
+    ScimUser user =
+        new ScimUser(null, new RandomValueStringGenerator(5).generate(), "first", "last");
 
-    private static ResultActions performLoginWithSession(MockMvc mockMvc, MockHttpSession session, ScimUser user, String password) throws Exception {
-        return mockMvc.perform(post("/login.do")
+    user.setPrimaryEmail(user.getUserName());
+    user.setPassword(password);
+    user =
+        scimUserProvisioning.createUser(
+            user, user.getPassword(), IdentityZoneHolder.getUaaZone().getId());
+    return user;
+  }
+
+  private static ResultActions performLoginWithSession(
+      MockMvc mockMvc, MockHttpSession session, ScimUser user, String password) throws Exception {
+    return mockMvc
+        .perform(
+            post("/login.do")
                 .session(session)
                 .param("username", user.getUserName())
                 .param("password", password)
                 .with(cookieCsrf()))
-                .andDo(print())
-                .andExpect(status().isFound());
-    }
+        .andDo(print())
+        .andExpect(status().isFound());
+  }
 
-    private static ResultActions performGetMfaRegister(MockMvc mockMvc, MockHttpSession session) throws Exception {
-        return mockMvc.perform(get("/login/mfa/register")
-                .session(session));
-    }
+  private static ResultActions performGetMfaRegister(MockMvc mockMvc, MockHttpSession session)
+      throws Exception {
+    return mockMvc.perform(get("/login/mfa/register").session(session));
+  }
 
-    private static ResultActions performGetMfaManualRegister(MockMvc mockMvc, MockHttpSession session) throws Exception {
-        return mockMvc.perform(get("/login/mfa/manual")
-                .session(session)
-        );
-    }
+  private static ResultActions performGetMfaManualRegister(MockMvc mockMvc, MockHttpSession session)
+      throws Exception {
+    return mockMvc.perform(get("/login/mfa/manual").session(session));
+  }
 
-    private static void redirectToMFARegistration(MockMvc mockMvc, MockHttpSession session, ScimUser user, String password) throws Exception {
-        String location = performLoginWithSession(mockMvc, session, user, password).andReturn().getResponse().getHeader("Location");
-        mockMvc.perform(get(location)
-                .session(session))
-                .andExpect(redirectedUrl("/login/mfa/register"));
-    }
+  private static void redirectToMFARegistration(
+      MockMvc mockMvc, MockHttpSession session, ScimUser user, String password) throws Exception {
+    String location =
+        performLoginWithSession(mockMvc, session, user, password)
+            .andReturn()
+            .getResponse()
+            .getHeader("Location");
+    mockMvc.perform(get(location).session(session)).andExpect(redirectedUrl("/login/mfa/register"));
+  }
 }

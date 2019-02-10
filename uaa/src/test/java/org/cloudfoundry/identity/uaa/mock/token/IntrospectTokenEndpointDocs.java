@@ -39,11 +39,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ContextConfiguration(classes = SpringServletAndHoneycombTestConfig.class)
 class IntrospectTokenEndpointDocs extends EndpointDocs {
 
-    @Test
-    void introspectToken() throws Exception {
-        String identityClientAuthorizationWithUaaResource = new String(Base64.encodeBase64("app:appclientsecret".getBytes()));
+  @Test
+  void introspectToken() throws Exception {
+    String identityClientAuthorizationWithUaaResource =
+        new String(Base64.encodeBase64("app:appclientsecret".getBytes()));
 
-        String identityAccessToken = MockMvcUtils.getUserOAuthAccessToken(
+    String identityAccessToken =
+        MockMvcUtils.getUserOAuthAccessToken(
             mockMvc,
             "app",
             "appclientsecret",
@@ -51,43 +53,91 @@ class IntrospectTokenEndpointDocs extends EndpointDocs {
             UaaTestAccounts.DEFAULT_PASSWORD,
             "",
             null,
-            true
-        );
+            true);
 
-        Snippet requestParameters = requestParameters(
-            parameterWithName("token").description("The token").attributes(key("constraints").value("Required"), key("type").value(STRING))
-        );
+    Snippet requestParameters =
+        requestParameters(
+            parameterWithName("token")
+                .description("The token")
+                .attributes(key("constraints").value("Required"), key("type").value(STRING)));
 
-        Snippet responseFields = responseFields(
-            fieldWithPath("active").type(BOOLEAN).description("Indicates whether or not the presented token is currently valid (given token has been issued by this authorization server, has not been revoked by the resource owner, and is within its given time window of validity)"),
-            fieldWithPath("user_id").type(STRING).description("Only applicable for user tokens").optional(),
-            fieldWithPath("user_name").type(STRING).description("Only applicable for user tokens").optional(),
-            fieldWithPath("email").type(STRING).description("Only applicable for user tokens").optional(),
-            fieldWithPath("client_id").description("A unique string representing the registration information provided by the client"),
-            fieldWithPath("exp").description("[Expiration Time](https://tools.ietf.org/html/rfc7662#section-2.2) Claim"),
-            fieldWithPath("authorities").type(ARRAY).description("Only applicable for client tokens").optional(),
-            fieldWithPath("scope").description("List of scopes authorized by the user for this client"),
-            fieldWithPath("jti").description("[JWT ID](https://tools.ietf.org/html/rfc7662#section-2.2) Claim"),
-            fieldWithPath("aud").description("[Audience](https://tools.ietf.org/html/rfc7662#section-2.2) Claim"),
-            fieldWithPath("sub").description("[Subject](https://tools.ietf.org/html/rfc7662#section-2.2) Claim"),
-            fieldWithPath("iss").description("[Issuer](https://tools.ietf.org/html/rfc7662#section-2.2) Claim"),
-            fieldWithPath("iat").description("[Issued At](https://tools.ietf.org/html/rfc7662#section-2.2) Claim"),
+    Snippet responseFields =
+        responseFields(
+            fieldWithPath("active")
+                .type(BOOLEAN)
+                .description(
+                    "Indicates whether or not the presented token is currently valid (given token has been issued by this authorization server, has not been revoked by the resource owner, and is within its given time window of validity)"),
+            fieldWithPath("user_id")
+                .type(STRING)
+                .description("Only applicable for user tokens")
+                .optional(),
+            fieldWithPath("user_name")
+                .type(STRING)
+                .description("Only applicable for user tokens")
+                .optional(),
+            fieldWithPath("email")
+                .type(STRING)
+                .description("Only applicable for user tokens")
+                .optional(),
+            fieldWithPath("client_id")
+                .description(
+                    "A unique string representing the registration information provided by the client"),
+            fieldWithPath("exp")
+                .description(
+                    "[Expiration Time](https://tools.ietf.org/html/rfc7662#section-2.2) Claim"),
+            fieldWithPath("authorities")
+                .type(ARRAY)
+                .description("Only applicable for client tokens")
+                .optional(),
+            fieldWithPath("scope")
+                .description("List of scopes authorized by the user for this client"),
+            fieldWithPath("jti")
+                .description("[JWT ID](https://tools.ietf.org/html/rfc7662#section-2.2) Claim"),
+            fieldWithPath("aud")
+                .description("[Audience](https://tools.ietf.org/html/rfc7662#section-2.2) Claim"),
+            fieldWithPath("sub")
+                .description("[Subject](https://tools.ietf.org/html/rfc7662#section-2.2) Claim"),
+            fieldWithPath("iss")
+                .description("[Issuer](https://tools.ietf.org/html/rfc7662#section-2.2) Claim"),
+            fieldWithPath("iat")
+                .description("[Issued At](https://tools.ietf.org/html/rfc7662#section-2.2) Claim"),
             fieldWithPath("cid").description("See `client_id`"),
-            fieldWithPath("grant_type").description("The type of authentication being used to obtain the token, in this case `password`"),
+            fieldWithPath("grant_type")
+                .description(
+                    "The type of authentication being used to obtain the token, in this case `password`"),
             fieldWithPath("azp").description("Authorized party"),
-            fieldWithPath("auth_time").type(NUMBER).description("Only applicable for user tokens").optional(),
+            fieldWithPath("auth_time")
+                .type(NUMBER)
+                .description("Only applicable for user tokens")
+                .optional(),
             fieldWithPath("zid").description("Zone ID"),
-            fieldWithPath("rev_sig").description("Revocation Signature - token revocation hash salted with at least client ID and client secret, and optionally various user values."),
-            fieldWithPath("origin").type(STRING).description("Only applicable for user tokens").optional(),
-            fieldWithPath("revocable").type(BOOLEAN).description("Set to true if this token is revocable").optional()
-        );
+            fieldWithPath("rev_sig")
+                .description(
+                    "Revocation Signature - token revocation hash salted with at least client ID and client secret, and optionally various user values."),
+            fieldWithPath("origin")
+                .type(STRING)
+                .description("Only applicable for user tokens")
+                .optional(),
+            fieldWithPath("revocable")
+                .type(BOOLEAN)
+                .description("Set to true if this token is revocable")
+                .optional());
 
-        mockMvc.perform(post("/introspect")
-            .header("Authorization", "Basic " + identityClientAuthorizationWithUaaResource)
-            .param("token", identityAccessToken))
-            .andExpect(status().isOk())
-            .andDo(document("{ClassName}/{methodName}", preprocessResponse(prettyPrint()),requestHeaders(
-                headerWithName("Authorization").description("Uses basic authorization with base64(resource_server:shared_secret) assuming the caller (a resource server) is actually also a registered client and has `uaa.resource` authority")
-            ), requestParameters, responseFields));
-    }
+    mockMvc
+        .perform(
+            post("/introspect")
+                .header("Authorization", "Basic " + identityClientAuthorizationWithUaaResource)
+                .param("token", identityAccessToken))
+        .andExpect(status().isOk())
+        .andDo(
+            document(
+                "{ClassName}/{methodName}",
+                preprocessResponse(prettyPrint()),
+                requestHeaders(
+                    headerWithName("Authorization")
+                        .description(
+                            "Uses basic authorization with base64(resource_server:shared_secret) assuming the caller (a resource server) is actually also a registered client and has `uaa.resource` authority")),
+                requestParameters,
+                responseFields));
+  }
 }

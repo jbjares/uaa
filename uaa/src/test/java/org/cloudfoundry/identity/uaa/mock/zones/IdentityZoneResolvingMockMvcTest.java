@@ -35,67 +35,55 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @DefaultTestContext
 class IdentityZoneResolvingMockMvcTest {
 
-    private Set<String> originalHostnames;
+  private Set<String> originalHostnames;
 
-    private MockMvc mockMvc;
-    private IdentityZoneResolvingFilter identityZoneResolvingFilter;
+  private MockMvc mockMvc;
+  private IdentityZoneResolvingFilter identityZoneResolvingFilter;
+
+  @BeforeEach
+  void storeSettings(
+      @Autowired MockMvc mockMvc,
+      @Autowired IdentityZoneResolvingFilter identityZoneResolvingFilter) {
+    this.mockMvc = mockMvc;
+    this.identityZoneResolvingFilter = identityZoneResolvingFilter;
+
+    originalHostnames = identityZoneResolvingFilter.getDefaultZoneHostnames();
+  }
+
+  @AfterEach
+  void restoreSettings() {
+    identityZoneResolvingFilter.restoreDefaultHostnames(originalHostnames);
+  }
+
+  @Test
+  void testSwitchingZones() throws Exception {
+    // Authenticate with new Client in new Zone
+    mockMvc
+        .perform(get("/login").header("Host", "testsomeother.ip.com"))
+        .andExpect(status().isOk());
+  }
+
+  @Nested
+  @DefaultTestContext
+  class WithCustomInternalHostnames {
 
     @BeforeEach
-    void storeSettings(
-            @Autowired MockMvc mockMvc,
-            @Autowired IdentityZoneResolvingFilter identityZoneResolvingFilter
-    ) {
-        this.mockMvc = mockMvc;
-        this.identityZoneResolvingFilter = identityZoneResolvingFilter;
-
-        originalHostnames = identityZoneResolvingFilter.getDefaultZoneHostnames();
+    void setUp() {
+      Set<String> hosts = new HashSet<>(Arrays.asList("localhost", "testsomeother.ip.com"));
+      identityZoneResolvingFilter.setDefaultInternalHostnames(hosts);
     }
 
-    @AfterEach
-    void restoreSettings() {
-        identityZoneResolvingFilter.restoreDefaultHostnames(originalHostnames);
+    @ParameterizedTest
+    @ValueSource(strings = {"localhost", "testsomeother.ip.com"})
+    void isFound(String hostname) throws Exception {
+      // Authenticate with new Client in new Zone
+      mockMvc.perform(get("/login").header("Host", hostname)).andExpect(status().isOk());
     }
 
-    @Test
-    void testSwitchingZones() throws Exception {
-        // Authenticate with new Client in new Zone
-        mockMvc.perform(
-                get("/login")
-                        .header("Host", "testsomeother.ip.com")
-        )
-                .andExpect(status().isOk());
+    @ParameterizedTest
+    @ValueSource(strings = {"notlocalhost", "testsomeother2.ip.com"})
+    void isNotFound(String hostname) throws Exception {
+      mockMvc.perform(get("/login").header("Host", hostname)).andExpect(status().isNotFound());
     }
-
-    @Nested
-    @DefaultTestContext
-    class WithCustomInternalHostnames {
-
-        @BeforeEach
-        void setUp() {
-            Set<String> hosts = new HashSet<>(Arrays.asList("localhost", "testsomeother.ip.com"));
-            identityZoneResolvingFilter.setDefaultInternalHostnames(hosts);
-        }
-
-        @ParameterizedTest
-        @ValueSource(strings = {"localhost", "testsomeother.ip.com"})
-        void isFound(String hostname) throws Exception {
-            // Authenticate with new Client in new Zone
-            mockMvc.perform(
-                    get("/login")
-                            .header("Host", hostname)
-            )
-                    .andExpect(status().isOk());
-
-        }
-
-        @ParameterizedTest
-        @ValueSource(strings = {"notlocalhost", "testsomeother2.ip.com"})
-        void isNotFound(String hostname) throws Exception {
-            mockMvc.perform(
-                    get("/login")
-                            .header("Host", hostname)
-            )
-                    .andExpect(status().isNotFound());
-        }
-    }
+  }
 }

@@ -5,9 +5,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class OAuthToken {
-    @JsonProperty("access_token")
-    public String accessToken;
+  @JsonProperty("access_token")
+  public String accessToken;
 
-    public OAuthToken() {
-    }
+  public OAuthToken() {}
 }

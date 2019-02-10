@@ -45,213 +45,251 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ContextConfiguration(classes = SpringServletAndHoneycombTestConfig.class)
 class AuthorizationPromptNoneEntryPointMockMvcTests {
 
-    private String adminToken;
+  private String adminToken;
 
-    @Autowired
-    private WebApplicationContext webApplicationContext;
-    private MockMvc mockMvc;
-    private TestClient testClient;
+  @Autowired private WebApplicationContext webApplicationContext;
+  private MockMvc mockMvc;
+  private TestClient testClient;
 
-    @BeforeEach
-    void setup() throws Exception {
-        FilterChainProxy springSecurityFilterChain = webApplicationContext.getBean("springSecurityFilterChain", FilterChainProxy.class);
-        mockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext)
-                .addFilter(springSecurityFilterChain)
-                .build();
+  @BeforeEach
+  void setup() throws Exception {
+    FilterChainProxy springSecurityFilterChain =
+        webApplicationContext.getBean("springSecurityFilterChain", FilterChainProxy.class);
+    mockMvc =
+        MockMvcBuilders.webAppContextSetup(webApplicationContext)
+            .addFilter(springSecurityFilterChain)
+            .build();
 
-        testClient = new TestClient(mockMvc);
+    testClient = new TestClient(mockMvc);
 
-        BaseClientDetails client = new BaseClientDetails("ant", "", "openid", "implicit", "", "http://example.com/**");
-        client.setAutoApproveScopes(Collections.singletonList("openid"));
-        adminToken = testClient.getClientCredentialsOAuthAccessToken("admin", "adminsecret", "clients.write uaa.admin");
-        MockMvcUtils.createClient(mockMvc, adminToken, client);
+    BaseClientDetails client =
+        new BaseClientDetails("ant", "", "openid", "implicit", "", "http://example.com/**");
+    client.setAutoApproveScopes(Collections.singletonList("openid"));
+    adminToken =
+        testClient.getClientCredentialsOAuthAccessToken(
+            "admin", "adminsecret", "clients.write uaa.admin");
+    MockMvcUtils.createClient(mockMvc, adminToken, client);
+  }
+
+  @AfterEach
+  void cleanup() throws Exception {
+    MockMvcUtils.deleteClient(mockMvc, adminToken, "ant", "");
+  }
+
+  @Test
+  void testSilentAuthHonorsAntRedirect_whenNotAuthenticated() throws Exception {
+    MvcResult result =
+        mockMvc
+            .perform(
+                get(
+                    "/oauth/authorize?response_type=token&scope=openid&client_id=ant&prompt=none&redirect_uri=http://example.com/with/path.html"))
+            .andReturn();
+
+    assertThat(
+        result.getResponse().getRedirectedUrl(),
+        startsWith("http://example.com/with/path.html#error=login_required"));
+  }
+
+  @Test
+  void silentAuthentication_clearsCurrentUserCookie_whenNotAuthenticated() throws Exception {
+    MvcResult result =
+        mockMvc
+            .perform(
+                get(
+                    "/oauth/authorize?response_type=token&scope=openid&client_id=ant&prompt=none&redirect_uri=http://example.com/with/path.html"))
+            .andReturn();
+
+    // This is necessary to make sure Current-User gets cleaned up when, for example, a UAA is
+    // restarted and the
+    // user's JSESSIONID is no longer valid.
+    assertThat(result.getResponse().getCookie("Current-User").getValue(), nullValue());
+    assertThat(result.getResponse().getCookie("Current-User").getMaxAge(), equalTo(0));
+  }
+
+  @Test
+  void testSilentAuthHonorsAntRedirect_whenSessionHasBeenInvalidated() throws Exception {
+    MockHttpSession session = new MockHttpSession();
+    login(session);
+    session.invalidate();
+
+    mockMvc
+        .perform(
+            get("/oauth/authorize?response_type=token&scope=openid&client_id=ant&prompt=none&redirect_uri=http://example.com/with/path.html")
+                .session(session))
+        .andExpect(redirectedUrlPattern("http://example.com/**/*"));
+  }
+
+  @Test
+  void testSilentAuthentication_whenScopesNotAutoApproved() throws Exception {
+    MockMvcUtils.deleteClient(mockMvc, adminToken, "ant", "");
+    BaseClientDetails client =
+        new BaseClientDetails("ant", "", "openid", "implicit", "", "http://example.com/**");
+    MockMvcUtils.createClient(mockMvc, adminToken, client);
+
+    MockHttpSession session = new MockHttpSession();
+    login(session);
+
+    mockMvc
+        .perform(
+            get("/oauth/authorize?response_type=token&scope=openid&client_id=ant&prompt=none&redirect_uri=http://example.com/with/path.html")
+                .session(session))
+        .andExpect(redirectedUrl("http://example.com/with/path.html#error=interaction_required"));
+  }
+
+  @Test
+  void testSilentAuthentication_includesSessionState() throws Exception {
+    UaaAuthorizationEndpoint uaaAuthorizationEndpoint =
+        (UaaAuthorizationEndpoint) webApplicationContext.getBean("uaaAuthorizationEndpoint");
+    OpenIdSessionStateCalculator backupCalculator =
+        uaaAuthorizationEndpoint.getOpenIdSessionStateCalculator();
+    try {
+      OpenIdSessionStateCalculator calculator = mock(OpenIdSessionStateCalculator.class);
+
+      uaaAuthorizationEndpoint.setOpenIdSessionStateCalculator(calculator);
+      when(calculator.calculate(anyString(), anyString(), anyString()))
+          .thenReturn("sessionhash.saltvalue");
+      String currentUserId = MockMvcUtils.getUserByUsername(mockMvc, "marissa", adminToken).getId();
+
+      // we need to know session id when we are calculating session_state
+      MockHttpSession session =
+          new MockHttpSession(null, "12345") {
+            public String changeSessionId() {
+              return "12345";
+            }
+          };
+      login(session);
+
+      MvcResult result =
+          mockMvc
+              .perform(
+                  get("/oauth/authorize?response_type=token&scope=openid&client_id=ant&prompt=none&redirect_uri=http://example.com/with/path.html")
+                      .session(session))
+              .andExpect(status().isFound())
+              .andReturn();
+
+      String redirectUrl = result.getResponse().getRedirectedUrl();
+      assertThat(redirectUrl, containsString("session_state=sessionhash.saltvalue"));
+      verify(calculator).calculate(currentUserId, "ant", "http://example.com");
+
+      // uaa-singular relies on the Current-User cookie. Because of GDPR, the Current-User cookie
+      // was
+      // changed to expire after a relatively short time. We have to renew that cookie during each
+      // call to /oauth/authorize or uaa-singular can get into an infinite loop where every open
+      // browser
+      // tab relying on uaa-singular aggressively polls /oauth/authorize?prompt=none
+      assertThat(
+          result.getResponse().getCookie("Current-User").getValue(),
+          Matchers.containsString(currentUserId));
+    } finally {
+      uaaAuthorizationEndpoint.setOpenIdSessionStateCalculator(backupCalculator);
     }
+  }
 
-    @AfterEach
-    void cleanup() throws Exception {
-        MockMvcUtils.deleteClient(mockMvc, adminToken, "ant", "");
+  @Test
+  void testSilentAuthentication_RuntimeException_displaysErrorFragment() throws Exception {
+    UaaAuthorizationEndpoint uaaAuthorizationEndpoint =
+        (UaaAuthorizationEndpoint) webApplicationContext.getBean("uaaAuthorizationEndpoint");
+    OpenIdSessionStateCalculator backupCalculator =
+        uaaAuthorizationEndpoint.getOpenIdSessionStateCalculator();
+    try {
+      OpenIdSessionStateCalculator openIdSessionStateCalculator =
+          mock(OpenIdSessionStateCalculator.class);
+      uaaAuthorizationEndpoint.setOpenIdSessionStateCalculator(openIdSessionStateCalculator);
+
+      when(openIdSessionStateCalculator.calculate(anyString(), anyString(), anyString()))
+          .thenThrow(RuntimeException.class);
+
+      MockHttpSession session = new MockHttpSession();
+      login(session);
+
+      mockMvc
+          .perform(
+              get("/oauth/authorize?response_type=token&scope=openid&client_id=ant&prompt=none&redirect_uri=http://example.com/with/path.html")
+                  .session(session))
+          .andExpect(status().is3xxRedirection())
+          .andExpect(
+              redirectedUrl("http://example.com/with/path.html#error=internal_server_error"));
+    } finally {
+      uaaAuthorizationEndpoint.setOpenIdSessionStateCalculator(backupCalculator);
     }
+  }
 
-    @Test
-    void testSilentAuthHonorsAntRedirect_whenNotAuthenticated() throws Exception {
-        MvcResult result = mockMvc.perform(
-                get("/oauth/authorize?response_type=token&scope=openid&client_id=ant&prompt=none&redirect_uri=http://example.com/with/path.html")
-        ).andReturn();
+  @Test
+  void testSilentAuthentication_Returns400_whenInvalidRedirectUrlIsProvided() throws Exception {
+    MockHttpSession session = new MockHttpSession();
+    login(session);
 
-        assertThat(result.getResponse().getRedirectedUrl(), startsWith("http://example.com/with/path.html#error=login_required"));
-    }
+    mockMvc
+        .perform(
+            get("/oauth/authorize?response_type=token&scope=openid&client_id=ant&prompt=none&redirect_uri=no good uri")
+                .session(session))
+        .andExpect(status().is4xxClientError());
+  }
 
-    @Test
-    void silentAuthentication_clearsCurrentUserCookie_whenNotAuthenticated() throws Exception {
-        MvcResult result = mockMvc.perform(
-                get("/oauth/authorize?response_type=token&scope=openid&client_id=ant&prompt=none&redirect_uri=http://example.com/with/path.html")
-        ).andReturn();
+  @Test
+  void nonSilentAuthentication_doesNotComputeSessionState() throws Exception {
+    MockHttpSession session = new MockHttpSession();
+    login(session);
 
-        // This is necessary to make sure Current-User gets cleaned up when, for example, a UAA is restarted and the
-        // user's JSESSIONID is no longer valid.
-        assertThat(result.getResponse().getCookie("Current-User").getValue(), nullValue());
-        assertThat(result.getResponse().getCookie("Current-User").getMaxAge(), equalTo(0));
-    }
-
-    @Test
-    void testSilentAuthHonorsAntRedirect_whenSessionHasBeenInvalidated() throws Exception {
-        MockHttpSession session = new MockHttpSession();
-        login(session);
-        session.invalidate();
-
-        mockMvc.perform(
-                get("/oauth/authorize?response_type=token&scope=openid&client_id=ant&prompt=none&redirect_uri=http://example.com/with/path.html")
-                        .session(session)
-        ).andExpect(redirectedUrlPattern("http://example.com/**/*"));
-    }
-
-    @Test
-    void testSilentAuthentication_whenScopesNotAutoApproved() throws Exception {
-        MockMvcUtils.deleteClient(mockMvc, adminToken, "ant", "");
-        BaseClientDetails client = new BaseClientDetails("ant", "", "openid", "implicit", "", "http://example.com/**");
-        MockMvcUtils.createClient(mockMvc, adminToken, client);
-
-        MockHttpSession session = new MockHttpSession();
-        login(session);
-
-        mockMvc.perform(
-                get("/oauth/authorize?response_type=token&scope=openid&client_id=ant&prompt=none&redirect_uri=http://example.com/with/path.html")
-                        .session(session)
-        )
-                .andExpect(redirectedUrl("http://example.com/with/path.html#error=interaction_required"));
-    }
-
-    @Test
-    void testSilentAuthentication_includesSessionState() throws Exception {
-        UaaAuthorizationEndpoint uaaAuthorizationEndpoint = (UaaAuthorizationEndpoint) webApplicationContext.getBean("uaaAuthorizationEndpoint");
-        OpenIdSessionStateCalculator backupCalculator = uaaAuthorizationEndpoint.getOpenIdSessionStateCalculator();
-        try {
-            OpenIdSessionStateCalculator calculator = mock(OpenIdSessionStateCalculator.class);
-
-            uaaAuthorizationEndpoint.setOpenIdSessionStateCalculator(calculator);
-            when(calculator.calculate(anyString(), anyString(), anyString())).thenReturn("sessionhash.saltvalue");
-            String currentUserId = MockMvcUtils.getUserByUsername(mockMvc, "marissa", adminToken).getId();
-
-            //we need to know session id when we are calculating session_state
-            MockHttpSession session = new MockHttpSession(null, "12345") {
-                public String changeSessionId() {
-                    return "12345";
-                }
-            };
-            login(session);
-
-            MvcResult result = mockMvc.perform(
-                    get("/oauth/authorize?response_type=token&scope=openid&client_id=ant&prompt=none&redirect_uri=http://example.com/with/path.html")
-                            .session(session)
-            )
-                    .andExpect(status().isFound())
-                    .andReturn();
-
-            String redirectUrl = result.getResponse().getRedirectedUrl();
-            assertThat(redirectUrl, containsString("session_state=sessionhash.saltvalue"));
-            verify(calculator).calculate(currentUserId, "ant", "http://example.com");
-
-            // uaa-singular relies on the Current-User cookie. Because of GDPR, the Current-User cookie was
-            // changed to expire after a relatively short time. We have to renew that cookie during each
-            // call to /oauth/authorize or uaa-singular can get into an infinite loop where every open browser
-            // tab relying on uaa-singular aggressively polls /oauth/authorize?prompt=none
-            assertThat(result.getResponse().getCookie("Current-User").getValue(), Matchers.containsString(currentUserId));
-        } finally {
-            uaaAuthorizationEndpoint.setOpenIdSessionStateCalculator(backupCalculator);
-        }
-    }
-
-    @Test
-    void testSilentAuthentication_RuntimeException_displaysErrorFragment() throws Exception {
-        UaaAuthorizationEndpoint uaaAuthorizationEndpoint = (UaaAuthorizationEndpoint) webApplicationContext.getBean("uaaAuthorizationEndpoint");
-        OpenIdSessionStateCalculator backupCalculator = uaaAuthorizationEndpoint.getOpenIdSessionStateCalculator();
-        try {
-            OpenIdSessionStateCalculator openIdSessionStateCalculator = mock(OpenIdSessionStateCalculator.class);
-            uaaAuthorizationEndpoint.setOpenIdSessionStateCalculator(openIdSessionStateCalculator);
-
-            when(openIdSessionStateCalculator.calculate(anyString(), anyString(), anyString())).thenThrow(RuntimeException.class);
-
-            MockHttpSession session = new MockHttpSession();
-            login(session);
-
-            mockMvc.perform(
-                    get("/oauth/authorize?response_type=token&scope=openid&client_id=ant&prompt=none&redirect_uri=http://example.com/with/path.html")
-                            .session(session)
-            )
-                    .andExpect(status().is3xxRedirection())
-                    .andExpect(redirectedUrl("http://example.com/with/path.html#error=internal_server_error"));
-        } finally {
-            uaaAuthorizationEndpoint.setOpenIdSessionStateCalculator(backupCalculator);
-        }
-    }
-
-    @Test
-    void testSilentAuthentication_Returns400_whenInvalidRedirectUrlIsProvided() throws Exception {
-        MockHttpSession session = new MockHttpSession();
-        login(session);
-
-        mockMvc.perform(
-                get("/oauth/authorize?response_type=token&scope=openid&client_id=ant&prompt=none&redirect_uri=no good uri")
-                        .session(session)
-        )
-                .andExpect(status().is4xxClientError());
-    }
-
-    @Test
-    void nonSilentAuthentication_doesNotComputeSessionState() throws Exception {
-        MockHttpSession session = new MockHttpSession();
-        login(session);
-
-        MvcResult result = mockMvc.perform(
+    MvcResult result =
+        mockMvc
+            .perform(
                 get("/oauth/authorize?response_type=token&scope=openid&client_id=ant&redirect_uri=http://example.com/with/path.html")
-                        .session(session)
-        )
-                .andReturn();
-        assertThat(result.getResponse().getRedirectedUrl(), not(containsString("session_state")));
-    }
+                    .session(session))
+            .andReturn();
+    assertThat(result.getResponse().getRedirectedUrl(), not(containsString("session_state")));
+  }
 
-    @Test
-    void silentAuthentication_implicit_returnsSessionStateWhenLoginIsRequired() throws Exception {
-        MvcResult result = mockMvc.perform(
-                get("/oauth/authorize?response_type=id_token&scope=openid&client_id=ant&prompt=none&redirect_uri=http://example.com/**")
-        )
-                .andReturn();
-        assertThat(result.getResponse().getRedirectedUrl(), containsString("error=login_required"));
-        assertThat(result.getResponse().getRedirectedUrl(), containsString("session_state"));
-    }
+  @Test
+  void silentAuthentication_implicit_returnsSessionStateWhenLoginIsRequired() throws Exception {
+    MvcResult result =
+        mockMvc
+            .perform(
+                get(
+                    "/oauth/authorize?response_type=id_token&scope=openid&client_id=ant&prompt=none&redirect_uri=http://example.com/**"))
+            .andReturn();
+    assertThat(result.getResponse().getRedirectedUrl(), containsString("error=login_required"));
+    assertThat(result.getResponse().getRedirectedUrl(), containsString("session_state"));
+  }
 
-    @Test
-    void silentAuthentication_withBadClientId() throws Exception {
-        mockMvc.perform(
-                get("/oauth/authorize?response_type=id_token&scope=openid&client_id=bogus&prompt=none&redirect_uri=http://example.com/**")
-        ).andExpect(status().isBadRequest());
-    }
+  @Test
+  void silentAuthentication_withBadClientId() throws Exception {
+    mockMvc
+        .perform(
+            get(
+                "/oauth/authorize?response_type=id_token&scope=openid&client_id=bogus&prompt=none&redirect_uri=http://example.com/**"))
+        .andExpect(status().isBadRequest());
+  }
 
-    @Test
-    void silentAuthentication_withoutClientId() throws Exception {
-        mockMvc.perform(
-                get("/oauth/authorize?response_type=id_token&scope=openid&prompt=none&redirect_uri=http://example.com/**")
-        ).andExpect(status().isBadRequest());
-    }
+  @Test
+  void silentAuthentication_withoutClientId() throws Exception {
+    mockMvc
+        .perform(
+            get(
+                "/oauth/authorize?response_type=id_token&scope=openid&prompt=none&redirect_uri=http://example.com/**"))
+        .andExpect(status().isBadRequest());
+  }
 
-    @Test
-    void silentAuthentication_notImplicit_returnsSessionStateWhenLoginIsRequired() throws Exception {
-        MvcResult result = mockMvc.perform(
-                get("/oauth/authorize?response_type=code&scope=openid&client_id=ant&prompt=none&redirect_uri=http://example.com/**")
-        )
-                .andReturn();
-        assertThat(result.getResponse().getRedirectedUrl(), containsString("login_required"));
-        assertThat(result.getResponse().getRedirectedUrl(), containsString("session_state"));
-    }
+  @Test
+  void silentAuthentication_notImplicit_returnsSessionStateWhenLoginIsRequired() throws Exception {
+    MvcResult result =
+        mockMvc
+            .perform(
+                get(
+                    "/oauth/authorize?response_type=code&scope=openid&client_id=ant&prompt=none&redirect_uri=http://example.com/**"))
+            .andReturn();
+    assertThat(result.getResponse().getRedirectedUrl(), containsString("login_required"));
+    assertThat(result.getResponse().getRedirectedUrl(), containsString("session_state"));
+  }
 
-
-    private void login(MockHttpSession session) throws Exception {
-        mockMvc.perform(
-                post("/login.do")
-                        .with(cookieCsrf())
-                        .param("username", "marissa")
-                        .param("password", "koala")
-                        .session(session)
-        ).andExpect(redirectedUrl("/"));
-    }
+  private void login(MockHttpSession session) throws Exception {
+    mockMvc
+        .perform(
+            post("/login.do")
+                .with(cookieCsrf())
+                .param("username", "marissa")
+                .param("password", "koala")
+                .session(session))
+        .andExpect(redirectedUrl("/"));
+  }
 }

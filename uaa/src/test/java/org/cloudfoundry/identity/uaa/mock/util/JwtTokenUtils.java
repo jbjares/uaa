@@ -12,26 +12,26 @@ import java.util.Map;
 import static org.junit.Assert.assertNotNull;
 
 public class JwtTokenUtils {
-    public static Map<String, Object> getClaimsForToken(String token) {
-        Jwt tokenJwt;
-        try {
-            tokenJwt = JwtHelper.decode(token);
-        } catch (Throwable t) {
-            throw new InvalidTokenException("Invalid token (could not decode): " + token);
-        }
-
-        Map<String, Object> claims;
-        try {
-            claims = JsonUtils.readValue(tokenJwt.getClaims(), new TypeReference<Map<String, Object>>() {
-            });
-        } catch (Exception e) {
-            throw new IllegalStateException("Cannot read token claims", e);
-        }
-
-        String kid = tokenJwt.getHeader().getKid();
-        assertNotNull("Token should have a key ID.", kid);
-        tokenJwt.verifySignature(new KeyInfoService("https://some-uaa").getKey(kid).getVerifier());
-
-        return claims;
+  public static Map<String, Object> getClaimsForToken(String token) {
+    Jwt tokenJwt;
+    try {
+      tokenJwt = JwtHelper.decode(token);
+    } catch (Throwable t) {
+      throw new InvalidTokenException("Invalid token (could not decode): " + token);
     }
+
+    Map<String, Object> claims;
+    try {
+      claims =
+          JsonUtils.readValue(tokenJwt.getClaims(), new TypeReference<Map<String, Object>>() {});
+    } catch (Exception e) {
+      throw new IllegalStateException("Cannot read token claims", e);
+    }
+
+    String kid = tokenJwt.getHeader().getKid();
+    assertNotNull("Token should have a key ID.", kid);
+    tokenJwt.verifySignature(new KeyInfoService("https://some-uaa").getKey(kid).getVerifier());
+
+    return claims;
+  }
 }

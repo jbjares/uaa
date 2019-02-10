@@ -20,9 +20,6 @@ import java.lang.annotation.Target;
 @ExtendWith(HoneycombAuditEventTestListenerExtension.class)
 @ActiveProfiles("default")
 @WebAppConfiguration
-@ContextConfiguration(classes = {
-        SpringServletAndHoneycombTestConfig.class,
-        TestClientAndMockMvcTestConfig.class
-})
-public @interface DefaultTestContext {
-}
+@ContextConfiguration(
+    classes = {SpringServletAndHoneycombTestConfig.class, TestClientAndMockMvcTestConfig.class})
+public @interface DefaultTestContext {}

@@ -1,15 +1,15 @@
-/*******************************************************************************
- *     Cloud Foundry 
- *     Copyright (c) [2009-2016] Pivotal Software, Inc. All Rights Reserved.
+/**
+ * ***************************************************************************** Cloud Foundry
+ * Copyright (c) [2009-2016] Pivotal Software, Inc. All Rights Reserved.
  *
- *     This product is licensed to you under the Apache License, Version 2.0 (the "License").
- *     You may not use this product except in compliance with the License.
+ * <p>This product is licensed to you under the Apache License, Version 2.0 (the "License"). You may
+ * not use this product except in compliance with the License.
  *
- *     This product includes a number of subcomponents with
- *     separate copyright notices and license terms. Your use of these
- *     subcomponents is subject to the terms and conditions of the
- *     subcomponent's license, as noted in the LICENSE file.
- *******************************************************************************/
+ * <p>This product includes a number of subcomponents with separate copyright notices and license
+ * terms. Your use of these subcomponents is subject to the terms and conditions of the
+ * subcomponent's license, as noted in the LICENSE file.
+ * *****************************************************************************
+ */
 package org.cloudfoundry.identity.uaa.integration;
 
 import org.apache.http.Header;
@@ -26,9 +26,9 @@ import org.apache.http.message.BasicHeader;
 import org.apache.http.util.EntityUtils;
 import org.cloudfoundry.identity.uaa.ServerRunning;
 import org.cloudfoundry.identity.uaa.integration.util.IntegrationTestUtils;
+import org.cloudfoundry.identity.uaa.security.web.CookieBasedCsrfTokenRepository;
 import org.cloudfoundry.identity.uaa.test.TestAccountSetup;
 import org.cloudfoundry.identity.uaa.test.UaaTestAccounts;
-import org.cloudfoundry.identity.uaa.security.web.CookieBasedCsrfTokenRepository;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -45,89 +45,86 @@ import static org.springframework.http.HttpStatus.OK;
 
 public class FormLoginIntegrationTests {
 
-    @Rule
-    public ServerRunning serverRunning = ServerRunning.isRunning();
+  @Rule public ServerRunning serverRunning = ServerRunning.isRunning();
 
-    private UaaTestAccounts testAccounts = UaaTestAccounts.standard(serverRunning);
+  private UaaTestAccounts testAccounts = UaaTestAccounts.standard(serverRunning);
 
-    @Rule
-    public TestAccountSetup testAccountSetup = TestAccountSetup.standard(serverRunning, testAccounts);
+  @Rule
+  public TestAccountSetup testAccountSetup = TestAccountSetup.standard(serverRunning, testAccounts);
 
-    Header header = new BasicHeader(HttpHeaders.ACCEPT, MediaType.TEXT_HTML_VALUE);
-    List<Header> headers = Arrays.asList(header);
+  Header header = new BasicHeader(HttpHeaders.ACCEPT, MediaType.TEXT_HTML_VALUE);
+  List<Header> headers = Arrays.asList(header);
 
-    BasicCookieStore cookieStore = new BasicCookieStore();
-    CloseableHttpClient httpclient;
+  BasicCookieStore cookieStore = new BasicCookieStore();
+  CloseableHttpClient httpclient;
 
-    @Before
-    public void createHttpClient() throws Exception {
-        httpclient = HttpClients.custom()
+  @Before
+  public void createHttpClient() throws Exception {
+    httpclient =
+        HttpClients.custom()
             .setDefaultRequestConfig(RequestConfig.DEFAULT)
             .setDefaultHeaders(headers)
             .setDefaultCookieStore(cookieStore)
             .build();
-    }
+  }
 
-    @After
-    public void closeClient() throws Exception {
-        httpclient.close();
-    }
+  @After
+  public void closeClient() throws Exception {
+    httpclient.close();
+  }
 
+  @Test
+  public void testUnauthenticatedRedirect() throws Exception {
+    String location = serverRunning.getBaseUrl() + "/";
+    HttpGet httpget = new HttpGet(location);
+    httpget.setConfig(RequestConfig.custom().setRedirectsEnabled(false).build());
+    CloseableHttpResponse response = httpclient.execute(httpget);
+    assertEquals(FOUND.value(), response.getStatusLine().getStatusCode());
+    location = response.getFirstHeader("Location").getValue();
+    response.close();
+    httpget.completed();
+    assertTrue(location.contains("/login"));
+  }
 
-    @Test
-    public void testUnauthenticatedRedirect() throws Exception {
-        String location = serverRunning.getBaseUrl() + "/";
-        HttpGet httpget = new HttpGet(location);
-        httpget.setConfig(
-            RequestConfig.custom().setRedirectsEnabled(false).build()
-        );
-        CloseableHttpResponse response = httpclient.execute(httpget);
-        assertEquals(FOUND.value(), response.getStatusLine().getStatusCode());
-        location = response.getFirstHeader("Location").getValue();
-        response.close();
-        httpget.completed();
-        assertTrue(location.contains("/login"));
-    }
+  @Test
+  public void testSuccessfulAuthenticationFlow() throws Exception {
+    // request home page /
+    String location = serverRunning.getBaseUrl() + "/";
+    HttpGet httpget = new HttpGet(location);
+    CloseableHttpResponse response = httpclient.execute(httpget);
 
-    @Test
-    public void testSuccessfulAuthenticationFlow() throws Exception {
-        //request home page /
-        String location = serverRunning.getBaseUrl() + "/";
-        HttpGet httpget = new HttpGet(location);
-        CloseableHttpResponse response = httpclient.execute(httpget);
+    assertEquals(OK.value(), response.getStatusLine().getStatusCode());
 
-        assertEquals(OK.value(), response.getStatusLine().getStatusCode());
+    String body = EntityUtils.toString(response.getEntity());
+    EntityUtils.consume(response.getEntity());
+    response.close();
+    httpget.completed();
 
-        String body = EntityUtils.toString(response.getEntity());
-        EntityUtils.consume(response.getEntity());
-        response.close();
-        httpget.completed();
+    assertTrue(body.contains("/login.do"));
+    assertTrue(body.contains("username"));
+    assertTrue(body.contains("password"));
 
-        assertTrue(body.contains("/login.do"));
-        assertTrue(body.contains("username"));
-        assertTrue(body.contains("password"));
+    String csrf = IntegrationTestUtils.extractCookieCsrf(body);
 
-        String csrf = IntegrationTestUtils.extractCookieCsrf(body);
-
-        HttpUriRequest loginPost = RequestBuilder.post()
+    HttpUriRequest loginPost =
+        RequestBuilder.post()
             .setUri(serverRunning.getBaseUrl() + "/login.do")
-            .addParameter("username",testAccounts.getUserName())
-            .addParameter("password",testAccounts.getPassword())
+            .addParameter("username", testAccounts.getUserName())
+            .addParameter("password", testAccounts.getPassword())
             .addParameter(CookieBasedCsrfTokenRepository.DEFAULT_CSRF_COOKIE_NAME, csrf)
             .build();
 
-        response = httpclient.execute(loginPost);
-        assertEquals(FOUND.value(), response.getStatusLine().getStatusCode());
-        location = response.getFirstHeader("Location").getValue();
-        response.close();
+    response = httpclient.execute(loginPost);
+    assertEquals(FOUND.value(), response.getStatusLine().getStatusCode());
+    location = response.getFirstHeader("Location").getValue();
+    response.close();
 
-        httpget = new HttpGet(location);
-        response = httpclient.execute(httpget);
-        assertEquals(OK.value(), response.getStatusLine().getStatusCode());
+    httpget = new HttpGet(location);
+    response = httpclient.execute(httpget);
+    assertEquals(OK.value(), response.getStatusLine().getStatusCode());
 
-        body = EntityUtils.toString(response.getEntity());
-        response.close();
-        assertTrue(body.contains("Sign Out"));
-    }
-
+    body = EntityUtils.toString(response.getEntity());
+    response.close();
+    assertTrue(body.contains("Sign Out"));
+  }
 }

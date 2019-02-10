@@ -1,15 +1,15 @@
-/*******************************************************************************
- *     Cloud Foundry
- *     Copyright (c) [2009-2016] Pivotal Software, Inc. All Rights Reserved.
+/**
+ * ***************************************************************************** Cloud Foundry
+ * Copyright (c) [2009-2016] Pivotal Software, Inc. All Rights Reserved.
  *
- *     This product is licensed to you under the Apache License, Version 2.0 (the "License").
- *     You may not use this product except in compliance with the License.
+ * <p>This product is licensed to you under the Apache License, Version 2.0 (the "License"). You may
+ * not use this product except in compliance with the License.
  *
- *     This product includes a number of subcomponents with
- *     separate copyright notices and license terms. Your use of these
- *     subcomponents is subject to the terms and conditions of the
- *     subcomponent's license, as noted in the LICENSE file.
- *******************************************************************************/
+ * <p>This product includes a number of subcomponents with separate copyright notices and license
+ * terms. Your use of these subcomponents is subject to the terms and conditions of the
+ * subcomponent's license, as noted in the LICENSE file.
+ * *****************************************************************************
+ */
 package org.cloudfoundry.identity.uaa.login;
 
 import org.cloudfoundry.identity.uaa.SpringServletAndHoneycombTestConfig;
@@ -40,31 +40,33 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebAppConfiguration
 @ContextConfiguration(classes = SpringServletAndHoneycombTestConfig.class)
 public class XFrameOptionsTheories {
-    @Rule
-    public HoneycombAuditEventListenerRule honeycombAuditEventListenerRule = new HoneycombAuditEventListenerRule();
+  @Rule
+  public HoneycombAuditEventListenerRule honeycombAuditEventListenerRule =
+      new HoneycombAuditEventListenerRule();
 
-    @Autowired
-    private WebApplicationContext webApplicationContext;
-    private MockMvc mockMvc;
+  @Autowired private WebApplicationContext webApplicationContext;
+  private MockMvc mockMvc;
 
-    @Before
-    public void setup() {
-        FilterChainProxy springSecurityFilterChain = webApplicationContext.getBean("springSecurityFilterChain", FilterChainProxy.class);
-        mockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext)
-                .addFilter(springSecurityFilterChain)
-                .build();
-    }
+  @Before
+  public void setup() {
+    FilterChainProxy springSecurityFilterChain =
+        webApplicationContext.getBean("springSecurityFilterChain", FilterChainProxy.class);
+    mockMvc =
+        MockMvcBuilders.webAppContextSetup(webApplicationContext)
+            .addFilter(springSecurityFilterChain)
+            .build();
+  }
 
-    @Test
-    public void responsesHaveXFrameOptionsHeaderHtml() throws Exception {
-        RequestBuilder request = MockMvcRequestBuilders.get("/login").accept(MediaType.TEXT_HTML);
-        mockMvc.perform(request).andExpect(header().string(XFRAME_OPTIONS_HEADER, DENY.toString()));
-    }
+  @Test
+  public void responsesHaveXFrameOptionsHeaderHtml() throws Exception {
+    RequestBuilder request = MockMvcRequestBuilders.get("/login").accept(MediaType.TEXT_HTML);
+    mockMvc.perform(request).andExpect(header().string(XFRAME_OPTIONS_HEADER, DENY.toString()));
+  }
 
-    @Test
-    public void responsesHaveXFrameOptionsHeaderJson() throws Exception {
-        RequestBuilder request = MockMvcRequestBuilders.get("/login").accept(MediaType.APPLICATION_JSON);
-        mockMvc.perform(request).andExpect(header().string(XFRAME_OPTIONS_HEADER, DENY.toString()));
-    }
-
+  @Test
+  public void responsesHaveXFrameOptionsHeaderJson() throws Exception {
+    RequestBuilder request =
+        MockMvcRequestBuilders.get("/login").accept(MediaType.APPLICATION_JSON);
+    mockMvc.perform(request).andExpect(header().string(XFRAME_OPTIONS_HEADER, DENY.toString()));
+  }
 }

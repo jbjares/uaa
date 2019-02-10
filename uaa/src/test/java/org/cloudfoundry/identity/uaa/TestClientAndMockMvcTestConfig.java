@@ -10,20 +10,18 @@ import org.springframework.web.context.WebApplicationContext;
 
 @Configuration
 public class TestClientAndMockMvcTestConfig {
-    @Bean
-    public MockMvc mockMvc(
-            WebApplicationContext webApplicationContext,
-            @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection") FilterChainProxy springSecurityFilterChain
-    ) {
-        return MockMvcBuilders.webAppContextSetup(webApplicationContext)
-                .addFilter(springSecurityFilterChain)
-                .build();
-    }
+  @Bean
+  public MockMvc mockMvc(
+      WebApplicationContext webApplicationContext,
+      @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
+          FilterChainProxy springSecurityFilterChain) {
+    return MockMvcBuilders.webAppContextSetup(webApplicationContext)
+        .addFilter(springSecurityFilterChain)
+        .build();
+  }
 
-    @Bean
-    public TestClient testClient(
-            MockMvc mockMvc
-    ) {
-        return new TestClient(mockMvc);
-    }
+  @Bean
+  public TestClient testClient(MockMvc mockMvc) {
+    return new TestClient(mockMvc);
+  }
 }

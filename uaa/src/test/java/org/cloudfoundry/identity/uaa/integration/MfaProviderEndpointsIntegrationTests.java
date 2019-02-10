@@ -27,58 +27,61 @@ import static org.junit.Assert.assertTrue;
 @ContextConfiguration(classes = DefaultIntegrationTestConfig.class)
 public class MfaProviderEndpointsIntegrationTests {
 
-    @Autowired
-    WebDriver webDriver;
+  @Autowired WebDriver webDriver;
 
-    @Value("${integration.test.base_url}")
-    String baseUrl;
+  @Value("${integration.test.base_url}")
+  String baseUrl;
 
-    @Autowired
-    TestAccounts testAccounts;
+  @Autowired TestAccounts testAccounts;
 
-    @Autowired
-    TestClient testClient;
+  @Autowired TestClient testClient;
 
-    ServerRunning serverRunning = ServerRunning.isRunning();
-    private String adminToken;
-    private MfaProvider<GoogleMfaProviderConfig> mfaProvider;
+  ServerRunning serverRunning = ServerRunning.isRunning();
+  private String adminToken;
+  private MfaProvider<GoogleMfaProviderConfig> mfaProvider;
 
-    @Before
-    public void setup() throws Exception {
-        adminToken = IntegrationTestUtils.getZoneAdminToken(baseUrl, serverRunning);
+  @Before
+  public void setup() throws Exception {
+    adminToken = IntegrationTestUtils.getZoneAdminToken(baseUrl, serverRunning);
 
-        mfaProvider = new MfaProvider();
-        mfaProvider.setConfig(new GoogleMfaProviderConfig());
-        mfaProvider.setType(MfaProvider.MfaProviderType.GOOGLE_AUTHENTICATOR);
-        mfaProvider.setName("testMfaProvider");
-    }
+    mfaProvider = new MfaProvider();
+    mfaProvider.setConfig(new GoogleMfaProviderConfig());
+    mfaProvider.setType(MfaProvider.MfaProviderType.GOOGLE_AUTHENTICATOR);
+    mfaProvider.setName("testMfaProvider");
+  }
 
-    @Test
-    public void createMfaProvider() {
-        MfaProvider result = IntegrationTestUtils.createGoogleMfaProvider(baseUrl, adminToken, mfaProvider, "");
-        assertTrue("id is not empty", StringUtils.hasText(result.getId()));
-    }
+  @Test
+  public void createMfaProvider() {
+    MfaProvider result =
+        IntegrationTestUtils.createGoogleMfaProvider(baseUrl, adminToken, mfaProvider, "");
+    assertTrue("id is not empty", StringUtils.hasText(result.getId()));
+  }
 
-    @Test
-    public void createMfaProviderInZone() throws Exception {
-        ClientCredentialsResourceDetails adminResource = IntegrationTestUtils.getClientCredentialsResource(baseUrl, new String[0], "admin", "adminsecret");
-        RestTemplate adminClient = IntegrationTestUtils.getClientCredentialsTemplate(
-                adminResource);
+  @Test
+  public void createMfaProviderInZone() throws Exception {
+    ClientCredentialsResourceDetails adminResource =
+        IntegrationTestUtils.getClientCredentialsResource(
+            baseUrl, new String[0], "admin", "adminsecret");
+    RestTemplate adminClient = IntegrationTestUtils.getClientCredentialsTemplate(adminResource);
 
-        IdentityZone mfaZone = IntegrationTestUtils.createZoneOrUpdateSubdomain(adminClient, baseUrl, "testzone1", "testzone1", null);
-        String zoneUrl = baseUrl.replace("localhost", mfaZone.getSubdomain() + ".localhost");
+    IdentityZone mfaZone =
+        IntegrationTestUtils.createZoneOrUpdateSubdomain(
+            adminClient, baseUrl, "testzone1", "testzone1", null);
+    String zoneUrl = baseUrl.replace("localhost", mfaZone.getSubdomain() + ".localhost");
 
-        String zoneAdminToken = IntegrationTestUtils.getZoneAdminToken(baseUrl, serverRunning, mfaZone.getId());
-        BaseClientDetails zoneClient = new BaseClientDetails("mfaAdmin", null, "", "client_credentials", "uaa.admin");
-        zoneClient.setClientSecret("secret");
-        IntegrationTestUtils.createClientAsZoneAdmin(zoneAdminToken, baseUrl, mfaZone.getId(), zoneClient);
+    String zoneAdminToken =
+        IntegrationTestUtils.getZoneAdminToken(baseUrl, serverRunning, mfaZone.getId());
+    BaseClientDetails zoneClient =
+        new BaseClientDetails("mfaAdmin", null, "", "client_credentials", "uaa.admin");
+    zoneClient.setClientSecret("secret");
+    IntegrationTestUtils.createClientAsZoneAdmin(
+        zoneAdminToken, baseUrl, mfaZone.getId(), zoneClient);
 
-        String inZoneAdminToken = IntegrationTestUtils.getClientCredentialsToken(zoneUrl, "mfaAdmin", "secret");
+    String inZoneAdminToken =
+        IntegrationTestUtils.getClientCredentialsToken(zoneUrl, "mfaAdmin", "secret");
 
-        MfaProvider result = IntegrationTestUtils.createGoogleMfaProvider(zoneUrl, inZoneAdminToken, mfaProvider, "");
-        assertTrue("id is not empty", StringUtils.hasText(result.getId()));
-
-
-    }
-
+    MfaProvider result =
+        IntegrationTestUtils.createGoogleMfaProvider(zoneUrl, inZoneAdminToken, mfaProvider, "");
+    assertTrue("id is not empty", StringUtils.hasText(result.getId()));
+  }
 }

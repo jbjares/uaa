@@ -26,35 +26,35 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ContextConfiguration(classes = SpringServletAndHoneycombTestConfig.class)
 public class SessionControllerMockMvcTests {
   @Rule
-  public HoneycombAuditEventListenerRule honeycombAuditEventListenerRule = new HoneycombAuditEventListenerRule();
+  public HoneycombAuditEventListenerRule honeycombAuditEventListenerRule =
+      new HoneycombAuditEventListenerRule();
 
-  @Autowired
-  public WebApplicationContext webApplicationContext;
+  @Autowired public WebApplicationContext webApplicationContext;
   private MockMvc mockMvc;
 
   @Before
   public void setup() {
-    FilterChainProxy springSecurityFilterChain = webApplicationContext.getBean("springSecurityFilterChain", FilterChainProxy.class);
-    mockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext)
+    FilterChainProxy springSecurityFilterChain =
+        webApplicationContext.getBean("springSecurityFilterChain", FilterChainProxy.class);
+    mockMvc =
+        MockMvcBuilders.webAppContextSetup(webApplicationContext)
             .addFilter(springSecurityFilterChain)
             .build();
   }
 
   @Test
   public void legacy_sessionControllerReturnsSessionView() throws Exception {
-    mockMvc.perform(get("/session")
-        .param("clientId","1")
-        .param("messageOrigin", "origin"))
-      .andExpect(view().name("session"))
-      .andExpect(status().isOk());
+    mockMvc
+        .perform(get("/session").param("clientId", "1").param("messageOrigin", "origin"))
+        .andExpect(view().name("session"))
+        .andExpect(status().isOk());
   }
 
   @Test
   public void sessionManagement_ReturnsSessionManagementView() throws Exception {
-    mockMvc.perform(get("/session_management")
-      .param("clientId","1")
-      .param("messageOrigin", "origin"))
-      .andExpect(view().name("session_management"))
-      .andExpect(status().isOk());
+    mockMvc
+        .perform(get("/session_management").param("clientId", "1").param("messageOrigin", "origin"))
+        .andExpect(view().name("session_management"))
+        .andExpect(status().isOk());
   }
 }

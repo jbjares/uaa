@@ -14,25 +14,28 @@ import static org.springframework.restdocs.templates.TemplateFormats.markdown;
 
 public class EndpointDocs {
 
-    @Autowired
-    protected WebApplicationContext webApplicationContext;
+  @Autowired protected WebApplicationContext webApplicationContext;
 
-    protected MockMvc mockMvc;
-    protected TestClient testClient;
+  protected MockMvc mockMvc;
+  protected TestClient testClient;
 
-    @BeforeEach
-    void setupWebMvc(ManualRestDocumentation manualRestDocumentation) {
-        FilterChainProxy springSecurityFilterChain = webApplicationContext.getBean("springSecurityFilterChain", FilterChainProxy.class);
+  @BeforeEach
+  void setupWebMvc(ManualRestDocumentation manualRestDocumentation) {
+    FilterChainProxy springSecurityFilterChain =
+        webApplicationContext.getBean("springSecurityFilterChain", FilterChainProxy.class);
 
-        mockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext)
-                .addFilter(springSecurityFilterChain)
-                .apply(documentationConfiguration(manualRestDocumentation)
-                        .uris().withPort(80)
-                        .and()
-                        .snippets()
-                        .withTemplateFormat(markdown()))
-                .build();
+    mockMvc =
+        MockMvcBuilders.webAppContextSetup(webApplicationContext)
+            .addFilter(springSecurityFilterChain)
+            .apply(
+                documentationConfiguration(manualRestDocumentation)
+                    .uris()
+                    .withPort(80)
+                    .and()
+                    .snippets()
+                    .withTemplateFormat(markdown()))
+            .build();
 
-        testClient = new TestClient(mockMvc);
-    }
+    testClient = new TestClient(mockMvc);
+  }
 }

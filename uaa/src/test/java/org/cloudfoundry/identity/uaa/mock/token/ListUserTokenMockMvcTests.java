@@ -14,7 +14,6 @@
 
 package org.cloudfoundry.identity.uaa.mock.token;
 
-
 import com.fasterxml.jackson.core.type.TypeReference;
 import org.cloudfoundry.identity.uaa.constants.OriginKeys;
 import org.cloudfoundry.identity.uaa.mock.util.MockMvcUtils;
@@ -45,182 +44,232 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 class ListUserTokenMockMvcTests extends AbstractTokenMockMvcTests {
 
-    private ClientDetails client1withTokensListScope, client2,client3;
-    private ScimUser user1withTokensListScope, user2, user3;
-    private RandomValueStringGenerator generator = new RandomValueStringGenerator();
-    private MultiValueMap<String, String> tokensPerUser = new LinkedMultiValueMap<>();
-    private MultiValueMap<String, String> tokensPerClient = new LinkedMultiValueMap<>();
-    private String adminClientToken;
-    private String tokensListToken;
+  private ClientDetails client1withTokensListScope, client2, client3;
+  private ScimUser user1withTokensListScope, user2, user3;
+  private RandomValueStringGenerator generator = new RandomValueStringGenerator();
+  private MultiValueMap<String, String> tokensPerUser = new LinkedMultiValueMap<>();
+  private MultiValueMap<String, String> tokensPerClient = new LinkedMultiValueMap<>();
+  private String adminClientToken;
+  private String tokensListToken;
 
-    @BeforeEach
-    void createUsersAndClients() throws Exception {
-        user1withTokensListScope = setUpUser(generator.generate(), "tokens.list,scim.read,scim.write", OriginKeys.UAA, IdentityZone.getUaa().getId());
-        user2 = setUpUser(generator.generate(), "scim.read,scim.write", OriginKeys.UAA, IdentityZone.getUaa().getId());
-        user3 = setUpUser(generator.generate(), "scim.read,scim.write", OriginKeys.UAA, IdentityZone.getUaa().getId());
-        client1withTokensListScope = setUpClients(generator.generate(), "", "tokens.list,scim.read", "password,refresh_token", false);
-        client2 = setUpClients(generator.generate(), "", "scim.read","password,refresh_token", false);
-        client3 = setUpClients(generator.generate(), "", "scim.read","password,refresh_token", false);
-        setUpClients(user1withTokensListScope.getId(), "tokens.list", "tokens.list,scim.read", "client_credentials,password,refresh_token", false);
+  @BeforeEach
+  void createUsersAndClients() throws Exception {
+    user1withTokensListScope =
+        setUpUser(
+            generator.generate(),
+            "tokens.list,scim.read,scim.write",
+            OriginKeys.UAA,
+            IdentityZone.getUaa().getId());
+    user2 =
+        setUpUser(
+            generator.generate(),
+            "scim.read,scim.write",
+            OriginKeys.UAA,
+            IdentityZone.getUaa().getId());
+    user3 =
+        setUpUser(
+            generator.generate(),
+            "scim.read,scim.write",
+            OriginKeys.UAA,
+            IdentityZone.getUaa().getId());
+    client1withTokensListScope =
+        setUpClients(
+            generator.generate(), "", "tokens.list,scim.read", "password,refresh_token", false);
+    client2 = setUpClients(generator.generate(), "", "scim.read", "password,refresh_token", false);
+    client3 = setUpClients(generator.generate(), "", "scim.read", "password,refresh_token", false);
+    setUpClients(
+        user1withTokensListScope.getId(),
+        "tokens.list",
+        "tokens.list,scim.read",
+        "client_credentials,password,refresh_token",
+        false);
 
-        for (ScimUser user : Arrays.asList(user1withTokensListScope, user2, user3)) {
-            for (ClientDetails client : Arrays.asList(client1withTokensListScope, client2, client3)) {
-                String token = MockMvcUtils.getUserOAuthAccessToken(
-                    mockMvc,
-                    client.getClientId(),
-                    SECRET,
-                    user.getUserName(),
-                    SECRET,
-                    null,
-                    null,
-                    true);
-                tokensPerUser.add(user.getId(), token);
-                tokensPerClient.add(client.getClientId(), token);
-            }
-        }
-        adminClientToken = getClientCredentialsOAuthAccessToken(
-            mockMvc,
-            "admin",
-            "adminsecret",
-            null,
-            null,
-            true);
-
-        ClientDetails tokenListClient = setUpClients(generator.generate(),
-                                                     "tokens.list",
-                                                     null,
-                                                     "client_credentials",
-                                                     false);
-        tokensListToken = getClientCredentialsOAuthAccessToken(
-            mockMvc,
-            tokenListClient.getClientId(),
-            SECRET,
-            null,
-            null,
-            true);
-
+    for (ScimUser user : Arrays.asList(user1withTokensListScope, user2, user3)) {
+      for (ClientDetails client : Arrays.asList(client1withTokensListScope, client2, client3)) {
+        String token =
+            MockMvcUtils.getUserOAuthAccessToken(
+                mockMvc,
+                client.getClientId(),
+                SECRET,
+                user.getUserName(),
+                SECRET,
+                null,
+                null,
+                true);
+        tokensPerUser.add(user.getId(), token);
+        tokensPerClient.add(client.getClientId(), token);
+      }
     }
+    adminClientToken =
+        getClientCredentialsOAuthAccessToken(mockMvc, "admin", "adminsecret", null, null, true);
 
-    @Test
-    void listUserTokenAsAdmin() throws Exception {
-        listTokens("/oauth/token/list/user/" + user1withTokensListScope.getId(), adminClientToken, tokensPerUser.get(user1withTokensListScope.getId()), status().isOk());
+    ClientDetails tokenListClient =
+        setUpClients(generator.generate(), "tokens.list", null, "client_credentials", false);
+    tokensListToken =
+        getClientCredentialsOAuthAccessToken(
+            mockMvc, tokenListClient.getClientId(), SECRET, null, null, true);
+  }
+
+  @Test
+  void listUserTokenAsAdmin() throws Exception {
+    listTokens(
+        "/oauth/token/list/user/" + user1withTokensListScope.getId(),
+        adminClientToken,
+        tokensPerUser.get(user1withTokensListScope.getId()),
+        status().isOk());
+  }
+
+  @Test
+  void listUserTokenAsSelf() throws Exception {
+    String user2Token = tokensPerUser.getFirst(user2.getId());
+    listTokens("/oauth/token/list", user2Token, emptyList(), status().isForbidden());
+  }
+
+  void validateTokens(List<String> actual, List<String> expected) {
+    for (String t : expected) {
+      assertTrue("Expecting token:" + t + " to be present in list.", actual.contains(t));
     }
+  }
 
-    @Test
-    void listUserTokenAsSelf() throws Exception {
-        String user2Token = tokensPerUser.getFirst(user2.getId());
-        listTokens("/oauth/token/list", user2Token, emptyList(), status().isForbidden());
+  List<String> getTokenIds(List<RevocableToken> tokens) {
+    List<String> accessTokens =
+        tokens.stream().map(RevocableToken::getTokenId).collect(Collectors.toList());
+    return accessTokens;
+  }
+
+  @Test
+  void listClientToken_with_TokensList_Scope() throws Exception {
+    for (String clientId :
+        Arrays.asList(
+            client1withTokensListScope.getClientId(),
+            client2.getClientId(),
+            client3.getClientId())) {
+      listTokens(
+          "/oauth/token/list/client/" + clientId,
+          tokensListToken,
+          tokensPerClient.get(clientId),
+          status().isOk());
     }
+  }
 
-    void validateTokens(List<String> actual, List<String> expected) {
-        for (String t : expected) {
-            assertTrue("Expecting token:"+t+" to be present in list.", actual.contains(t));
-        }
+  @Test
+  void listClientTokenAsAdmin() throws Exception {
+    for (String clientId :
+        Arrays.asList(
+            client1withTokensListScope.getClientId(),
+            client2.getClientId(),
+            client3.getClientId())) {
+      listTokens(
+          "/oauth/token/list/client/" + clientId,
+          adminClientToken,
+          tokensPerClient.get(clientId),
+          status().isOk());
     }
+  }
 
-    List<String> getTokenIds(List<RevocableToken> tokens) {
-        List<String> accessTokens = tokens.stream().map(RevocableToken::getTokenId).collect(Collectors.toList());
-        return accessTokens;
-
+  @Test
+  void listClientTokenAs_Other_Client() throws Exception {
+    for (String clientId :
+        Arrays.asList(
+            client1withTokensListScope.getClientId(),
+            client2.getClientId(),
+            client3.getClientId())) {
+      listTokens(
+          "/oauth/token/list/client/" + clientId,
+          adminClientToken,
+          tokensPerClient.get(clientId),
+          status().isOk());
     }
+  }
 
-    @Test
-    void listClientToken_with_TokensList_Scope() throws Exception {
-        for (String clientId : Arrays.asList(client1withTokensListScope.getClientId(), client2.getClientId(), client3.getClientId())) {
-            listTokens("/oauth/token/list/client/" + clientId, tokensListToken, tokensPerClient.get(clientId), status().isOk());
-        }
-    }
+  @Test
+  void listUserTokenAsAnotherUser() throws Exception {
+    getTokenList(
+        "/oauth/token/list/user/" + user1withTokensListScope.getId(),
+        tokensPerUser.getFirst(user2.getId()),
+        status().isForbidden());
+  }
 
-    @Test
-    void listClientTokenAsAdmin() throws Exception {
-        for (String clientId : Arrays.asList(client1withTokensListScope.getClientId(), client2.getClientId(), client3.getClientId())) {
-            listTokens("/oauth/token/list/client/" + clientId, adminClientToken, tokensPerClient.get(clientId), status().isOk());
-        }
-    }
+  @Test
+  void listClientTokensAsAnotherClient() throws Exception {
+    getTokenList(
+        "/oauth/token/list/client/" + client1withTokensListScope.getClientId(),
+        tokensPerClient.getFirst(client3.getClientId()),
+        status().isForbidden());
 
-    @Test
-    void listClientTokenAs_Other_Client() throws Exception {
-        for (String clientId : Arrays.asList(client1withTokensListScope.getClientId(), client2.getClientId(), client3.getClientId())) {
-            listTokens("/oauth/token/list/client/" + clientId, adminClientToken, tokensPerClient.get(clientId), status().isOk());
-        }
-    }
+    getTokenList(
+        "/oauth/token/list/client/" + client1withTokensListScope.getClientId(),
+        tokensListToken,
+        status().isOk());
+  }
 
-    @Test
-    void listUserTokenAsAnotherUser() throws Exception {
-        getTokenList("/oauth/token/list/user/" + user1withTokensListScope.getId(),
-                     tokensPerUser.getFirst(user2.getId()),
-                     status().isForbidden());
-    }
+  @Test
+  void listUserTokens_for_self() throws Exception {
+    String userId = user2.getId();
+    listTokens(
+        "/oauth/token/list/user/" + userId,
+        tokensPerUser.getFirst(userId),
+        emptyList(),
+        status().isForbidden());
+  }
 
-    @Test
-    void listClientTokensAsAnotherClient() throws Exception {
-        getTokenList("/oauth/token/list/client/" + client1withTokensListScope.getClientId(),
-                     tokensPerClient.getFirst(client3.getClientId()),
-                     status().isForbidden());
+  @Test
+  void listUserTokens_for_someone_else() throws Exception {
 
-        getTokenList("/oauth/token/list/client/" + client1withTokensListScope.getClientId(),
-                     tokensListToken,
-                     status().isOk());
-    }
+    getTokenList(
+        "/oauth/token/list/user/" + user2.getId(),
+        tokensPerUser.getFirst(user1withTokensListScope.getId()),
+        status().isOk());
 
-    @Test
-    void listUserTokens_for_self() throws Exception {
-        String userId = user2.getId();
-        listTokens("/oauth/token/list/user/" + userId, tokensPerUser.getFirst(userId), emptyList(), status().isForbidden());
-    }
+    getTokenList(
+        "/oauth/token/list/user/" + user1withTokensListScope.getId(),
+        tokensPerUser.getFirst(user2.getId()),
+        status().isForbidden());
+  }
 
-    @Test
-    void listUserTokens_for_someone_else() throws Exception {
+  @Test
+  void listUserTokens_using_TokensList_scope() throws Exception {
+    String userId = user1withTokensListScope.getId();
+    listTokens(
+        "/oauth/token/list/user/" + userId,
+        tokensPerUser.getFirst(userId),
+        tokensPerUser.get(userId),
+        status().isOk());
+  }
 
-        getTokenList("/oauth/token/list/user/" + user2.getId(),
-                     tokensPerUser.getFirst(user1withTokensListScope.getId()),
-                     status().isOk());
+  void listTokens(
+      String urlTemplate, String accessToken, List<String> expectedTokenIds, ResultMatcher status)
+      throws Exception {
+    List<RevocableToken> tokens = getTokenList(urlTemplate, accessToken, status);
 
-        getTokenList("/oauth/token/list/user/" + user1withTokensListScope.getId(),
-                     tokensPerUser.getFirst(user2.getId()),
-                     status().isForbidden());
-    }
+    List<String> tokenIds = getTokenIds(tokens);
+    validateTokens(tokenIds, expectedTokenIds);
+  }
 
-    @Test
-    void listUserTokens_using_TokensList_scope() throws Exception {
-        String userId = user1withTokensListScope.getId();
-        listTokens("/oauth/token/list/user/" + userId, tokensPerUser.getFirst(userId), tokensPerUser.get(userId), status().isOk());
-    }
+  @Test
+  void listClientTokens() throws Exception {
+    listTokens(
+        "/oauth/token/list/client/" + client1withTokensListScope.getClientId(),
+        tokensPerClient.getFirst(client1withTokensListScope.getClientId()),
+        tokensPerClient.get(client1withTokensListScope.getClientId()),
+        status().isOk());
+  }
 
-    void listTokens(String urlTemplate, String accessToken, List<String> expectedTokenIds, ResultMatcher status) throws Exception {
-        List<RevocableToken> tokens = getTokenList(urlTemplate,
-                                                   accessToken,
-                                                   status);
-
-        List<String> tokenIds = getTokenIds(tokens);
-        validateTokens(tokenIds, expectedTokenIds);
-    }
-
-    @Test
-    void listClientTokens() throws Exception {
-        listTokens("/oauth/token/list/client/" + client1withTokensListScope.getClientId(), tokensPerClient.getFirst(client1withTokensListScope.getClientId()), tokensPerClient.get(client1withTokensListScope.getClientId()), status().isOk());
-    }
-
-    List<RevocableToken> getTokenList(String urlTemplate,
-                                      String accessToken,
-                                      ResultMatcher status) throws Exception {
-        MvcResult result = mockMvc
-            .perform(
-                get(urlTemplate)
-                   .header(AUTHORIZATION, "Bearer "+ accessToken)
-            )
+  List<RevocableToken> getTokenList(String urlTemplate, String accessToken, ResultMatcher status)
+      throws Exception {
+    MvcResult result =
+        mockMvc
+            .perform(get(urlTemplate).header(AUTHORIZATION, "Bearer " + accessToken))
             .andExpect(status)
             .andReturn();
-        if (result.getResponse().getStatus() == 200) {
-            String response = result.getResponse().getContentAsString();
-            List<RevocableToken> tokenList = JsonUtils.readValue(response, new TypeReference<List<RevocableToken>>() {});
-            tokenList.stream().forEach(t -> assertNull(t.getValue()));
-            return tokenList;
-        } else {
-            return emptyList();
-        }
+    if (result.getResponse().getStatus() == 200) {
+      String response = result.getResponse().getContentAsString();
+      List<RevocableToken> tokenList =
+          JsonUtils.readValue(response, new TypeReference<List<RevocableToken>>() {});
+      tokenList.stream().forEach(t -> assertNull(t.getValue()));
+      return tokenList;
+    } else {
+      return emptyList();
     }
-
-
-
+  }
 }

@@ -1,15 +1,15 @@
-/*******************************************************************************
- *     Cloud Foundry
- *     Copyright (c) [2009-2016] Pivotal Software, Inc. All Rights Reserved.
+/**
+ * ***************************************************************************** Cloud Foundry
+ * Copyright (c) [2009-2016] Pivotal Software, Inc. All Rights Reserved.
  *
- *     This product is licensed to you under the Apache License, Version 2.0 (the "License").
- *     You may not use this product except in compliance with the License.
+ * <p>This product is licensed to you under the Apache License, Version 2.0 (the "License"). You may
+ * not use this product except in compliance with the License.
  *
- *     This product includes a number of subcomponents with
- *     separate copyright notices and license terms. Your use of these
- *     subcomponents is subject to the terms and conditions of the
- *     subcomponent's license, as noted in the LICENSE file.
- *******************************************************************************/
+ * <p>This product includes a number of subcomponents with separate copyright notices and license
+ * terms. Your use of these subcomponents is subject to the terms and conditions of the
+ * subcomponent's license, as noted in the LICENSE file.
+ * *****************************************************************************
+ */
 package org.cloudfoundry.identity.uaa.integration;
 
 import org.cloudfoundry.identity.uaa.ServerRunning;
@@ -31,62 +31,59 @@ import java.util.Arrays;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * @author Dave Syer
- */
+/** @author Dave Syer */
 public class NativeApplicationIntegrationTests {
 
-    @Rule
-    public ServerRunning serverRunning = ServerRunning.isRunning();
+  @Rule public ServerRunning serverRunning = ServerRunning.isRunning();
 
-    private UaaTestAccounts testAccounts = UaaTestAccounts.standard(serverRunning);
+  private UaaTestAccounts testAccounts = UaaTestAccounts.standard(serverRunning);
 
-    @Rule
-    public TestAccountSetup testAccountSetup = TestAccountSetup.standard(serverRunning, testAccounts);
+  @Rule
+  public TestAccountSetup testAccountSetup = TestAccountSetup.standard(serverRunning, testAccounts);
 
-    private ResourceOwnerPasswordResourceDetails resource;
+  private ResourceOwnerPasswordResourceDetails resource;
 
-    @Before
-    public void init() {
-        resource = testAccounts.getDefaultResourceOwnerPasswordResource();
-    }
+  @Before
+  public void init() {
+    resource = testAccounts.getDefaultResourceOwnerPasswordResource();
+  }
 
-    /**
-     * tests a happy-day flow of the Resource Owner Password Credentials grant
-     * type. (formerly native application
-     * profile).
-     */
-    @Test
-    public void testHappyDay() throws Exception {
+  /**
+   * tests a happy-day flow of the Resource Owner Password Credentials grant type. (formerly native
+   * application profile).
+   */
+  @Test
+  public void testHappyDay() throws Exception {
 
-        MultiValueMap<String, String> formData = new LinkedMultiValueMap<String, String>();
-        formData.add("grant_type", "password");
-        formData.add("username", resource.getUsername());
-        formData.add("password", resource.getPassword());
-        formData.add("scope", "cloud_controller.read");
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("Authorization",
-                        testAccounts.getAuthorizationHeader(resource.getClientId(), resource.getClientSecret()));
-        headers.setAccept(Arrays.asList(MediaType.APPLICATION_JSON));
-        ResponseEntity<String> response = serverRunning.postForString("/oauth/token", formData, headers);
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-    }
+    MultiValueMap<String, String> formData = new LinkedMultiValueMap<String, String>();
+    formData.add("grant_type", "password");
+    formData.add("username", resource.getUsername());
+    formData.add("password", resource.getPassword());
+    formData.add("scope", "cloud_controller.read");
+    HttpHeaders headers = new HttpHeaders();
+    headers.set(
+        "Authorization",
+        testAccounts.getAuthorizationHeader(resource.getClientId(), resource.getClientSecret()));
+    headers.setAccept(Arrays.asList(MediaType.APPLICATION_JSON));
+    ResponseEntity<String> response =
+        serverRunning.postForString("/oauth/token", formData, headers);
+    assertEquals(HttpStatus.OK, response.getStatusCode());
+  }
 
-    /**
-     * tests that a client secret is required.
-     */
-    @Test
-    public void testSecretRequired() throws Exception {
-        MultiValueMap<String, String> formData = new LinkedMultiValueMap<String, String>();
-        formData.add("grant_type", "password");
-        formData.add("username", resource.getUsername());
-        formData.add("password", resource.getPassword());
-        formData.add("scope", "cloud_controller.read");
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("Authorization", "Basic " + new String(Base64.encode("no-such-client:".getBytes("UTF-8"))));
-        headers.setAccept(Arrays.asList(MediaType.APPLICATION_JSON));
-        ResponseEntity<String> response = serverRunning.postForString("/oauth/token", formData, headers);
-        assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
-    }
-
+  /** tests that a client secret is required. */
+  @Test
+  public void testSecretRequired() throws Exception {
+    MultiValueMap<String, String> formData = new LinkedMultiValueMap<String, String>();
+    formData.add("grant_type", "password");
+    formData.add("username", resource.getUsername());
+    formData.add("password", resource.getPassword());
+    formData.add("scope", "cloud_controller.read");
+    HttpHeaders headers = new HttpHeaders();
+    headers.set(
+        "Authorization", "Basic " + new String(Base64.encode("no-such-client:".getBytes("UTF-8"))));
+    headers.setAccept(Arrays.asList(MediaType.APPLICATION_JSON));
+    ResponseEntity<String> response =
+        serverRunning.postForString("/oauth/token", formData, headers);
+    assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
+  }
 }

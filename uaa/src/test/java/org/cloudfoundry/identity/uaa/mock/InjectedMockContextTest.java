@@ -22,85 +22,91 @@ import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.docu
 import static org.springframework.restdocs.templates.TemplateFormats.markdown;
 
 public class InjectedMockContextTest implements Contextable {
-    @Rule
-    public HoneycombAuditEventListenerRule honeycombAuditEventListenerRule = new HoneycombAuditEventListenerRule();
+  @Rule
+  public HoneycombAuditEventListenerRule honeycombAuditEventListenerRule =
+      new HoneycombAuditEventListenerRule();
 
-    protected RandomValueStringGenerator generator = new RandomValueStringGenerator(12) {
+  protected RandomValueStringGenerator generator =
+      new RandomValueStringGenerator(12) {
         @Override
         public String generate() {
-            return super.generate().toLowerCase();
+          return super.generate().toLowerCase();
         }
-    };
+      };
 
-    @ClassRule
-    public static SkipWhenNotRunningInSuiteRule skip = new SkipWhenNotRunningInSuiteRule();
+  @ClassRule public static SkipWhenNotRunningInSuiteRule skip = new SkipWhenNotRunningInSuiteRule();
 
-    @Rule
-    public JUnitRestDocumentation restDocumentation = new JUnitRestDocumentation("build/generated-snippets");
+  @Rule
+  public JUnitRestDocumentation restDocumentation =
+      new JUnitRestDocumentation("build/generated-snippets");
 
-    protected static RandomValueStringGenerator gen = new RandomValueStringGenerator(8);
+  protected static RandomValueStringGenerator gen = new RandomValueStringGenerator(8);
 
-    private static XmlWebApplicationContext webApplicationContext;
-    private MockMvc mockMvc;
-    protected TestClient testClient;
-    private static volatile boolean mustDestroy = false;
+  private static XmlWebApplicationContext webApplicationContext;
+  private MockMvc mockMvc;
+  protected TestClient testClient;
+  private static volatile boolean mustDestroy = false;
 
-    public static XmlWebApplicationContext getWebApplicationContext() {
-        if (webApplicationContext == null) {
-            webApplicationContext = DefaultConfigurationTestSuite.setUpContext();
-            mustDestroy = true;
-        }
-
-        return webApplicationContext;
+  public static XmlWebApplicationContext getWebApplicationContext() {
+    if (webApplicationContext == null) {
+      webApplicationContext = DefaultConfigurationTestSuite.setUpContext();
+      mustDestroy = true;
     }
 
-    public MockMvc getMockMvc() {
-        return mockMvc;
+    return webApplicationContext;
+  }
+
+  public MockMvc getMockMvc() {
+    return mockMvc;
+  }
+
+  private static boolean isMustDestroy() {
+    return mustDestroy;
+  }
+
+  @Before
+  public void initMockMvc() {
+    FilterChainProxy springSecurityFilterChain =
+        getWebApplicationContext().getBean("springSecurityFilterChain", FilterChainProxy.class);
+    mockMvc =
+        MockMvcBuilders.webAppContextSetup(getWebApplicationContext())
+            .addFilter(springSecurityFilterChain)
+            .apply(
+                documentationConfiguration(this.restDocumentation)
+                    .uris()
+                    .withPort(80)
+                    .and()
+                    .snippets()
+                    .withTemplateFormat(markdown()))
+            .build();
+
+    testClient = new TestClient(mockMvc);
+  }
+
+  @AfterClass
+  public static void mustDestroy() {
+    if (isMustDestroy() && webApplicationContext != null) {
+      webApplicationContext.getBean(Flyway.class).clean();
+      webApplicationContext.destroy();
     }
+    webApplicationContext = null;
+    mustDestroy = false;
+  }
 
-    private static boolean isMustDestroy() {
-        return mustDestroy;
-    }
+  @Override
+  public void inject(XmlWebApplicationContext context) {
+    webApplicationContext = context;
+  }
 
-    @Before
-    public void initMockMvc() {
-        FilterChainProxy springSecurityFilterChain = getWebApplicationContext().getBean("springSecurityFilterChain", FilterChainProxy.class);
-        mockMvc = MockMvcBuilders.webAppContextSetup(getWebApplicationContext())
-                .addFilter(springSecurityFilterChain)
-                .apply(documentationConfiguration(this.restDocumentation)
-                        .uris().withPort(80).and()
-                        .snippets()
-                        .withTemplateFormat(markdown()))
-                .build();
+  public TestClient getTestClient() {
+    return testClient;
+  }
 
-        testClient = new TestClient(mockMvc);
-    }
-
-    @AfterClass
-    public static void mustDestroy() {
-        if (isMustDestroy() && webApplicationContext != null) {
-            webApplicationContext.getBean(Flyway.class).clean();
-            webApplicationContext.destroy();
-        }
-        webApplicationContext = null;
-        mustDestroy = false;
-    }
-
+  public static class SkipWhenNotRunningInSuiteRule implements TestRule {
     @Override
-    public void inject(XmlWebApplicationContext context) {
-        webApplicationContext = context;
+    public Statement apply(Statement statement, Description description) {
+      assumeTrue(UaaBaseSuite.shouldMockTestBeRun());
+      return statement;
     }
-
-    public TestClient getTestClient() {
-        return testClient;
-    }
-
-    public static class SkipWhenNotRunningInSuiteRule implements TestRule {
-        @Override
-        public Statement apply(Statement statement, Description description) {
-            assumeTrue(UaaBaseSuite.shouldMockTestBeRun());
-            return statement;
-        }
-    }
-
+  }
 }
