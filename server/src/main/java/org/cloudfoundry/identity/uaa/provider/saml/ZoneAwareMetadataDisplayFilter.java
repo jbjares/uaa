@@ -28,38 +28,43 @@ import java.io.PrintWriter;
 
 public class ZoneAwareMetadataDisplayFilter extends MetadataDisplayFilter {
 
-    protected final MetadataGenerator generator;
+  protected final MetadataGenerator generator;
 
-    public ZoneAwareMetadataDisplayFilter(MetadataGenerator generator) {
-        this.generator = generator;
-    }
+  public ZoneAwareMetadataDisplayFilter(MetadataGenerator generator) {
+    this.generator = generator;
+  }
 
-    public MetadataGenerator getGenerator() {
-        return generator;
-    }
+  public MetadataGenerator getGenerator() {
+    return generator;
+  }
 
-    @Override
-    protected void processMetadataDisplay(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
-        super.processMetadataDisplay(request, response);
-        response.setHeader("Content-Disposition", String.format("attachment; filename=\"saml-%ssp.xml\"",
-                !IdentityZoneHolder.isUaa() ? IdentityZoneHolder.get().getSubdomain() + "-" : ""));
-    }
+  @Override
+  protected void processMetadataDisplay(HttpServletRequest request, HttpServletResponse response)
+      throws IOException, ServletException {
+    super.processMetadataDisplay(request, response);
+    response.setHeader(
+        "Content-Disposition",
+        String.format(
+            "attachment; filename=\"saml-%ssp.xml\"",
+            !IdentityZoneHolder.isUaa() ? IdentityZoneHolder.get().getSubdomain() + "-" : ""));
+  }
 
-    @Override
-    protected void displayMetadata(String spEntityName, PrintWriter writer) throws ServletException {
-        try {
-            EntityDescriptor descriptor = getGenerator().generateMetadata();
-            if (descriptor == null) {
-                throw new ServletException("Metadata entity with ID " + manager.getHostedSPName() + " wasn't found");
-            } else {
-                writer.print(getMetadataAsString(descriptor));
-            }
-        } catch (MarshallingException e) {
-            log.error("Error marshalling entity descriptor", e);
-            throw new ServletException(e);
-        } catch (Exception e) {
-            log.error("Error retrieving metadata", e);
-            throw new ServletException("Error retrieving metadata", e);
-        }
+  @Override
+  protected void displayMetadata(String spEntityName, PrintWriter writer) throws ServletException {
+    try {
+      EntityDescriptor descriptor = getGenerator().generateMetadata();
+      if (descriptor == null) {
+        throw new ServletException(
+            "Metadata entity with ID " + manager.getHostedSPName() + " wasn't found");
+      } else {
+        writer.print(getMetadataAsString(descriptor));
+      }
+    } catch (MarshallingException e) {
+      log.error("Error marshalling entity descriptor", e);
+      throw new ServletException(e);
+    } catch (Exception e) {
+      log.error("Error retrieving metadata", e);
+      throw new ServletException("Error retrieving metadata", e);
     }
+  }
 }

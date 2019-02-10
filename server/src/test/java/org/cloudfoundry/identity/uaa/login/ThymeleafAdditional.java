@@ -22,8 +22,8 @@ import org.springframework.web.accept.ContentNegotiationManager;
 @Configuration
 public class ThymeleafAdditional {
 
-    @Bean
-    public ContentNegotiationManager contentNegotiationManager() {
-        return new ContentNegotiationManager();
-    }
+  @Bean
+  public ContentNegotiationManager contentNegotiationManager() {
+    return new ContentNegotiationManager();
+  }
 }

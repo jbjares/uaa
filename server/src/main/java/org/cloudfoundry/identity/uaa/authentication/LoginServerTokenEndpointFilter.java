@@ -35,39 +35,42 @@ import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.GRANT_TYP
 
 public class LoginServerTokenEndpointFilter extends TokenEndpointAuthenticationFilter {
 
+  private List<String> parameterNames = Collections.emptyList();
+  /** @param authenticationManager an AuthenticationManager for the incoming request */
+  public LoginServerTokenEndpointFilter(
+      AuthenticationManager authenticationManager,
+      OAuth2RequestFactory oAuth2RequestFactory,
+      List<String> addNewUserParameters) {
+    super(authenticationManager, oAuth2RequestFactory);
+    this.parameterNames = addNewUserParameters;
+  }
 
-    private List<String> parameterNames = Collections.emptyList();
-    /**
-     * @param authenticationManager an AuthenticationManager for the incoming request
-     */
-    public LoginServerTokenEndpointFilter(AuthenticationManager authenticationManager, OAuth2RequestFactory oAuth2RequestFactory, List<String> addNewUserParameters) {
-        super(authenticationManager, oAuth2RequestFactory);
-        this.parameterNames = addNewUserParameters;
+  @Override
+  protected void onSuccessfulAuthentication(
+      HttpServletRequest request, HttpServletResponse response, Authentication authResult)
+      throws IOException {
+    super.onSuccessfulAuthentication(request, response, authResult);
+    Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+    if (auth instanceof OAuth2Authentication) {
+      ((OAuth2Authentication) auth).setAuthenticated(true);
     }
+  }
 
-    @Override
-    protected void onSuccessfulAuthentication(HttpServletRequest request, HttpServletResponse response, Authentication authResult) throws IOException {
-        super.onSuccessfulAuthentication(request, response, authResult);
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth instanceof OAuth2Authentication) {
-            ((OAuth2Authentication)auth).setAuthenticated(true);
+  @Override
+  protected Authentication extractCredentials(HttpServletRequest request) {
+    String grantType = request.getParameter("grant_type");
+    if (grantType != null && grantType.equals(GRANT_TYPE_PASSWORD)) {
+      Map<String, String> loginInfo = new HashMap<>();
+      for (String p : parameterNames) {
+        String value = request.getParameter(p);
+        if (StringUtils.hasText(value)) {
+          loginInfo.put(p, value);
         }
+      }
+      Authentication result =
+          new AuthzAuthenticationRequest(loginInfo, new UaaAuthenticationDetails(request));
+      return result;
     }
-
-    @Override
-    protected Authentication extractCredentials(HttpServletRequest request) {
-        String grantType = request.getParameter("grant_type");
-        if (grantType != null && grantType.equals(GRANT_TYPE_PASSWORD)) {
-            Map<String,String> loginInfo = new HashMap<>();
-            for (String p : parameterNames) {
-                String value = request.getParameter(p);
-                if (StringUtils.hasText(value)) {
-                    loginInfo.put(p, value);
-                }
-            }
-            Authentication result = new AuthzAuthenticationRequest(loginInfo,new UaaAuthenticationDetails(request));
-            return result;
-        }
-        return null;
-    }
+    return null;
+  }
 }

@@ -28,37 +28,37 @@ import static java.util.Collections.unmodifiableList;
 import static java.util.Optional.ofNullable;
 
 public class HttpHeadersFilterRequestWrapper extends HttpServletRequestWrapper {
-    private final List<String> filteredHeaders;
+  private final List<String> filteredHeaders;
 
-    public HttpHeadersFilterRequestWrapper(List<String> badHeaders, HttpServletRequest request) {
-        super(request);
-        this.filteredHeaders = unmodifiableList(ofNullable(badHeaders).orElse(emptyList()));
-    }
+  public HttpHeadersFilterRequestWrapper(List<String> badHeaders, HttpServletRequest request) {
+    super(request);
+    this.filteredHeaders = unmodifiableList(ofNullable(badHeaders).orElse(emptyList()));
+  }
 
-    @Override
-    public String getHeader(String name) {
-        if (shouldFilter(name)) {
-            return null;
-        }
-        return super.getHeader(name);
+  @Override
+  public String getHeader(String name) {
+    if (shouldFilter(name)) {
+      return null;
     }
+    return super.getHeader(name);
+  }
 
-    @Override
-    public Enumeration<String> getHeaders(String name) {
-        if (shouldFilter(name)) {
-            return EmptyEnumerationOfString.EMPTY_ENUMERATION;
-        }
-        return super.getHeaders(name);
+  @Override
+  public Enumeration<String> getHeaders(String name) {
+    if (shouldFilter(name)) {
+      return EmptyEnumerationOfString.EMPTY_ENUMERATION;
     }
+    return super.getHeaders(name);
+  }
 
-    private boolean shouldFilter(String name) {
-        return filteredHeaders.stream().anyMatch(s -> s.equalsIgnoreCase(name));
-    }
+  private boolean shouldFilter(String name) {
+    return filteredHeaders.stream().anyMatch(s -> s.equalsIgnoreCase(name));
+  }
 
-    @Override
-    public Enumeration<String> getHeaderNames() {
-        List<String> headerNames = Collections.list(super.getHeaderNames());
-        headerNames.removeIf(header -> shouldFilter(header));
-        return Collections.enumeration(headerNames);
-    }
+  @Override
+  public Enumeration<String> getHeaderNames() {
+    List<String> headerNames = Collections.list(super.getHeaderNames());
+    headerNames.removeIf(header -> shouldFilter(header));
+    return Collections.enumeration(headerNames);
+  }
 }

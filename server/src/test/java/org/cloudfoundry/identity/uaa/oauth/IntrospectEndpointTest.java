@@ -17,104 +17,104 @@ import org.springframework.security.oauth2.common.OAuth2AccessToken;
 import org.springframework.security.oauth2.common.exceptions.InvalidTokenException;
 import org.springframework.security.oauth2.provider.token.ResourceServerTokenServices;
 
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({JwtHelper.class, JsonUtils.class})
 public class IntrospectEndpointTest {
 
-    private IntrospectEndpoint introspectEndpoint;
-    @Mock
-    private ResourceServerTokenServices resourceServerTokenServices;
+  private IntrospectEndpoint introspectEndpoint;
+  @Mock private ResourceServerTokenServices resourceServerTokenServices;
 
-    @Before
-    public void setUp() {
-        introspectEndpoint = new IntrospectEndpoint();
-        introspectEndpoint.setTokenServices(resourceServerTokenServices);
+  @Before
+  public void setUp() {
+    introspectEndpoint = new IntrospectEndpoint();
+    introspectEndpoint.setTokenServices(resourceServerTokenServices);
 
-        Jwt jwt = mock(Jwt.class);
-        IntrospectionClaims claims = new IntrospectionClaims();
-        claims.setName("somename");
+    Jwt jwt = mock(Jwt.class);
+    IntrospectionClaims claims = new IntrospectionClaims();
+    claims.setName("somename");
 
-        when(jwt.getClaims()).thenReturn("claims");
-        PowerMockito.mockStatic(JwtHelper.class);
-        Mockito.when(JwtHelper.decode("valid-token")).thenReturn(jwt);
+    when(jwt.getClaims()).thenReturn("claims");
+    PowerMockito.mockStatic(JwtHelper.class);
+    Mockito.when(JwtHelper.decode("valid-token")).thenReturn(jwt);
 
-        PowerMockito.mockStatic(JsonUtils.class);
-        Mockito.when(JsonUtils.readValue("claims", IntrospectionClaims.class)).thenReturn(claims);
-    }
+    PowerMockito.mockStatic(JsonUtils.class);
+    Mockito.when(JsonUtils.readValue("claims", IntrospectionClaims.class)).thenReturn(claims);
+  }
 
-    @Test
-    public void testValidToken() {
-        OAuth2AccessToken token = mock(OAuth2AccessToken.class);
+  @Test
+  public void testValidToken() {
+    OAuth2AccessToken token = mock(OAuth2AccessToken.class);
 
-        when(resourceServerTokenServices.readAccessToken("valid-token")).thenReturn(token);
-        when(token.isExpired()).thenReturn(false);
-        when(token.getValue()).thenReturn("valid-token");
+    when(resourceServerTokenServices.readAccessToken("valid-token")).thenReturn(token);
+    when(token.isExpired()).thenReturn(false);
+    when(token.getValue()).thenReturn("valid-token");
 
-        IntrospectionClaims claims = introspectEndpoint.introspect("valid-token");
-        Assert.assertTrue(claims.isActive());
+    IntrospectionClaims claims = introspectEndpoint.introspect("valid-token");
+    Assert.assertTrue(claims.isActive());
 
-        verify(resourceServerTokenServices).readAccessToken("valid-token");
-        verify(resourceServerTokenServices).loadAuthentication("valid-token");
-        verify(token).isExpired();
-    }
+    verify(resourceServerTokenServices).readAccessToken("valid-token");
+    verify(resourceServerTokenServices).loadAuthentication("valid-token");
+    verify(token).isExpired();
+  }
 
-    @Test
-    public void testExpiredTokenIsInactive() {
-        OAuth2AccessToken token = mock(OAuth2AccessToken.class);
+  @Test
+  public void testExpiredTokenIsInactive() {
+    OAuth2AccessToken token = mock(OAuth2AccessToken.class);
 
-        when(resourceServerTokenServices.readAccessToken("valid-token")).thenReturn(token);
-        when(token.isExpired()).thenReturn(true);
+    when(resourceServerTokenServices.readAccessToken("valid-token")).thenReturn(token);
+    when(token.isExpired()).thenReturn(true);
 
-        IntrospectionClaims claims = introspectEndpoint.introspect("valid-token");
-        Assert.assertFalse(claims.isActive());
-    }
+    IntrospectionClaims claims = introspectEndpoint.introspect("valid-token");
+    Assert.assertFalse(claims.isActive());
+  }
 
-    @Test
-    public void testInvalidToken_inReadAccessToken() {
-        when(resourceServerTokenServices.readAccessToken("valid-token")).thenThrow(new InvalidTokenException("Bla"));
-        IntrospectionClaims claims = introspectEndpoint.introspect("valid-token");
-        Assert.assertFalse(claims.isActive());
-    }
+  @Test
+  public void testInvalidToken_inReadAccessToken() {
+    when(resourceServerTokenServices.readAccessToken("valid-token"))
+        .thenThrow(new InvalidTokenException("Bla"));
+    IntrospectionClaims claims = introspectEndpoint.introspect("valid-token");
+    Assert.assertFalse(claims.isActive());
+  }
 
-    @Test
-    public void testInvalidToken_inLoadAuthentication() {
-        OAuth2AccessToken token = mock(OAuth2AccessToken.class);
-        when(resourceServerTokenServices.readAccessToken("valid-token")).thenReturn(token);
-        when(resourceServerTokenServices.loadAuthentication("valid-token")).thenThrow(new InvalidTokenException("Bla"));
-        IntrospectionClaims claims = introspectEndpoint.introspect("valid-token");
-        Assert.assertFalse(claims.isActive());
-    }
+  @Test
+  public void testInvalidToken_inLoadAuthentication() {
+    OAuth2AccessToken token = mock(OAuth2AccessToken.class);
+    when(resourceServerTokenServices.readAccessToken("valid-token")).thenReturn(token);
+    when(resourceServerTokenServices.loadAuthentication("valid-token"))
+        .thenThrow(new InvalidTokenException("Bla"));
+    IntrospectionClaims claims = introspectEndpoint.introspect("valid-token");
+    Assert.assertFalse(claims.isActive());
+  }
 
-    @Test
-    public void testClaimsForValidToken() {
-        OAuth2AccessToken token = mock(OAuth2AccessToken.class);
-        when(resourceServerTokenServices.readAccessToken("valid-token")).thenReturn(token);
-        when(token.isExpired()).thenReturn(false);
-        when(token.getValue()).thenReturn("valid-token");
+  @Test
+  public void testClaimsForValidToken() {
+    OAuth2AccessToken token = mock(OAuth2AccessToken.class);
+    when(resourceServerTokenServices.readAccessToken("valid-token")).thenReturn(token);
+    when(token.isExpired()).thenReturn(false);
+    when(token.getValue()).thenReturn("valid-token");
 
-        IntrospectionClaims claimsResult = introspectEndpoint.introspect("valid-token");
+    IntrospectionClaims claimsResult = introspectEndpoint.introspect("valid-token");
 
-        Assert.assertTrue(claimsResult.isActive());
-        Assert.assertEquals("somename", claimsResult.getName());
-    }
+    Assert.assertTrue(claimsResult.isActive());
+    Assert.assertEquals("somename", claimsResult.getName());
+  }
 
-    @Test
-    public void testInvalidJSONInClaims() {
-        OAuth2AccessToken token = mock(OAuth2AccessToken.class);
-        when(resourceServerTokenServices.readAccessToken("valid-token")).thenReturn(token);
-        when(token.isExpired()).thenReturn(false);
-        when(token.getValue()).thenReturn("valid-token");
+  @Test
+  public void testInvalidJSONInClaims() {
+    OAuth2AccessToken token = mock(OAuth2AccessToken.class);
+    when(resourceServerTokenServices.readAccessToken("valid-token")).thenReturn(token);
+    when(token.isExpired()).thenReturn(false);
+    when(token.getValue()).thenReturn("valid-token");
 
-        PowerMockito.mockStatic(JsonUtils.class);
-        Mockito.when(JsonUtils.readValue("claims", IntrospectionClaims.class)).thenThrow(JsonUtils.JsonUtilException.class);
+    PowerMockito.mockStatic(JsonUtils.class);
+    Mockito.when(JsonUtils.readValue("claims", IntrospectionClaims.class))
+        .thenThrow(JsonUtils.JsonUtilException.class);
 
-        IntrospectionClaims claimsResult = introspectEndpoint.introspect("valid-token");
+    IntrospectionClaims claimsResult = introspectEndpoint.introspect("valid-token");
 
-        Assert.assertFalse(claimsResult.isActive());
-        Assert.assertNull(claimsResult.getName());
-    }
+    Assert.assertFalse(claimsResult.isActive());
+    Assert.assertNull(claimsResult.getName());
+  }
 }

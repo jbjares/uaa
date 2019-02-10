@@ -33,114 +33,114 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.oauth2.common.util.OAuth2Utils.CLIENT_ID;
 
-
 public class ZoneAwareWhitelistLogoutHandlerTests {
 
-    private MockHttpServletRequest request = new MockHttpServletRequest();
-    private MockHttpServletResponse response = new MockHttpServletResponse();
-    private BaseClientDetails client = new BaseClientDetails(CLIENT_ID, "", "", "", "", "http://*.testing.com,http://testing.com");
-    private ClientServicesExtension clientDetailsService =  mock(ClientServicesExtension.class);
-    private ZoneAwareWhitelistLogoutHandler handler;
-    IdentityZoneConfiguration configuration = new IdentityZoneConfiguration();
-    IdentityZoneConfiguration original;
+  private MockHttpServletRequest request = new MockHttpServletRequest();
+  private MockHttpServletResponse response = new MockHttpServletResponse();
+  private BaseClientDetails client =
+      new BaseClientDetails(CLIENT_ID, "", "", "", "", "http://*.testing.com,http://testing.com");
+  private ClientServicesExtension clientDetailsService = mock(ClientServicesExtension.class);
+  private ZoneAwareWhitelistLogoutHandler handler;
+  IdentityZoneConfiguration configuration = new IdentityZoneConfiguration();
+  IdentityZoneConfiguration original;
 
+  @Before
+  public void setUp() throws Exception {
+    original = IdentityZone.getUaa().getConfig();
+    configuration
+        .getLinks()
+        .getLogout()
+        .setRedirectUrl("/login")
+        .setDisableRedirectParameter(true)
+        .setRedirectParameterName("redirect");
+    when(clientDetailsService.loadClientByClientId(CLIENT_ID, "uaa")).thenReturn(client);
+    handler = new ZoneAwareWhitelistLogoutHandler(clientDetailsService);
+    IdentityZoneHolder.get().setConfig(configuration);
+  }
 
-    @Before
-    public void setUp() throws Exception {
-        original = IdentityZone.getUaa().getConfig();
-        configuration.getLinks().getLogout()
-            .setRedirectUrl("/login")
-            .setDisableRedirectParameter(true)
-            .setRedirectParameterName("redirect");
-        when(clientDetailsService.loadClientByClientId(CLIENT_ID, "uaa")).thenReturn(client);
-        handler = new ZoneAwareWhitelistLogoutHandler(clientDetailsService);
-        IdentityZoneHolder.get().setConfig(configuration);
-    }
+  @After
+  public void tearDown() throws Exception {
+    IdentityZoneHolder.clear();
+    IdentityZone.getUaa().setConfig(original);
+  }
 
-    @After
-    public void tearDown() throws Exception {
-        IdentityZoneHolder.clear();
-        IdentityZone.getUaa().setConfig(original);
-    }
+  @Test
+  public void test_null_config_defaults() throws Exception {
+    IdentityZoneHolder.get().setConfig(null);
+    test_default_redirect_uri();
+  }
 
-    @Test
-    public void test_null_config_defaults() throws Exception {
-        IdentityZoneHolder.get().setConfig(null);
-        test_default_redirect_uri();
-    }
+  @Test
+  public void test_default_redirect_uri() throws Exception {
+    assertEquals("/login", handler.determineTargetUrl(request, response));
+    assertEquals("/login", handler.determineTargetUrl(request, response));
+    configuration.getLinks().getLogout().setDisableRedirectParameter(false);
+    assertEquals("/login", handler.determineTargetUrl(request, response));
+  }
 
+  @Test
+  public void test_whitelist_reject() throws Exception {
+    configuration.getLinks().getLogout().setWhitelist(Arrays.asList("http://testing.com"));
+    configuration.getLinks().getLogout().setDisableRedirectParameter(false);
+    request.setParameter("redirect", "http://testing.com");
+    assertEquals("http://testing.com", handler.determineTargetUrl(request, response));
+    request.setParameter("redirect", "http://www.testing.com");
+    assertEquals("/login", handler.determineTargetUrl(request, response));
+  }
 
-    @Test
-    public void test_default_redirect_uri() throws Exception {
-        assertEquals("/login", handler.determineTargetUrl(request, response));
-        assertEquals("/login", handler.determineTargetUrl(request, response));
-        configuration.getLinks().getLogout().setDisableRedirectParameter(false);
-        assertEquals("/login", handler.determineTargetUrl(request, response));
-    }
+  @Test
+  public void test_open_redirect_no_longer_allowed() throws Exception {
+    configuration.getLinks().getLogout().setWhitelist(null);
+    configuration.getLinks().getLogout().setRedirectUrl("/login");
+    configuration.getLinks().getLogout().setDisableRedirectParameter(false);
+    request.setParameter("redirect", "http://testing.com");
+    assertEquals("/login", handler.determineTargetUrl(request, response));
+    request.setParameter("redirect", "http://www.testing.com");
+    assertEquals("/login", handler.determineTargetUrl(request, response));
+  }
 
-    @Test
-    public void test_whitelist_reject() throws Exception {
-        configuration.getLinks().getLogout().setWhitelist(Arrays.asList("http://testing.com"));
-        configuration.getLinks().getLogout().setDisableRedirectParameter(false);
-        request.setParameter("redirect", "http://testing.com");
-        assertEquals("http://testing.com", handler.determineTargetUrl(request, response));
-        request.setParameter("redirect", "http://www.testing.com");
-        assertEquals("/login", handler.determineTargetUrl(request, response));
-    }
+  @Test
+  public void test_whitelist_redirect() throws Exception {
+    configuration.getLinks().getLogout().setWhitelist(Arrays.asList("http://somethingelse.com"));
+    configuration.getLinks().getLogout().setDisableRedirectParameter(false);
+    request.setParameter("redirect", "http://somethingelse.com");
+    assertEquals("http://somethingelse.com", handler.determineTargetUrl(request, response));
+  }
 
-    @Test
-    public void test_open_redirect_no_longer_allowed() throws Exception {
-        configuration.getLinks().getLogout().setWhitelist(null);
-        configuration.getLinks().getLogout().setRedirectUrl("/login");
-        configuration.getLinks().getLogout().setDisableRedirectParameter(false);
-        request.setParameter("redirect", "http://testing.com");
-        assertEquals("/login", handler.determineTargetUrl(request, response));
-        request.setParameter("redirect", "http://www.testing.com");
-        assertEquals("/login", handler.determineTargetUrl(request, response));
-    }
+  @Test
+  public void test_whitelist_redirect_with_wildcard() throws Exception {
+    configuration.getLinks().getLogout().setWhitelist(Arrays.asList("http://*.somethingelse.com"));
+    configuration.getLinks().getLogout().setDisableRedirectParameter(false);
+    request.setParameter("redirect", "http://www.somethingelse.com");
+    assertEquals("http://www.somethingelse.com", handler.determineTargetUrl(request, response));
+  }
 
-    @Test
-    public void test_whitelist_redirect() throws Exception {
-        configuration.getLinks().getLogout().setWhitelist(Arrays.asList("http://somethingelse.com"));
-        configuration.getLinks().getLogout().setDisableRedirectParameter(false);
-        request.setParameter("redirect", "http://somethingelse.com");
-        assertEquals("http://somethingelse.com", handler.determineTargetUrl(request, response));
-    }
+  @Test
+  public void test_client_redirect() throws Exception {
+    configuration.getLinks().getLogout().setWhitelist(Arrays.asList("http://somethingelse.com"));
+    configuration.getLinks().getLogout().setDisableRedirectParameter(false);
+    request.setParameter("redirect", "http://testing.com");
+    request.setParameter(CLIENT_ID, CLIENT_ID);
+    assertEquals("http://testing.com", handler.determineTargetUrl(request, response));
+  }
 
-    @Test
-    public void test_whitelist_redirect_with_wildcard() throws Exception {
-        configuration.getLinks().getLogout().setWhitelist(Arrays.asList("http://*.somethingelse.com"));
-        configuration.getLinks().getLogout().setDisableRedirectParameter(false);
-        request.setParameter("redirect", "http://www.somethingelse.com");
-        assertEquals("http://www.somethingelse.com", handler.determineTargetUrl(request, response));
-    }
+  @Test
+  public void client_not_found_exception() throws Exception {
+    when(clientDetailsService.loadClientByClientId("test", "uaa"))
+        .thenThrow(new NoSuchClientException("test"));
+    configuration.getLinks().getLogout().setWhitelist(Arrays.asList("http://testing.com"));
+    configuration.getLinks().getLogout().setDisableRedirectParameter(false);
+    request.setParameter("redirect", "http://notwhitelisted.com");
+    request.setParameter(CLIENT_ID, "test");
+    assertEquals("/login", handler.determineTargetUrl(request, response));
+  }
 
-    @Test
-    public void test_client_redirect() throws Exception {
-        configuration.getLinks().getLogout().setWhitelist(Arrays.asList("http://somethingelse.com"));
-        configuration.getLinks().getLogout().setDisableRedirectParameter(false);
-        request.setParameter("redirect", "http://testing.com");
-        request.setParameter(CLIENT_ID, CLIENT_ID);
-        assertEquals("http://testing.com", handler.determineTargetUrl(request, response));
-    }
-
-    @Test
-    public void client_not_found_exception() throws Exception {
-        when(clientDetailsService.loadClientByClientId("test", "uaa")).thenThrow(new NoSuchClientException("test"));
-        configuration.getLinks().getLogout().setWhitelist(Arrays.asList("http://testing.com"));
-        configuration.getLinks().getLogout().setDisableRedirectParameter(false);
-        request.setParameter("redirect", "http://notwhitelisted.com");
-        request.setParameter(CLIENT_ID, "test");
-        assertEquals("/login", handler.determineTargetUrl(request, response));
-    }
-
-    @Test
-    public void test_client_redirect_using_wildcard() throws Exception {
-        configuration.getLinks().getLogout().setWhitelist(Arrays.asList("http://testing.com"));
-        configuration.getLinks().getLogout().setDisableRedirectParameter(false);
-        request.setParameter(CLIENT_ID, CLIENT_ID);
-        request.setParameter("redirect", "http://www.testing.com");
-        assertEquals("http://www.testing.com", handler.determineTargetUrl(request, response));
-    }
-
+  @Test
+  public void test_client_redirect_using_wildcard() throws Exception {
+    configuration.getLinks().getLogout().setWhitelist(Arrays.asList("http://testing.com"));
+    configuration.getLinks().getLogout().setDisableRedirectParameter(false);
+    request.setParameter(CLIENT_ID, CLIENT_ID);
+    request.setParameter("redirect", "http://www.testing.com");
+    assertEquals("http://www.testing.com", handler.determineTargetUrl(request, response));
+  }
 }

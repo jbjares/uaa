@@ -4,12 +4,7 @@ import org.cloudfoundry.identity.uaa.authorization.LdapGroupMappingAuthorization
 import org.cloudfoundry.identity.uaa.provider.ldap.LdapGroupToScopesMapper;
 import org.cloudfoundry.identity.uaa.scim.ScimGroupExternalMembershipManager;
 import org.cloudfoundry.identity.uaa.scim.ScimGroupProvisioning;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Condition;
-import org.springframework.context.annotation.ConditionContext;
-import org.springframework.context.annotation.Conditional;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.*;
 import org.springframework.core.type.AnnotatedTypeMetadata;
 import org.springframework.security.core.authority.mapping.GrantedAuthoritiesMapper;
 
@@ -28,19 +23,23 @@ public class LdapGroupsMappedToScopesConfig {
 
   @Bean
   public String configuredGroupRoleAttribute() {
-      return "spring.security.ldap.dn";
+    return "spring.security.ldap.dn";
   }
 
   @Bean
-  public LdapGroupMappingAuthorizationManager ldapGroupMappingAuthorizationManager(ScimGroupExternalMembershipManager externalMembershipManager, ScimGroupProvisioning provisioning) {
-    LdapGroupMappingAuthorizationManager ldapGroupMappingAuthorizationManager = new LdapGroupMappingAuthorizationManager();
+  public LdapGroupMappingAuthorizationManager ldapGroupMappingAuthorizationManager(
+      ScimGroupExternalMembershipManager externalMembershipManager,
+      ScimGroupProvisioning provisioning) {
+    LdapGroupMappingAuthorizationManager ldapGroupMappingAuthorizationManager =
+        new LdapGroupMappingAuthorizationManager();
     ldapGroupMappingAuthorizationManager.setExternalMembershipManager(externalMembershipManager);
     ldapGroupMappingAuthorizationManager.setScimGroupProvisioning(provisioning);
     return ldapGroupMappingAuthorizationManager;
   }
 
   @Bean
-  public GrantedAuthoritiesMapper ldapAuthoritiesMapper(LdapGroupMappingAuthorizationManager ldapGroupMappingAuthorizationManager) {
+  public GrantedAuthoritiesMapper ldapAuthoritiesMapper(
+      LdapGroupMappingAuthorizationManager ldapGroupMappingAuthorizationManager) {
     LdapGroupToScopesMapper ldapGroupToScopesMapper = new LdapGroupToScopesMapper();
     ldapGroupToScopesMapper.setGroupMapper(ldapGroupMappingAuthorizationManager);
     return ldapGroupToScopesMapper;

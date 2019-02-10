@@ -12,6 +12,9 @@ public class UserAccountUnlockedEvent extends AbstractUaaEvent {
 
   @Override
   public AuditEvent getAuditEvent() {
-    return createAuditRecord(((ScimUser)source).getId(), AuditEventType.UserAccountUnlockedEvent, ((ScimUser)source).getOrigin());
+    return createAuditRecord(
+        ((ScimUser) source).getId(),
+        AuditEventType.UserAccountUnlockedEvent,
+        ((ScimUser) source).getOrigin());
   }
 }

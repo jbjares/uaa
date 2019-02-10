@@ -21,38 +21,37 @@ import static org.springframework.util.StringUtils.hasText;
 
 public class LimitSqlAdapterFactory {
 
-    public static LimitSqlAdapter getLimitSqlAdapter() {
-        return getLimitSqlAdapter(System.getProperty("spring.profiles.active",""));
-    }
+  public static LimitSqlAdapter getLimitSqlAdapter() {
+    return getLimitSqlAdapter(System.getProperty("spring.profiles.active", ""));
+  }
 
-    public static LimitSqlAdapter getLimitSqlAdapter(String profiles) {
-        if (hasText(profiles)) {
-            if (profiles.contains("sqlserver")) {
-                return new SQLServerLimitSqlAdapter();
-            } else if (profiles.contains("postgresql")) {
-                return new PostgresLimitSqlAdapter();
-            } else if (profiles.contains("mysql")) {
-                return new MySqlLimitSqlAdapter();
-            } else if (profiles.contains("hsqldb")) {
-                return new HsqlDbLimitSqlAdapter();
-            }
-        }
+  public static LimitSqlAdapter getLimitSqlAdapter(String profiles) {
+    if (hasText(profiles)) {
+      if (profiles.contains("sqlserver")) {
+        return new SQLServerLimitSqlAdapter();
+      } else if (profiles.contains("postgresql")) {
+        return new PostgresLimitSqlAdapter();
+      } else if (profiles.contains("mysql")) {
+        return new MySqlLimitSqlAdapter();
+      } else if (profiles.contains("hsqldb")) {
         return new HsqlDbLimitSqlAdapter();
+      }
     }
+    return new HsqlDbLimitSqlAdapter();
+  }
 
-    public static LimitSqlAdapter getLimitSqlAdapter(Collection<String> profiles) {
-        if (profiles!=null) {
-            if (profiles.contains("sqlserver")) {
-                return new SQLServerLimitSqlAdapter();
-            } else if (profiles.contains("postgresql")) {
-                return new PostgresLimitSqlAdapter();
-            } else if (profiles.contains("mysql")) {
-                return new MySqlLimitSqlAdapter();
-            } else if (profiles.contains("hsqldb")) {
-                return new HsqlDbLimitSqlAdapter();
-            }
-        }
+  public static LimitSqlAdapter getLimitSqlAdapter(Collection<String> profiles) {
+    if (profiles != null) {
+      if (profiles.contains("sqlserver")) {
+        return new SQLServerLimitSqlAdapter();
+      } else if (profiles.contains("postgresql")) {
+        return new PostgresLimitSqlAdapter();
+      } else if (profiles.contains("mysql")) {
+        return new MySqlLimitSqlAdapter();
+      } else if (profiles.contains("hsqldb")) {
         return new HsqlDbLimitSqlAdapter();
+      }
     }
-
+    return new HsqlDbLimitSqlAdapter();
+  }
 }

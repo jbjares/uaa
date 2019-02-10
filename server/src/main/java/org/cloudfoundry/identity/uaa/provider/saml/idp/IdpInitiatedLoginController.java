@@ -51,113 +51,132 @@ import static org.springframework.util.StringUtils.hasText;
 @Controller
 public class IdpInitiatedLoginController {
 
-    private static final Logger log = LoggerFactory.getLogger(IdpInitiatedLoginController.class);
+  private static final Logger log = LoggerFactory.getLogger(IdpInitiatedLoginController.class);
 
-    private IdpWebSsoProfile idpWebSsoProfile;
-    private MetadataManager metadataManager;
-    private SamlServiceProviderConfigurator configurator;
-    private SAMLContextProvider contextProvider;
-    private IdpSamlAuthenticationSuccessHandler idpSamlAuthenticationSuccessHandler;
+  private IdpWebSsoProfile idpWebSsoProfile;
+  private MetadataManager metadataManager;
+  private SamlServiceProviderConfigurator configurator;
+  private SAMLContextProvider contextProvider;
+  private IdpSamlAuthenticationSuccessHandler idpSamlAuthenticationSuccessHandler;
 
-    @RequestMapping("/saml/idp/initiate")
-    public void initiate(@RequestParam(value = "sp", required = false) String sp,
-                         HttpServletRequest request,
-                         HttpServletResponse response) {
+  @RequestMapping("/saml/idp/initiate")
+  public void initiate(
+      @RequestParam(value = "sp", required = false) String sp,
+      HttpServletRequest request,
+      HttpServletResponse response) {
 
-        if (!hasText(sp)) {
-            throw new ProviderNotFoundException("Missing sp request parameter. sp parameter must be a valid and configured entity ID");
-        }
-        log.debug(String.format("IDP is initiating authentication request to SP[%s]", sp));
-        Optional<SamlServiceProviderHolder> holder = configurator.getSamlServiceProviders().stream().filter(serviceProvider -> sp.equals(serviceProvider.getSamlServiceProvider().getEntityId())).findFirst();
-        if (!holder.isPresent()) {
-            log.debug(String.format("SP[%s] was not found, aborting saml response", sp));
-            throw new ProviderNotFoundException("Invalid sp entity ID. sp parameter must be a valid and configured entity ID");
-        }
-        if (!holder.get().getSamlServiceProvider().isActive()) {
-            log.debug(String.format("SP[%s] is disabled, aborting saml response", sp));
-            throw new ProviderNotFoundException("Service provider is disabled.");
-        }
-        if (!holder.get().getSamlServiceProvider().getConfig().isEnableIdpInitiatedSso()) {
-            log.debug(String.format("SP[%s] initiated login is disabled, aborting saml response", sp));
-            throw new ProviderNotFoundException("IDP initiated login is disabled for this service provider.");
-        }
-
-        String nameId = "urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified";
-        try {
-            String assertionLocation = getAssertionConsumerURL(sp);
-            log.debug(String.format("IDP is sending assertion for SP[%s] to %s", sp, assertionLocation));
-            AuthnRequest authnRequest = idpWebSsoProfile.buildIdpInitiatedAuthnRequest(nameId, sp, assertionLocation);
-            SAMLMessageContext samlContext = getSamlContext(sp, authnRequest, request, response);
-            idpWebSsoProfile.sendResponse(SecurityContextHolder.getContext().getAuthentication(),
-                                          samlContext,
-                                          getIdpIniatedOptions());
-            log.debug(String.format("IDP initiated authentication and responded to SP[%s]", sp));
-        } catch (MetadataProviderException |
-            SAMLException |
-            SecurityException |
-            MessageEncodingException |
-            MarshallingException |
-            SignatureException e) {
-            log.debug(String.format("IDP is unable to process assertion for SP[%s]", sp), e);
-            throw new ProviderNotFoundException("Unable to process SAML assertion. Response not sent.");
-        }
+    if (!hasText(sp)) {
+      throw new ProviderNotFoundException(
+          "Missing sp request parameter. sp parameter must be a valid and configured entity ID");
+    }
+    log.debug(String.format("IDP is initiating authentication request to SP[%s]", sp));
+    Optional<SamlServiceProviderHolder> holder =
+        configurator
+            .getSamlServiceProviders()
+            .stream()
+            .filter(
+                serviceProvider ->
+                    sp.equals(serviceProvider.getSamlServiceProvider().getEntityId()))
+            .findFirst();
+    if (!holder.isPresent()) {
+      log.debug(String.format("SP[%s] was not found, aborting saml response", sp));
+      throw new ProviderNotFoundException(
+          "Invalid sp entity ID. sp parameter must be a valid and configured entity ID");
+    }
+    if (!holder.get().getSamlServiceProvider().isActive()) {
+      log.debug(String.format("SP[%s] is disabled, aborting saml response", sp));
+      throw new ProviderNotFoundException("Service provider is disabled.");
+    }
+    if (!holder.get().getSamlServiceProvider().getConfig().isEnableIdpInitiatedSso()) {
+      log.debug(String.format("SP[%s] initiated login is disabled, aborting saml response", sp));
+      throw new ProviderNotFoundException(
+          "IDP initiated login is disabled for this service provider.");
     }
 
-    public String getAssertionConsumerURL(String sp) throws MetadataProviderException {
-        EntityDescriptor entityDescriptor = metadataManager.getEntityDescriptor(sp);
-        SPSSODescriptor spssoDescriptor = entityDescriptor.getSPSSODescriptor(SAMLConstants.SAML20P_NS);
-        List<AssertionConsumerService> assertionConsumerServices = spssoDescriptor.getAssertionConsumerServices();
-        Optional<AssertionConsumerService> defaultService = assertionConsumerServices.stream().filter(acs -> acs.isDefault()).findFirst();
-        if (defaultService.isPresent()) {
-            return defaultService.get().getLocation();
-        } else {
-            return assertionConsumerServices.get(0).getLocation();
-        }
+    String nameId = "urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified";
+    try {
+      String assertionLocation = getAssertionConsumerURL(sp);
+      log.debug(String.format("IDP is sending assertion for SP[%s] to %s", sp, assertionLocation));
+      AuthnRequest authnRequest =
+          idpWebSsoProfile.buildIdpInitiatedAuthnRequest(nameId, sp, assertionLocation);
+      SAMLMessageContext samlContext = getSamlContext(sp, authnRequest, request, response);
+      idpWebSsoProfile.sendResponse(
+          SecurityContextHolder.getContext().getAuthentication(),
+          samlContext,
+          getIdpIniatedOptions());
+      log.debug(String.format("IDP initiated authentication and responded to SP[%s]", sp));
+    } catch (MetadataProviderException
+        | SAMLException
+        | SecurityException
+        | MessageEncodingException
+        | MarshallingException
+        | SignatureException e) {
+      log.debug(String.format("IDP is unable to process assertion for SP[%s]", sp), e);
+      throw new ProviderNotFoundException("Unable to process SAML assertion. Response not sent.");
     }
+  }
 
-    protected SAMLMessageContext getSamlContext(String spEntityId,
-                                                AuthnRequest authnRequest,
-                                                HttpServletRequest request,
-                                                HttpServletResponse response) throws MetadataProviderException {
-        SAMLMessageContext samlContext = contextProvider.getLocalAndPeerEntity(request, response);
-        samlContext.setPeerEntityId(spEntityId);
-        samlContext.setPeerEntityRole(new QName(SAMLConstants.SAML20MD_NS, DEFAULT_ELEMENT_LOCAL_NAME, "md"));
-        idpSamlAuthenticationSuccessHandler.populatePeerContext(samlContext);
-        samlContext.setInboundSAMLMessage(authnRequest);
-        return samlContext;
+  public String getAssertionConsumerURL(String sp) throws MetadataProviderException {
+    EntityDescriptor entityDescriptor = metadataManager.getEntityDescriptor(sp);
+    SPSSODescriptor spssoDescriptor = entityDescriptor.getSPSSODescriptor(SAMLConstants.SAML20P_NS);
+    List<AssertionConsumerService> assertionConsumerServices =
+        spssoDescriptor.getAssertionConsumerServices();
+    Optional<AssertionConsumerService> defaultService =
+        assertionConsumerServices.stream().filter(acs -> acs.isDefault()).findFirst();
+    if (defaultService.isPresent()) {
+      return defaultService.get().getLocation();
+    } else {
+      return assertionConsumerServices.get(0).getLocation();
     }
+  }
 
-    protected IdpWebSSOProfileOptions getIdpIniatedOptions() {
-        IdpWebSSOProfileOptions options = new IdpWebSSOProfileOptions();
-        options.setAssertionsSigned(false);
-        return options;
-    }
+  protected SAMLMessageContext getSamlContext(
+      String spEntityId,
+      AuthnRequest authnRequest,
+      HttpServletRequest request,
+      HttpServletResponse response)
+      throws MetadataProviderException {
+    SAMLMessageContext samlContext = contextProvider.getLocalAndPeerEntity(request, response);
+    samlContext.setPeerEntityId(spEntityId);
+    samlContext.setPeerEntityRole(
+        new QName(SAMLConstants.SAML20MD_NS, DEFAULT_ELEMENT_LOCAL_NAME, "md"));
+    idpSamlAuthenticationSuccessHandler.populatePeerContext(samlContext);
+    samlContext.setInboundSAMLMessage(authnRequest);
+    return samlContext;
+  }
 
-    public void setIdpWebSsoProfile(IdpWebSsoProfile idpWebSsoProfile) {
-        this.idpWebSsoProfile = idpWebSsoProfile;
-    }
+  protected IdpWebSSOProfileOptions getIdpIniatedOptions() {
+    IdpWebSSOProfileOptions options = new IdpWebSSOProfileOptions();
+    options.setAssertionsSigned(false);
+    return options;
+  }
 
-    public void setMetadataManager(MetadataManager metadataManager) {
-        this.metadataManager = metadataManager;
-    }
+  public void setIdpWebSsoProfile(IdpWebSsoProfile idpWebSsoProfile) {
+    this.idpWebSsoProfile = idpWebSsoProfile;
+  }
 
-    public void setConfigurator(SamlServiceProviderConfigurator configurator) {
-        this.configurator = configurator;
-    }
+  public void setMetadataManager(MetadataManager metadataManager) {
+    this.metadataManager = metadataManager;
+  }
 
-    public void setContextProvider(SAMLContextProvider contextProvider) {
-        this.contextProvider = contextProvider;
-    }
+  public void setConfigurator(SamlServiceProviderConfigurator configurator) {
+    this.configurator = configurator;
+  }
 
-    public void setIdpSamlAuthenticationSuccessHandler(IdpSamlAuthenticationSuccessHandler idpSamlAuthenticationSuccessHandler) {
-        this.idpSamlAuthenticationSuccessHandler = idpSamlAuthenticationSuccessHandler;
-    }
+  public void setContextProvider(SAMLContextProvider contextProvider) {
+    this.contextProvider = contextProvider;
+  }
 
+  public void setIdpSamlAuthenticationSuccessHandler(
+      IdpSamlAuthenticationSuccessHandler idpSamlAuthenticationSuccessHandler) {
+    this.idpSamlAuthenticationSuccessHandler = idpSamlAuthenticationSuccessHandler;
+  }
 
-    @ExceptionHandler
-    public String handleException(AuthenticationException ae, HttpServletRequest request, HttpServletResponse response) {
-        response.setStatus(400);
-        request.setAttribute("saml_error", ae.getMessage());
-        return "external_auth_error";
-    }
+  @ExceptionHandler
+  public String handleException(
+      AuthenticationException ae, HttpServletRequest request, HttpServletResponse response) {
+    response.setStatus(400);
+    request.setAttribute("saml_error", ae.getMessage());
+    return "external_auth_error";
+  }
 }

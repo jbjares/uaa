@@ -1,15 +1,15 @@
-/*******************************************************************************
- *     Cloud Foundry
- *     Copyright (c) [2009-2016] Pivotal Software, Inc. All Rights Reserved.
+/**
+ * ***************************************************************************** Cloud Foundry
+ * Copyright (c) [2009-2016] Pivotal Software, Inc. All Rights Reserved.
  *
- *     This product is licensed to you under the Apache License, Version 2.0 (the "License").
- *     You may not use this product except in compliance with the License.
+ * <p>This product is licensed to you under the Apache License, Version 2.0 (the "License"). You may
+ * not use this product except in compliance with the License.
  *
- *     This product includes a number of subcomponents with
- *     separate copyright notices and license terms. Your use of these
- *     subcomponents is subject to the terms and conditions of the
- *     subcomponent's license, as noted in the LICENSE file.
- *******************************************************************************/
+ * <p>This product includes a number of subcomponents with separate copyright notices and license
+ * terms. Your use of these subcomponents is subject to the terms and conditions of the
+ * subcomponent's license, as noted in the LICENSE file.
+ * *****************************************************************************
+ */
 package org.cloudfoundry.identity.uaa.oauth;
 
 import org.apache.commons.logging.Log;
@@ -52,157 +52,164 @@ import static org.springframework.util.StringUtils.hasText;
 import static org.springframework.web.bind.annotation.RequestMethod.POST;
 
 /**
- * Controller which decodes access tokens for clients who are not able to do so
- * (or where opaque token values are used).
+ * Controller which decodes access tokens for clients who are not able to do so (or where opaque
+ * token values are used).
  */
 @Controller
 public class CheckTokenEndpoint implements InitializingBean {
 
-    //Copy of the value from org.apache.Globals.PARAMETER_PARSE_FAILED_ATTR
-    private static final String PARAMETER_PARSE_FAILED_ATTR = "org.apache.catalina.parameter_parse_failed";
+  // Copy of the value from org.apache.Globals.PARAMETER_PARSE_FAILED_ATTR
+  private static final String PARAMETER_PARSE_FAILED_ATTR =
+      "org.apache.catalina.parameter_parse_failed";
 
-    private ResourceServerTokenServices resourceServerTokenServices;
-    private TimeService timeService;
+  private ResourceServerTokenServices resourceServerTokenServices;
+  private TimeService timeService;
 
-    protected final Log logger = LogFactory.getLog(getClass());
-    private WebResponseExceptionTranslator exceptionTranslator = new DefaultWebResponseExceptionTranslator();
+  protected final Log logger = LogFactory.getLog(getClass());
+  private WebResponseExceptionTranslator exceptionTranslator =
+      new DefaultWebResponseExceptionTranslator();
 
-    public void setTokenServices(ResourceServerTokenServices resourceServerTokenServices) {
-        this.resourceServerTokenServices = resourceServerTokenServices;
-    }
-    public void setTimeService(TimeService timeService) {
-        this.timeService = timeService;
-    }
+  public void setTokenServices(ResourceServerTokenServices resourceServerTokenServices) {
+    this.resourceServerTokenServices = resourceServerTokenServices;
+  }
 
-    private Boolean allowQueryString = null;
+  public void setTimeService(TimeService timeService) {
+    this.timeService = timeService;
+  }
 
-    public boolean isAllowQueryString() {
-        return (allowQueryString == null) ? true : allowQueryString;
-    }
+  private Boolean allowQueryString = null;
 
-    public void setAllowQueryString(boolean allowQueryString) {
-        this.allowQueryString = allowQueryString;
-    }
+  public boolean isAllowQueryString() {
+    return (allowQueryString == null) ? true : allowQueryString;
+  }
 
-    @Override
-    public void afterPropertiesSet() throws Exception {
-        Assert.notNull(resourceServerTokenServices, "tokenServices must be set");
-    }
+  public void setAllowQueryString(boolean allowQueryString) {
+    this.allowQueryString = allowQueryString;
+  }
 
-    @RequestMapping(value = "/check_token", method = POST)
-    @ResponseBody
-    public Claims checkToken(@RequestParam("token") String value,
-                             @RequestParam(name = "scopes", required = false, defaultValue = "") List<String> scopes,
-                             HttpServletRequest request) throws HttpRequestMethodNotSupportedException {
+  @Override
+  public void afterPropertiesSet() throws Exception {
+    Assert.notNull(resourceServerTokenServices, "tokenServices must be set");
+  }
 
-        if (!hadParsedAllArgs(request)) {
-            throw new ParameterParsingException();
-        }
+  @RequestMapping(value = "/check_token", method = POST)
+  @ResponseBody
+  public Claims checkToken(
+      @RequestParam("token") String value,
+      @RequestParam(name = "scopes", required = false, defaultValue = "") List<String> scopes,
+      HttpServletRequest request)
+      throws HttpRequestMethodNotSupportedException {
 
-        if (hasText(request.getQueryString()) && !isAllowQueryString()) {
-            logger.debug("Call to /oauth/check_token contains a query string. Aborting.");
-            throw new HttpRequestMethodNotSupportedException("POST");
-        }
-
-        OAuth2AccessToken token = resourceServerTokenServices.readAccessToken(value);
-        if (token == null) {
-            throw new InvalidTokenException("Token was not recognised");
-        }
-
-        if (token.getExpiration() != null && token.getExpiration().before(timeService.getCurrentDate())) {
-            throw new InvalidTokenException("Token has expired");
-        }
-
-        try {
-            resourceServerTokenServices.loadAuthentication(value);
-        } catch (AuthenticationException x) {
-            throw new InvalidTokenException((x.getMessage()));
-        }
-
-        Claims response = getClaimsForToken(token.getValue());
-
-        List<String> claimScopes = response.getScope().stream().map(String::toLowerCase).collect(Collectors.toList());
-
-        List<String> missingScopes = new ArrayList<>();
-        for(String expectedScope : scopes) {
-            if (!claimScopes.contains(expectedScope.toLowerCase())) {
-                missingScopes.add(expectedScope);
-            }
-        }
-
-        if (!missingScopes.isEmpty()) {
-            throw new InvalidScopeException("Some requested scopes are missing: " + String.join(",", missingScopes));
-        }
-
-        return response;
+    if (!hadParsedAllArgs(request)) {
+      throw new ParameterParsingException();
     }
 
-    private boolean hadParsedAllArgs(HttpServletRequest request) {
-        return request.getAttribute(PARAMETER_PARSE_FAILED_ATTR) == null;
+    if (hasText(request.getQueryString()) && !isAllowQueryString()) {
+      logger.debug("Call to /oauth/check_token contains a query string. Aborting.");
+      throw new HttpRequestMethodNotSupportedException("POST");
     }
 
-    @RequestMapping(value = "/check_token")
-    @ResponseBody
-    public Claims checkToken(HttpServletRequest request) throws HttpRequestMethodNotSupportedException {
-        if (isAllowQueryString()) {
-            String token = request.getParameter("token");
-            String scope = request.getParameter("scope");
-            return
-                checkToken(
-                    token,
-                    hasText(scope) ? new LinkedList<>(commaDelimitedListToSet(scope)) : emptyList(),
-                    request
-                );
-        } else {
-            throw new HttpRequestMethodNotSupportedException(request.getMethod());
-        }
+    OAuth2AccessToken token = resourceServerTokenServices.readAccessToken(value);
+    if (token == null) {
+      throw new InvalidTokenException("Token was not recognised");
     }
 
-    private Claims getClaimsForToken(String token) {
-        Jwt tokenJwt;
-        try {
-            tokenJwt = JwtHelper.decode(token);
-        } catch (Throwable t) {
-            throw new InvalidTokenException("Invalid token (could not decode): " + token);
-        }
-
-        Claims claims;
-        try {
-            claims = JsonUtils.readValue(tokenJwt.getClaims(), Claims.class);
-        } catch (JsonUtils.JsonUtilException e) {
-            throw new InvalidTokenException("Cannot read token claims", e);
-        }
-
-        return claims;
+    if (token.getExpiration() != null
+        && token.getExpiration().before(timeService.getCurrentDate())) {
+      throw new InvalidTokenException("Token has expired");
     }
 
-    @ExceptionHandler(InvalidTokenException.class)
-    public ResponseEntity<OAuth2Exception> handleException(Exception e) throws Exception {
-        logger.info("Handling error: " + e.getClass().getSimpleName() + ", " + e.getMessage());
-        // This isn't an oauth resource, so we don't want to send an
-        // unauthorized code here.
-        // The client has already authenticated successfully with basic auth and
-        // should just
-        // get back the invalid token error.
-        InvalidTokenException e400 = new InvalidTokenException(e.getMessage()) {
-            @Override
-            public int getHttpErrorCode() {
-                return 400;
-            }
+    try {
+      resourceServerTokenServices.loadAuthentication(value);
+    } catch (AuthenticationException x) {
+      throw new InvalidTokenException((x.getMessage()));
+    }
+
+    Claims response = getClaimsForToken(token.getValue());
+
+    List<String> claimScopes =
+        response.getScope().stream().map(String::toLowerCase).collect(Collectors.toList());
+
+    List<String> missingScopes = new ArrayList<>();
+    for (String expectedScope : scopes) {
+      if (!claimScopes.contains(expectedScope.toLowerCase())) {
+        missingScopes.add(expectedScope);
+      }
+    }
+
+    if (!missingScopes.isEmpty()) {
+      throw new InvalidScopeException(
+          "Some requested scopes are missing: " + String.join(",", missingScopes));
+    }
+
+    return response;
+  }
+
+  private boolean hadParsedAllArgs(HttpServletRequest request) {
+    return request.getAttribute(PARAMETER_PARSE_FAILED_ATTR) == null;
+  }
+
+  @RequestMapping(value = "/check_token")
+  @ResponseBody
+  public Claims checkToken(HttpServletRequest request)
+      throws HttpRequestMethodNotSupportedException {
+    if (isAllowQueryString()) {
+      String token = request.getParameter("token");
+      String scope = request.getParameter("scope");
+      return checkToken(
+          token,
+          hasText(scope) ? new LinkedList<>(commaDelimitedListToSet(scope)) : emptyList(),
+          request);
+    } else {
+      throw new HttpRequestMethodNotSupportedException(request.getMethod());
+    }
+  }
+
+  private Claims getClaimsForToken(String token) {
+    Jwt tokenJwt;
+    try {
+      tokenJwt = JwtHelper.decode(token);
+    } catch (Throwable t) {
+      throw new InvalidTokenException("Invalid token (could not decode): " + token);
+    }
+
+    Claims claims;
+    try {
+      claims = JsonUtils.readValue(tokenJwt.getClaims(), Claims.class);
+    } catch (JsonUtils.JsonUtilException e) {
+      throw new InvalidTokenException("Cannot read token claims", e);
+    }
+
+    return claims;
+  }
+
+  @ExceptionHandler(InvalidTokenException.class)
+  public ResponseEntity<OAuth2Exception> handleException(Exception e) throws Exception {
+    logger.info("Handling error: " + e.getClass().getSimpleName() + ", " + e.getMessage());
+    // This isn't an oauth resource, so we don't want to send an
+    // unauthorized code here.
+    // The client has already authenticated successfully with basic auth and
+    // should just
+    // get back the invalid token error.
+    InvalidTokenException e400 =
+        new InvalidTokenException(e.getMessage()) {
+          @Override
+          public int getHttpErrorCode() {
+            return 400;
+          }
         };
-        return exceptionTranslator.translate(e400);
-    }
+    return exceptionTranslator.translate(e400);
+  }
 
-    @ExceptionHandler(InvalidScopeException.class)
-    public ResponseEntity<OAuth2Exception> handleInvalidScopeException(Exception e) throws Exception {
-        logger.info("Handling error: " + e.getClass().getSimpleName() + ", " + e.getMessage());
-        return exceptionTranslator.translate(e);
-    }
+  @ExceptionHandler(InvalidScopeException.class)
+  public ResponseEntity<OAuth2Exception> handleInvalidScopeException(Exception e) throws Exception {
+    logger.info("Handling error: " + e.getClass().getSimpleName() + ", " + e.getMessage());
+    return exceptionTranslator.translate(e);
+  }
 
-
-    @ExceptionHandler(UaaException.class)
-    public ResponseEntity<UaaException> handleInvalidScopeSTUFF(UaaException e) throws Exception {
-        logger.info("Handling error: " + e.getClass().getSimpleName() + ", " + e.getMessage());
-        return new ResponseEntity<>(e, HttpStatus.valueOf(e.getHttpStatus()));
-    }
+  @ExceptionHandler(UaaException.class)
+  public ResponseEntity<UaaException> handleInvalidScopeSTUFF(UaaException e) throws Exception {
+    logger.info("Handling error: " + e.getClass().getSimpleName() + ", " + e.getMessage());
+    return new ResponseEntity<>(e, HttpStatus.valueOf(e.getHttpStatus()));
+  }
 }

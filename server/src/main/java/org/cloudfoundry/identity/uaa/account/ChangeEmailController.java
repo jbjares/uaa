@@ -27,133 +27,149 @@ import javax.servlet.http.HttpServletResponse;
 import javax.validation.Valid;
 import java.util.Map;
 
-
 @Controller
 public class ChangeEmailController {
 
-    private final ChangeEmailService changeEmailService;
+  private final ChangeEmailService changeEmailService;
 
-    private UaaUserDatabase uaaUserDatabase;
+  private UaaUserDatabase uaaUserDatabase;
 
-    public void setUaaUserDatabase(UaaUserDatabase uaaUserDatabase) {
-        this.uaaUserDatabase = uaaUserDatabase;
+  public void setUaaUserDatabase(UaaUserDatabase uaaUserDatabase) {
+    this.uaaUserDatabase = uaaUserDatabase;
+  }
+
+  public ChangeEmailController(ChangeEmailService changeEmailService) {
+    this.changeEmailService = changeEmailService;
+  }
+
+  @RequestMapping(value = "/change_email", method = RequestMethod.GET)
+  public String changeEmailPage(
+      Model model,
+      @RequestParam(value = "client_id", required = false) String clientId,
+      @RequestParam(value = "redirect_uri", required = false) String redirectUri) {
+    SecurityContext securityContext = SecurityContextHolder.getContext();
+    model.addAttribute(
+        "email", ((UaaPrincipal) securityContext.getAuthentication().getPrincipal()).getEmail());
+    model.addAttribute("client_id", clientId);
+    model.addAttribute("redirect_uri", redirectUri);
+    return "change_email";
+  }
+
+  @RequestMapping(value = "/change_email.do", method = RequestMethod.POST)
+  public String changeEmail(
+      Model model,
+      @Valid @ModelAttribute("newEmail") ValidEmail newEmail,
+      BindingResult result,
+      @RequestParam(required = false, value = "client_id") String clientId,
+      @RequestParam(required = false, value = "redirect_uri") String redirectUri,
+      RedirectAttributes redirectAttributes,
+      HttpServletResponse response) {
+    SecurityContext securityContext = SecurityContextHolder.getContext();
+
+    if (result.hasErrors()) {
+      model.addAttribute("error_message_code", "invalid_email");
+      model.addAttribute(
+          "email", ((UaaPrincipal) securityContext.getAuthentication().getPrincipal()).getEmail());
+      response.setStatus(HttpStatus.UNPROCESSABLE_ENTITY.value());
+      return "change_email";
+    }
+    String origin = ((UaaPrincipal) securityContext.getAuthentication().getPrincipal()).getOrigin();
+    if (!origin.equals(OriginKeys.UAA)) {
+      redirectAttributes.addAttribute("error_message_code", "email_change.non-uaa-origin");
+      return "redirect:profile";
     }
 
-    public ChangeEmailController(ChangeEmailService changeEmailService) {
-        this.changeEmailService = changeEmailService;
-    }
+    String userId = ((UaaPrincipal) securityContext.getAuthentication().getPrincipal()).getId();
+    String userEmail =
+        ((UaaPrincipal) securityContext.getAuthentication().getPrincipal()).getName();
 
-    @RequestMapping(value = "/change_email", method = RequestMethod.GET)
-    public String changeEmailPage(Model model, @RequestParam(value = "client_id", required = false) String clientId,
-                                  @RequestParam(value = "redirect_uri", required = false) String redirectUri) {
-        SecurityContext securityContext = SecurityContextHolder.getContext();
-        model.addAttribute("email", ((UaaPrincipal)securityContext.getAuthentication().getPrincipal()).getEmail());
-        model.addAttribute("client_id", clientId);
-        model.addAttribute("redirect_uri", redirectUri);
+    try {
+      changeEmailService.beginEmailChange(
+          userId, userEmail, newEmail.getNewEmail(), clientId, redirectUri);
+    } catch (UaaException e) {
+      if (e.getHttpStatus() == 409) {
+        model.addAttribute("error_message_code", "username_exists");
+        model.addAttribute(
+            "email",
+            ((UaaPrincipal) securityContext.getAuthentication().getPrincipal()).getEmail());
+        response.setStatus(HttpStatus.UNPROCESSABLE_ENTITY.value());
         return "change_email";
+      }
     }
 
-    @RequestMapping(value = "/change_email.do", method = RequestMethod.POST)
-    public String changeEmail(Model model, @Valid @ModelAttribute("newEmail") ValidEmail newEmail, BindingResult result,
-                              @RequestParam(required = false, value = "client_id") String clientId,
-                              @RequestParam(required = false, value = "redirect_uri") String redirectUri,
-                              RedirectAttributes redirectAttributes, HttpServletResponse response) {
-        SecurityContext securityContext = SecurityContextHolder.getContext();
+    return "redirect:email_sent?code=email_change";
+  }
 
-        if(result.hasErrors()) {
-            model.addAttribute("error_message_code", "invalid_email");
-            model.addAttribute("email", ((UaaPrincipal)securityContext.getAuthentication().getPrincipal()).getEmail());
-            response.setStatus(HttpStatus.UNPROCESSABLE_ENTITY.value());
-            return "change_email";
-        }
-        String origin = ((UaaPrincipal)securityContext.getAuthentication().getPrincipal()).getOrigin();
-        if (!origin.equals(OriginKeys.UAA)) {
-            redirectAttributes.addAttribute("error_message_code", "email_change.non-uaa-origin");
-            return "redirect:profile";
-        }
+  @RequestMapping(value = "/verify_email", method = RequestMethod.GET)
+  public String verifyEmail(
+      Model model,
+      @RequestParam("code") String code,
+      RedirectAttributes redirectAttributes,
+      HttpServletResponse httpServletResponse,
+      HttpServletRequest request) {
+    Map<String, String> response;
 
-        String userId = ((UaaPrincipal)securityContext.getAuthentication().getPrincipal()).getId();
-        String userEmail = ((UaaPrincipal)securityContext.getAuthentication().getPrincipal()).getName();
-
-        try {
-            changeEmailService.beginEmailChange(userId, userEmail, newEmail.getNewEmail(), clientId, redirectUri);
-        } catch (UaaException e) {
-            if (e.getHttpStatus() == 409) {
-                model.addAttribute("error_message_code", "username_exists");
-                model.addAttribute("email", ((UaaPrincipal)securityContext.getAuthentication().getPrincipal()).getEmail());
-                response.setStatus(HttpStatus.UNPROCESSABLE_ENTITY.value());
-                return "change_email";
-            }
-        }
-
-        return "redirect:email_sent?code=email_change";
+    try {
+      response = changeEmailService.completeVerification(code);
+    } catch (UaaException e) {
+      return handleExceptionConsideringAuthentication(model, httpServletResponse);
     }
 
-    @RequestMapping(value = "/verify_email", method = RequestMethod.GET)
-    public String verifyEmail(Model model, @RequestParam("code") String code, RedirectAttributes redirectAttributes,
-                              HttpServletResponse httpServletResponse, HttpServletRequest request) {
-        Map<String,String> response;
-
-        try {
-            response = changeEmailService.completeVerification(code);
-        } catch (UaaException e) {
-            return handleExceptionConsideringAuthentication(model, httpServletResponse);
-        }
-
-        UaaUser user;
-        try {
-            user = uaaUserDatabase.retrieveUserById(response.get("userId"));
-        } catch (UsernameNotFoundException e) {
-            return handleExceptionConsideringAuthentication(model, httpServletResponse);
-        }
-
-
-        String redirectLocation = response.get("redirect_url");
-
-        if (SecurityContextHolder.getContext().getAuthentication() instanceof UaaAuthentication) {
-            UaaAuthentication oldAuthentication = (UaaAuthentication)SecurityContextHolder.getContext().getAuthentication();
-            String authenticatedId = oldAuthentication.getPrincipal().getId();
-            if (authenticatedId.equals(user.getId())) {
-                UaaAuthenticationDetails details = new UaaAuthenticationDetails(request);
-                UaaAuthentication success = new UaaAuthentication(new UaaPrincipal(user), user.getAuthorities(), details);
-                success.setAuthenticationMethods(oldAuthentication.getAuthenticationMethods());
-                SecurityContextHolder.getContext().setAuthentication(success);
-            }
-            if (redirectLocation == null) {
-                redirectLocation = "profile";
-                redirectAttributes.addAttribute("success_message_code", "email_change.success");
-            }
-            return "redirect:" + redirectLocation;
-        } else {
-            if (redirectLocation == null) {
-                return "redirect:login?success=change_email_success";
-            } else {
-                return "redirect:login?success=change_email_success&form_redirect_uri=" + redirectLocation;
-            }
-        }
+    UaaUser user;
+    try {
+      user = uaaUserDatabase.retrieveUserById(response.get("userId"));
+    } catch (UsernameNotFoundException e) {
+      return handleExceptionConsideringAuthentication(model, httpServletResponse);
     }
 
-    private String handleExceptionConsideringAuthentication(Model model, HttpServletResponse httpServletResponse) {
-        if (SecurityContextHolder.getContext().getAuthentication() instanceof AnonymousAuthenticationToken) {
-            model.addAttribute("error_message_code", "email_change.invalid_code");
-            httpServletResponse.setStatus(422);
-            return "error";
-        }
-        else {
-            return "redirect:profile?error_message_code=email_change.invalid_code";
-        }
+    String redirectLocation = response.get("redirect_url");
+
+    if (SecurityContextHolder.getContext().getAuthentication() instanceof UaaAuthentication) {
+      UaaAuthentication oldAuthentication =
+          (UaaAuthentication) SecurityContextHolder.getContext().getAuthentication();
+      String authenticatedId = oldAuthentication.getPrincipal().getId();
+      if (authenticatedId.equals(user.getId())) {
+        UaaAuthenticationDetails details = new UaaAuthenticationDetails(request);
+        UaaAuthentication success =
+            new UaaAuthentication(new UaaPrincipal(user), user.getAuthorities(), details);
+        success.setAuthenticationMethods(oldAuthentication.getAuthenticationMethods());
+        SecurityContextHolder.getContext().setAuthentication(success);
+      }
+      if (redirectLocation == null) {
+        redirectLocation = "profile";
+        redirectAttributes.addAttribute("success_message_code", "email_change.success");
+      }
+      return "redirect:" + redirectLocation;
+    } else {
+      if (redirectLocation == null) {
+        return "redirect:login?success=change_email_success";
+      } else {
+        return "redirect:login?success=change_email_success&form_redirect_uri=" + redirectLocation;
+      }
+    }
+  }
+
+  private String handleExceptionConsideringAuthentication(
+      Model model, HttpServletResponse httpServletResponse) {
+    if (SecurityContextHolder.getContext().getAuthentication()
+        instanceof AnonymousAuthenticationToken) {
+      model.addAttribute("error_message_code", "email_change.invalid_code");
+      httpServletResponse.setStatus(422);
+      return "error";
+    } else {
+      return "redirect:profile?error_message_code=email_change.invalid_code";
+    }
+  }
+
+  public static class ValidEmail {
+    @Email String newEmail;
+
+    public String getNewEmail() {
+      return newEmail;
     }
 
-    public static class ValidEmail {
-        @Email
-        String newEmail;
-
-        public String getNewEmail() {
-            return newEmail;
-        }
-
-        public void setNewEmail(String email) {
-            this.newEmail = email;
-        }
+    public void setNewEmail(String email) {
+      this.newEmail = email;
     }
+  }
 }

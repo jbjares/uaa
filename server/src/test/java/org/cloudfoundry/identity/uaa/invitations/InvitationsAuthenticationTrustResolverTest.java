@@ -23,16 +23,18 @@ import java.util.Arrays;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-
 public class InvitationsAuthenticationTrustResolverTest {
 
-    @Test
-    public void testIsAnonymous() throws Exception {
-        InvitationsAuthenticationTrustResolver resolver = new InvitationsAuthenticationTrustResolver();
-        AnonymousAuthenticationToken invitedAuthenticationToken = new AnonymousAuthenticationToken("key", new Object(), Arrays.asList(UaaAuthority.UAA_INVITED));
-        assertFalse(resolver.isAnonymous(invitedAuthenticationToken));
+  @Test
+  public void testIsAnonymous() throws Exception {
+    InvitationsAuthenticationTrustResolver resolver = new InvitationsAuthenticationTrustResolver();
+    AnonymousAuthenticationToken invitedAuthenticationToken =
+        new AnonymousAuthenticationToken(
+            "key", new Object(), Arrays.asList(UaaAuthority.UAA_INVITED));
+    assertFalse(resolver.isAnonymous(invitedAuthenticationToken));
 
-        AnonymousAuthenticationToken anonymousAuthenticationToken = new AnonymousAuthenticationToken("key", new Object(), Arrays.asList(UaaAuthority.UAA_USER));
-        assertTrue(resolver.isAnonymous(anonymousAuthenticationToken));
-    }
+    AnonymousAuthenticationToken anonymousAuthenticationToken =
+        new AnonymousAuthenticationToken("key", new Object(), Arrays.asList(UaaAuthority.UAA_USER));
+    assertTrue(resolver.isAnonymous(anonymousAuthenticationToken));
+  }
 }

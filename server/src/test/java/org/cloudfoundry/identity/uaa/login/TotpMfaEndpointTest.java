@@ -15,7 +15,6 @@
 
 package org.cloudfoundry.identity.uaa.login;
 
-
 import com.warrenstrange.googleauth.GoogleAuthenticatorException;
 import org.cloudfoundry.identity.uaa.audit.event.AbstractUaaEvent;
 import org.cloudfoundry.identity.uaa.authentication.AuthenticationPolicyRejectionException;
@@ -25,11 +24,7 @@ import org.cloudfoundry.identity.uaa.authentication.event.MfaAuthenticationFailu
 import org.cloudfoundry.identity.uaa.authentication.event.MfaAuthenticationSuccessEvent;
 import org.cloudfoundry.identity.uaa.authentication.manager.CommonLoginPolicy;
 import org.cloudfoundry.identity.uaa.authentication.manager.LoginPolicy;
-import org.cloudfoundry.identity.uaa.mfa.GoogleMfaProviderConfig;
-import org.cloudfoundry.identity.uaa.mfa.MfaProvider;
-import org.cloudfoundry.identity.uaa.mfa.MfaProviderProvisioning;
-import org.cloudfoundry.identity.uaa.mfa.UserGoogleMfaCredentials;
-import org.cloudfoundry.identity.uaa.mfa.UserGoogleMfaCredentialsProvisioning;
+import org.cloudfoundry.identity.uaa.mfa.*;
 import org.cloudfoundry.identity.uaa.user.UaaUser;
 import org.cloudfoundry.identity.uaa.user.UaaUserDatabase;
 import org.cloudfoundry.identity.uaa.user.UaaUserPrototype;
@@ -58,310 +53,450 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyZeroInteractions;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 public class TotpMfaEndpointTest {
-    private String userId;
-    private TotpMfaEndpoint endpoint = new TotpMfaEndpoint();
-    private UserGoogleMfaCredentialsProvisioning userGoogleMfaCredentialsProvisioning;
-    private MfaProviderProvisioning mfaProviderProvisioning;
-    private UaaAuthentication uaaAuthentication;
+  private String userId;
+  private TotpMfaEndpoint endpoint = new TotpMfaEndpoint();
+  private UserGoogleMfaCredentialsProvisioning userGoogleMfaCredentialsProvisioning;
+  private MfaProviderProvisioning mfaProviderProvisioning;
+  private UaaAuthentication uaaAuthentication;
 
-    @Rule
-    public ExpectedException exception = ExpectedException.none();
-    private MfaProvider<GoogleMfaProviderConfig> mfaProvider;
-    private MfaProvider<GoogleMfaProviderConfig> otherMfaProvider;
-    private SavedRequestAwareAuthenticationSuccessHandler mockSuccessHandler;
-    private ApplicationEventPublisher publisher;
-    private ArgumentCaptor<ApplicationEvent> eventCaptor;
-    private UaaUserDatabase userDb;
-    private CommonLoginPolicy mockMfaPolicy;
+  @Rule public ExpectedException exception = ExpectedException.none();
+  private MfaProvider<GoogleMfaProviderConfig> mfaProvider;
+  private MfaProvider<GoogleMfaProviderConfig> otherMfaProvider;
+  private SavedRequestAwareAuthenticationSuccessHandler mockSuccessHandler;
+  private ApplicationEventPublisher publisher;
+  private ArgumentCaptor<ApplicationEvent> eventCaptor;
+  private UaaUserDatabase userDb;
+  private CommonLoginPolicy mockMfaPolicy;
 
-    @Before
-    public void setup() {
-        userId = new RandomValueStringGenerator(5).generate();
+  @Before
+  public void setup() {
+    userId = new RandomValueStringGenerator(5).generate();
 
-        userGoogleMfaCredentialsProvisioning = mock(UserGoogleMfaCredentialsProvisioning.class);
-        mfaProviderProvisioning = mock(MfaProviderProvisioning.class);
-        uaaAuthentication = mock(UaaAuthentication.class);
+    userGoogleMfaCredentialsProvisioning = mock(UserGoogleMfaCredentialsProvisioning.class);
+    mfaProviderProvisioning = mock(MfaProviderProvisioning.class);
+    uaaAuthentication = mock(UaaAuthentication.class);
 
-        mfaProvider = new MfaProvider();
-        mfaProvider.setName("provider-name");
-        mfaProvider.setId("provider_id1");
-        mfaProvider.setConfig(new GoogleMfaProviderConfig());
-        mfaProvider.setType(MfaProvider.MfaProviderType.GOOGLE_AUTHENTICATOR);
+    mfaProvider = new MfaProvider();
+    mfaProvider.setName("provider-name");
+    mfaProvider.setId("provider_id1");
+    mfaProvider.setConfig(new GoogleMfaProviderConfig());
+    mfaProvider.setType(MfaProvider.MfaProviderType.GOOGLE_AUTHENTICATOR);
 
-        otherMfaProvider = new MfaProvider();
-        otherMfaProvider.setName("other-provider-name");
-        otherMfaProvider.setId("provider_id2");
-        otherMfaProvider.setConfig(new GoogleMfaProviderConfig());
-        otherMfaProvider.setType(MfaProvider.MfaProviderType.GOOGLE_AUTHENTICATOR);
+    otherMfaProvider = new MfaProvider();
+    otherMfaProvider.setName("other-provider-name");
+    otherMfaProvider.setId("provider_id2");
+    otherMfaProvider.setConfig(new GoogleMfaProviderConfig());
+    otherMfaProvider.setType(MfaProvider.MfaProviderType.GOOGLE_AUTHENTICATOR);
 
+    endpoint.setUserGoogleMfaCredentialsProvisioning(userGoogleMfaCredentialsProvisioning);
+    endpoint.setMfaProviderProvisioning(mfaProviderProvisioning);
 
-        endpoint.setUserGoogleMfaCredentialsProvisioning(userGoogleMfaCredentialsProvisioning);
-        endpoint.setMfaProviderProvisioning(mfaProviderProvisioning);
+    mockSuccessHandler = mock(SavedRequestAwareAuthenticationSuccessHandler.class);
 
-        mockSuccessHandler = mock(SavedRequestAwareAuthenticationSuccessHandler.class);
+    SecurityContextHolder.getContext().setAuthentication(uaaAuthentication);
 
-        SecurityContextHolder.getContext().setAuthentication(uaaAuthentication);
+    publisher = mock(ApplicationEventPublisher.class);
+    eventCaptor = ArgumentCaptor.forClass(ApplicationEvent.class);
+    doNothing().when(publisher).publishEvent(eventCaptor.capture());
 
-        publisher = mock(ApplicationEventPublisher.class);
-        eventCaptor = ArgumentCaptor.forClass(ApplicationEvent.class);
-        doNothing().when(publisher).publishEvent(eventCaptor.capture());
+    userDb = mock(UaaUserDatabase.class);
+    mockMfaPolicy = mock(CommonLoginPolicy.class);
+    when(mockMfaPolicy.isAllowed(anyString())).thenReturn(new LoginPolicy.Result(true, 0));
 
-        userDb = mock(UaaUserDatabase.class);
-        mockMfaPolicy = mock(CommonLoginPolicy.class);
-        when(mockMfaPolicy.isAllowed(anyString())).thenReturn(new LoginPolicy.Result(true, 0));
+    endpoint.setApplicationEventPublisher(publisher);
+    endpoint.setUserDatabase(userDb);
+    endpoint.setMfaPolicy(mockMfaPolicy);
+  }
 
+  @After
+  public void cleanUp() {
+    IdentityZoneHolder.get().getConfig().getMfaConfig().setEnabled(false).setProviderName(null);
+    SecurityContextHolder.clearContext();
+  }
 
-        endpoint.setApplicationEventPublisher(publisher);
-        endpoint.setUserDatabase(userDb);
-        endpoint.setMfaPolicy(mockMfaPolicy);
-    }
+  @Test
+  public void testGenerateQrUrl() throws Exception {
+    when(uaaAuthentication.getPrincipal())
+        .thenReturn(new UaaPrincipal(userId, "Marissa", null, null, null, null), null, null);
+    when(userGoogleMfaCredentialsProvisioning.activeUserCredentialExists(
+            userId, mfaProvider.getId()))
+        .thenReturn(false);
 
-    @After
-    public void cleanUp() {
-        IdentityZoneHolder.get().getConfig().getMfaConfig().setEnabled(false).setProviderName(null);
-        SecurityContextHolder.clearContext();
-    }
+    when(mfaProviderProvisioning.retrieveByName(
+            mfaProvider.getName(), IdentityZoneHolder.get().getId()))
+        .thenReturn(mfaProvider);
+    IdentityZoneHolder.get()
+        .getConfig()
+        .getMfaConfig()
+        .setEnabled(true)
+        .setProviderName(mfaProvider.getName());
 
-    @Test
-    public void testGenerateQrUrl() throws Exception{
-        when(uaaAuthentication.getPrincipal()).thenReturn(new UaaPrincipal(userId, "Marissa", null, null, null, null), null, null);
-        when(userGoogleMfaCredentialsProvisioning.activeUserCredentialExists(userId, mfaProvider.getId())).thenReturn(false);
+    String returnView = endpoint.generateQrUrl(mock(Model.class), null);
 
-        when(mfaProviderProvisioning.retrieveByName(mfaProvider.getName(), IdentityZoneHolder.get().getId())).thenReturn(mfaProvider);
-        IdentityZoneHolder.get().getConfig().getMfaConfig().setEnabled(true).setProviderName(mfaProvider.getName());
+    assertEquals("mfa/qr_code", returnView);
+  }
 
-        String returnView = endpoint.generateQrUrl(mock(Model.class), null);
+  @Test
+  public void testGenerateQrUrlForNewUserRegistration() throws Exception {
+    when(uaaAuthentication.getPrincipal())
+        .thenReturn(new UaaPrincipal(userId, "Marissa", null, null, null, null), null, null);
 
-        assertEquals("mfa/qr_code", returnView);
-    }
+    when(userGoogleMfaCredentialsProvisioning.activeUserCredentialExists(
+            userId, mfaProvider.getId()))
+        .thenReturn(true);
+    IdentityZoneHolder.get()
+        .getConfig()
+        .getMfaConfig()
+        .setEnabled(true)
+        .setProviderName(mfaProvider.getName());
+    when(mfaProviderProvisioning.retrieveByName(
+            mfaProvider.getName(), IdentityZoneHolder.get().getId()))
+        .thenReturn(mfaProvider);
 
-    @Test
-    public void testGenerateQrUrlForNewUserRegistration() throws Exception{
-        when(uaaAuthentication.getPrincipal()).thenReturn(new UaaPrincipal(userId, "Marissa", null, null, null, null), null, null);
+    String returnView = endpoint.generateQrUrl(mock(Model.class), null);
 
-        when(userGoogleMfaCredentialsProvisioning.activeUserCredentialExists(userId, mfaProvider.getId())).thenReturn(true);
-        IdentityZoneHolder.get().getConfig().getMfaConfig().setEnabled(true).setProviderName(mfaProvider.getName());
-        when(mfaProviderProvisioning.retrieveByName(mfaProvider.getName(), IdentityZoneHolder.get().getId())).thenReturn(mfaProvider);
+    assertEquals("redirect:/login/mfa/verify", returnView);
+  }
 
-        String returnView = endpoint.generateQrUrl(mock(Model.class), null);
+  @Test
+  public void testGenerateQrUrlAfterMfaProviderSwitch() throws Exception {
+    when(uaaAuthentication.getPrincipal())
+        .thenReturn(new UaaPrincipal(userId, "Marissa", null, null, null, null), null, null);
 
-        assertEquals("redirect:/login/mfa/verify", returnView);
-    }
+    when(userGoogleMfaCredentialsProvisioning.activeUserCredentialExists(
+            userId, mfaProvider.getId()))
+        .thenReturn(true);
+    when(mfaProviderProvisioning.retrieveByName(
+            mfaProvider.getName(), IdentityZoneHolder.get().getId()))
+        .thenReturn(mfaProvider);
+    when(mfaProviderProvisioning.retrieveByName(
+            otherMfaProvider.getName(), IdentityZoneHolder.get().getId()))
+        .thenReturn(otherMfaProvider);
 
-    @Test
-    public void testGenerateQrUrlAfterMfaProviderSwitch() throws Exception{
-        when(uaaAuthentication.getPrincipal()).thenReturn(new UaaPrincipal(userId, "Marissa", null, null, null, null), null, null);
+    IdentityZoneHolder.get()
+        .getConfig()
+        .getMfaConfig()
+        .setEnabled(true)
+        .setProviderName(otherMfaProvider.getName());
 
-        when(userGoogleMfaCredentialsProvisioning.activeUserCredentialExists(userId, mfaProvider.getId())).thenReturn(true);
-        when(mfaProviderProvisioning.retrieveByName(mfaProvider.getName(), IdentityZoneHolder.get().getId())).thenReturn(mfaProvider);
-        when(mfaProviderProvisioning.retrieveByName(otherMfaProvider.getName(), IdentityZoneHolder.get().getId())).thenReturn(otherMfaProvider);
+    String returnView = endpoint.generateQrUrl(mock(Model.class), null);
 
-        IdentityZoneHolder.get().getConfig().getMfaConfig().setEnabled(true).setProviderName(otherMfaProvider.getName());
+    assertEquals("mfa/qr_code", returnView);
+  }
 
-        String returnView = endpoint.generateQrUrl(mock(Model.class), null);
+  @Test(expected = TotpMfaEndpoint.UaaPrincipalIsNotInSession.class)
+  public void testTotpAuthorizePageNoAuthentication() throws Exception {
+    when(uaaAuthentication.getPrincipal()).thenReturn(null);
+    endpoint.totpAuthorize(mock(Model.class));
+  }
 
-        assertEquals("mfa/qr_code", returnView);
-    }
+  @Test
+  public void testTotpAuthorizePage() throws Exception {
+    when(uaaAuthentication.getPrincipal())
+        .thenReturn(new UaaPrincipal(userId, "Marissa", null, null, null, null), null, null);
 
-    @Test(expected = TotpMfaEndpoint.UaaPrincipalIsNotInSession.class)
-    public void testTotpAuthorizePageNoAuthentication() throws Exception{
-        when(uaaAuthentication.getPrincipal()).thenReturn(null);
-        endpoint.totpAuthorize(mock(Model.class));
-    }
+    ModelAndView returnView = endpoint.totpAuthorize(mock(Model.class));
+    assertEquals("mfa/enter_code", returnView.getViewName());
+  }
 
-    @Test
-    public void testTotpAuthorizePage() throws Exception{
-        when(uaaAuthentication.getPrincipal()).thenReturn(new UaaPrincipal(userId, "Marissa", null, null, null, null), null, null);
+  @Test
+  public void testValidOTPTakesToHomePage() throws Exception {
+    int code = 1234;
+    when(userGoogleMfaCredentialsProvisioning.isValidCode(
+            ArgumentMatchers.any(UserGoogleMfaCredentials.class), eq(code)))
+        .thenReturn(true);
+    when(uaaAuthentication.getPrincipal())
+        .thenReturn(new UaaPrincipal(userId, "Marissa", null, "uaa", null, null), null, null);
+    when(mfaProviderProvisioning.retrieveByName(
+            mfaProvider.getName(), IdentityZoneHolder.get().getId()))
+        .thenReturn(mfaProvider);
+    when(userDb.retrieveUserByName("Marissa", "uaa"))
+        .thenReturn(
+            new UaaUser(
+                new UaaUserPrototype()
+                    .withUsername("Marissa")
+                    .withOrigin("uaa")
+                    .withId("1234")
+                    .withEmail("marissa@example.com")));
+    IdentityZoneHolder.get()
+        .getConfig()
+        .getMfaConfig()
+        .setEnabled(true)
+        .setProviderName(mfaProvider.getName());
 
-        ModelAndView returnView = endpoint.totpAuthorize(mock(Model.class));
-        assertEquals("mfa/enter_code", returnView.getViewName());
-    }
-
-
-    @Test
-    public void testValidOTPTakesToHomePage() throws Exception{
-        int code = 1234;
-        when(userGoogleMfaCredentialsProvisioning.isValidCode(ArgumentMatchers.any(UserGoogleMfaCredentials.class), eq(code))).thenReturn(true);
-        when(uaaAuthentication.getPrincipal()).thenReturn(new UaaPrincipal(userId, "Marissa", null, "uaa", null, null), null, null);
-        when(mfaProviderProvisioning.retrieveByName(mfaProvider.getName(), IdentityZoneHolder.get().getId())).thenReturn(mfaProvider);
-        when(userDb.retrieveUserByName("Marissa", "uaa")).thenReturn(new UaaUser(new UaaUserPrototype().withUsername("Marissa").withOrigin("uaa").withId("1234").withEmail("marissa@example.com")));
-        IdentityZoneHolder.get().getConfig().getMfaConfig().setEnabled(true).setProviderName(mfaProvider.getName());
-
-        SessionStatus sessionStatus = mock(SessionStatus.class);
-        ModelAndView returnView = endpoint.validateCode(
+    SessionStatus sessionStatus = mock(SessionStatus.class);
+    ModelAndView returnView =
+        endpoint.validateCode(
             mock(Model.class),
             Integer.toString(code),
             mock(UserGoogleMfaCredentials.class),
             sessionStatus);
 
-        assertEquals("/login/mfa/completed", ((RedirectView)returnView.getView()).getUrl());
-        verify(sessionStatus, times(1)).setComplete();
-        verifyMfaEvent(MfaAuthenticationSuccessEvent.class);
-    }
+    assertEquals("/login/mfa/completed", ((RedirectView) returnView.getView()).getUrl());
+    verify(sessionStatus, times(1)).setComplete();
+    verifyMfaEvent(MfaAuthenticationSuccessEvent.class);
+  }
 
-    @Test
-    public void testValidOTPActivatesUser() throws Exception {
-        int code = 1234;
-        when(userGoogleMfaCredentialsProvisioning.isValidCode(ArgumentMatchers.any(UserGoogleMfaCredentials.class), eq(code))).thenReturn(true);
-        when(uaaAuthentication.getPrincipal()).thenReturn(new UaaPrincipal(userId, "Marissa", null, "uaa", null, null), null, null);
-        when(mfaProviderProvisioning.retrieveByName(mfaProvider.getName(), IdentityZoneHolder.get().getId())).thenReturn(mfaProvider);
-        when(userDb.retrieveUserByName("Marissa", "uaa")).thenReturn(new UaaUser(new UaaUserPrototype().withUsername("Marissa").withOrigin("uaa").withId("1234").withEmail("marissa@example.com")));
-        IdentityZoneHolder.get().getConfig().getMfaConfig().setEnabled(true).setProviderName(mfaProvider.getName());
+  @Test
+  public void testValidOTPActivatesUser() throws Exception {
+    int code = 1234;
+    when(userGoogleMfaCredentialsProvisioning.isValidCode(
+            ArgumentMatchers.any(UserGoogleMfaCredentials.class), eq(code)))
+        .thenReturn(true);
+    when(uaaAuthentication.getPrincipal())
+        .thenReturn(new UaaPrincipal(userId, "Marissa", null, "uaa", null, null), null, null);
+    when(mfaProviderProvisioning.retrieveByName(
+            mfaProvider.getName(), IdentityZoneHolder.get().getId()))
+        .thenReturn(mfaProvider);
+    when(userDb.retrieveUserByName("Marissa", "uaa"))
+        .thenReturn(
+            new UaaUser(
+                new UaaUserPrototype()
+                    .withUsername("Marissa")
+                    .withOrigin("uaa")
+                    .withId("1234")
+                    .withEmail("marissa@example.com")));
+    IdentityZoneHolder.get()
+        .getConfig()
+        .getMfaConfig()
+        .setEnabled(true)
+        .setProviderName(mfaProvider.getName());
 
-        SessionStatus sessionStatus = mock(SessionStatus.class);
-        endpoint.validateCode(mock(Model.class),
-                              Integer.toString(code),
-                              mock(UserGoogleMfaCredentials.class),
-                              sessionStatus
-        );
-        verify(userGoogleMfaCredentialsProvisioning).saveUserCredentials(ArgumentMatchers.any(UserGoogleMfaCredentials.class));
-        verify(sessionStatus).setComplete();
-        verifyMfaEvent(MfaAuthenticationSuccessEvent.class);
-    }
+    SessionStatus sessionStatus = mock(SessionStatus.class);
+    endpoint.validateCode(
+        mock(Model.class),
+        Integer.toString(code),
+        mock(UserGoogleMfaCredentials.class),
+        sessionStatus);
+    verify(userGoogleMfaCredentialsProvisioning)
+        .saveUserCredentials(ArgumentMatchers.any(UserGoogleMfaCredentials.class));
+    verify(sessionStatus).setComplete();
+    verifyMfaEvent(MfaAuthenticationSuccessEvent.class);
+  }
 
-    @Test
-    public void testInvalidOTPReturnsError() throws Exception{
-        int code = 1234;
-        when(userGoogleMfaCredentialsProvisioning.isValidCode(ArgumentMatchers.any(UserGoogleMfaCredentials.class), eq(code))).thenReturn(false);
-        when(uaaAuthentication.getPrincipal()).thenReturn(new UaaPrincipal(userId, "Marissa", null, "uaa", null, null), null, null);
-        when(mfaProviderProvisioning.retrieveByName(mfaProvider.getName(), IdentityZoneHolder.get().getId())).thenReturn(mfaProvider);
-        when(userDb.retrieveUserByName("Marissa", "uaa")).thenReturn(new UaaUser(new UaaUserPrototype().withUsername("Marissa").withOrigin("uaa").withId("1234").withEmail("marissa@example.com")));
-        IdentityZoneHolder.get().getConfig().getMfaConfig().setEnabled(true).setProviderName(mfaProvider.getName());
-        SessionStatus sessionStatus = mock(SessionStatus.class);
-        ModelAndView returnView = endpoint.validateCode(
-            mock(Model.class),
-            Integer.toString(code),
-            mock(UserGoogleMfaCredentials.class),
-            sessionStatus
-        );
-
-        assertEquals("mfa/enter_code", returnView.getViewName());
-        verifyZeroInteractions(sessionStatus);
-        verifyMfaEvent(MfaAuthenticationFailureEvent.class);
-    }
-
-    @Test
-    public void testValidOTPReturnsErrorWhenLockedOut() throws Exception{
-        exception.expect(AuthenticationPolicyRejectionException.class);
-        int code = 1234;
-
-
-        when(mockMfaPolicy.isAllowed(anyString())).thenReturn(new LoginPolicy.Result(false, 0));
-
-        when(userGoogleMfaCredentialsProvisioning.isValidCode(ArgumentMatchers.any(UserGoogleMfaCredentials.class), eq(code))).thenReturn(true);
-        when(uaaAuthentication.getPrincipal()).thenReturn(new UaaPrincipal(userId, "Marissa", null, "uaa", null, null), null, null);
-        when(mfaProviderProvisioning.retrieveByName(mfaProvider.getName(), IdentityZoneHolder.get().getId())).thenReturn(mfaProvider);
-        when(userDb.retrieveUserByName("Marissa", "uaa")).thenReturn(new UaaUser(new UaaUserPrototype().withUsername("Marissa").withOrigin("uaa").withId("1234").withEmail("marissa@example.com")));
-        IdentityZoneHolder.get().getConfig().getMfaConfig().setEnabled(true).setProviderName(mfaProvider.getName());
-        SessionStatus sessionStatus = mock(SessionStatus.class);
-
+  @Test
+  public void testInvalidOTPReturnsError() throws Exception {
+    int code = 1234;
+    when(userGoogleMfaCredentialsProvisioning.isValidCode(
+            ArgumentMatchers.any(UserGoogleMfaCredentials.class), eq(code)))
+        .thenReturn(false);
+    when(uaaAuthentication.getPrincipal())
+        .thenReturn(new UaaPrincipal(userId, "Marissa", null, "uaa", null, null), null, null);
+    when(mfaProviderProvisioning.retrieveByName(
+            mfaProvider.getName(), IdentityZoneHolder.get().getId()))
+        .thenReturn(mfaProvider);
+    when(userDb.retrieveUserByName("Marissa", "uaa"))
+        .thenReturn(
+            new UaaUser(
+                new UaaUserPrototype()
+                    .withUsername("Marissa")
+                    .withOrigin("uaa")
+                    .withId("1234")
+                    .withEmail("marissa@example.com")));
+    IdentityZoneHolder.get()
+        .getConfig()
+        .getMfaConfig()
+        .setEnabled(true)
+        .setProviderName(mfaProvider.getName());
+    SessionStatus sessionStatus = mock(SessionStatus.class);
+    ModelAndView returnView =
         endpoint.validateCode(
-          mock(Model.class),
-          Integer.toString(code),
-          mock(UserGoogleMfaCredentials.class),
-          sessionStatus
-        );
-
-        verifyZeroInteractions(sessionStatus);
-        verifyMfaEvent(MfaAuthenticationFailureEvent.class);
-    }
-
-    @Test
-    public void testValidateCodeThrowsException() throws Exception{
-        int code = 1234;
-        when(userGoogleMfaCredentialsProvisioning.isValidCode(ArgumentMatchers.any(UserGoogleMfaCredentials.class), eq(code))).thenThrow(new GoogleAuthenticatorException("Thou shall not pass"));
-        when(uaaAuthentication.getPrincipal()).thenReturn(new UaaPrincipal(userId, "Marissa", null, "uaa", null, null), null, null);
-        when(mfaProviderProvisioning.retrieveByName(mfaProvider.getName(), IdentityZoneHolder.get().getId())).thenReturn(mfaProvider);
-        when(userDb.retrieveUserByName("Marissa", "uaa")).thenReturn(new UaaUser(new UaaUserPrototype().withUsername("Marissa").withOrigin("uaa").withId("1234").withEmail("marissa@example.com")));
-        IdentityZoneHolder.get().getConfig().getMfaConfig().setEnabled(true).setProviderName(mfaProvider.getName());
-        SessionStatus sessionStatus = mock(SessionStatus.class);
-        ModelAndView returnView = endpoint.validateCode(
             mock(Model.class),
             Integer.toString(code),
             mock(UserGoogleMfaCredentials.class),
-            sessionStatus
-        );
+            sessionStatus);
 
-        assertEquals("mfa/enter_code", returnView.getViewName());
-        verifyZeroInteractions(sessionStatus);
-        verifyMfaEvent(MfaAuthenticationFailureEvent.class);
-    }
+    assertEquals("mfa/enter_code", returnView.getViewName());
+    verifyZeroInteractions(sessionStatus);
+    verifyMfaEvent(MfaAuthenticationFailureEvent.class);
+  }
 
-    @Test
-    public void testEmptyOTP() throws Exception{
-        when(uaaAuthentication.getPrincipal()).thenReturn(new UaaPrincipal(userId, "Marissa", null, "uaa", null, null), null, null);
-        when(mfaProviderProvisioning.retrieveByName(mfaProvider.getName(), IdentityZoneHolder.get().getId())).thenReturn(mfaProvider);
-        when(userDb.retrieveUserByName("Marissa", "uaa")).thenReturn(new UaaUser(new UaaUserPrototype().withUsername("Marissa").withOrigin("uaa").withId("1234").withEmail("marissa@example.com")));
-        IdentityZoneHolder.get().getConfig().getMfaConfig().setEnabled(true).setProviderName(mfaProvider.getName());
-        SessionStatus sessionStatus = mock(SessionStatus.class);
-        ModelAndView returnView = endpoint.validateCode(
+  @Test
+  public void testValidOTPReturnsErrorWhenLockedOut() throws Exception {
+    exception.expect(AuthenticationPolicyRejectionException.class);
+    int code = 1234;
+
+    when(mockMfaPolicy.isAllowed(anyString())).thenReturn(new LoginPolicy.Result(false, 0));
+
+    when(userGoogleMfaCredentialsProvisioning.isValidCode(
+            ArgumentMatchers.any(UserGoogleMfaCredentials.class), eq(code)))
+        .thenReturn(true);
+    when(uaaAuthentication.getPrincipal())
+        .thenReturn(new UaaPrincipal(userId, "Marissa", null, "uaa", null, null), null, null);
+    when(mfaProviderProvisioning.retrieveByName(
+            mfaProvider.getName(), IdentityZoneHolder.get().getId()))
+        .thenReturn(mfaProvider);
+    when(userDb.retrieveUserByName("Marissa", "uaa"))
+        .thenReturn(
+            new UaaUser(
+                new UaaUserPrototype()
+                    .withUsername("Marissa")
+                    .withOrigin("uaa")
+                    .withId("1234")
+                    .withEmail("marissa@example.com")));
+    IdentityZoneHolder.get()
+        .getConfig()
+        .getMfaConfig()
+        .setEnabled(true)
+        .setProviderName(mfaProvider.getName());
+    SessionStatus sessionStatus = mock(SessionStatus.class);
+
+    endpoint.validateCode(
+        mock(Model.class),
+        Integer.toString(code),
+        mock(UserGoogleMfaCredentials.class),
+        sessionStatus);
+
+    verifyZeroInteractions(sessionStatus);
+    verifyMfaEvent(MfaAuthenticationFailureEvent.class);
+  }
+
+  @Test
+  public void testValidateCodeThrowsException() throws Exception {
+    int code = 1234;
+    when(userGoogleMfaCredentialsProvisioning.isValidCode(
+            ArgumentMatchers.any(UserGoogleMfaCredentials.class), eq(code)))
+        .thenThrow(new GoogleAuthenticatorException("Thou shall not pass"));
+    when(uaaAuthentication.getPrincipal())
+        .thenReturn(new UaaPrincipal(userId, "Marissa", null, "uaa", null, null), null, null);
+    when(mfaProviderProvisioning.retrieveByName(
+            mfaProvider.getName(), IdentityZoneHolder.get().getId()))
+        .thenReturn(mfaProvider);
+    when(userDb.retrieveUserByName("Marissa", "uaa"))
+        .thenReturn(
+            new UaaUser(
+                new UaaUserPrototype()
+                    .withUsername("Marissa")
+                    .withOrigin("uaa")
+                    .withId("1234")
+                    .withEmail("marissa@example.com")));
+    IdentityZoneHolder.get()
+        .getConfig()
+        .getMfaConfig()
+        .setEnabled(true)
+        .setProviderName(mfaProvider.getName());
+    SessionStatus sessionStatus = mock(SessionStatus.class);
+    ModelAndView returnView =
+        endpoint.validateCode(
             mock(Model.class),
-            "",
+            Integer.toString(code),
             mock(UserGoogleMfaCredentials.class),
-            sessionStatus
-        );
-        assertEquals("mfa/enter_code", returnView.getViewName());
-        verifyZeroInteractions(sessionStatus);
-        verifyMfaEvent(MfaAuthenticationFailureEvent.class);
-    }
+            sessionStatus);
 
-    @Test
-    public void testNonNumericOTP() throws Exception{
-        when(uaaAuthentication.getPrincipal()).thenReturn(new UaaPrincipal(userId, "Marissa", null, "uaa", null, null), null, null);
-        when(mfaProviderProvisioning.retrieveByName(mfaProvider.getName(), IdentityZoneHolder.get().getId())).thenReturn(mfaProvider);
-        when(userDb.retrieveUserByName("Marissa", "uaa")).thenReturn(new UaaUser(new UaaUserPrototype().withUsername("Marissa").withOrigin("uaa").withId("1234").withEmail("marissa@example.com")));
-        IdentityZoneHolder.get().getConfig().getMfaConfig().setEnabled(true).setProviderName(mfaProvider.getName());
-        SessionStatus sessionStatus = mock(SessionStatus.class);
-        ModelAndView returnView = endpoint.validateCode(
-            mock(Model.class),
-            "asdf123",
-            mock(UserGoogleMfaCredentials.class),
-            sessionStatus
-        );
-        assertEquals("mfa/enter_code", returnView.getViewName());
-        verifyZeroInteractions(sessionStatus);
-        verifyMfaEvent(MfaAuthenticationFailureEvent.class);
-    }
+    assertEquals("mfa/enter_code", returnView.getViewName());
+    verifyZeroInteractions(sessionStatus);
+    verifyMfaEvent(MfaAuthenticationFailureEvent.class);
+  }
 
-    @Test
-    public void testManualRegistration() throws Exception {
-        when(uaaAuthentication.getPrincipal()).thenReturn(new UaaPrincipal(userId, "Marissa", null, null, null, null), null, null);
-        when(userGoogleMfaCredentialsProvisioning.activeUserCredentialExists(userId, mfaProvider.getId())).thenReturn(false);
-        when(mfaProviderProvisioning.retrieveByName(mfaProvider.getName(), IdentityZoneHolder.get().getId())).thenReturn(mfaProvider);
-        IdentityZoneHolder.get().getConfig().getMfaConfig().setEnabled(true).setProviderName(mfaProvider.getName());
-        String returnValue = endpoint.manualRegistration(mock(Model.class), mock(UserGoogleMfaCredentials.class));
-        assertEquals("mfa/manual_registration", returnValue);
-    }
+  @Test
+  public void testEmptyOTP() throws Exception {
+    when(uaaAuthentication.getPrincipal())
+        .thenReturn(new UaaPrincipal(userId, "Marissa", null, "uaa", null, null), null, null);
+    when(mfaProviderProvisioning.retrieveByName(
+            mfaProvider.getName(), IdentityZoneHolder.get().getId()))
+        .thenReturn(mfaProvider);
+    when(userDb.retrieveUserByName("Marissa", "uaa"))
+        .thenReturn(
+            new UaaUser(
+                new UaaUserPrototype()
+                    .withUsername("Marissa")
+                    .withOrigin("uaa")
+                    .withId("1234")
+                    .withEmail("marissa@example.com")));
+    IdentityZoneHolder.get()
+        .getConfig()
+        .getMfaConfig()
+        .setEnabled(true)
+        .setProviderName(mfaProvider.getName());
+    SessionStatus sessionStatus = mock(SessionStatus.class);
+    ModelAndView returnView =
+        endpoint.validateCode(
+            mock(Model.class), "", mock(UserGoogleMfaCredentials.class), sessionStatus);
+    assertEquals("mfa/enter_code", returnView.getViewName());
+    verifyZeroInteractions(sessionStatus);
+    verifyMfaEvent(MfaAuthenticationFailureEvent.class);
+  }
 
-    @Test
-    public void testManualRegistrationExistingCredential() throws Exception {
-        when(uaaAuthentication.getPrincipal()).thenReturn(new UaaPrincipal(userId, "Marissa", null, null, null, null), null, null);
-        when(userGoogleMfaCredentialsProvisioning.activeUserCredentialExists(userId, mfaProvider.getId())).thenReturn(true);
-        when(mfaProviderProvisioning.retrieveByName(mfaProvider.getName(), IdentityZoneHolder.get().getId())).thenReturn(mfaProvider);
-        IdentityZoneHolder.get().getConfig().getMfaConfig().setEnabled(true).setProviderName(mfaProvider.getName());
+  @Test
+  public void testNonNumericOTP() throws Exception {
+    when(uaaAuthentication.getPrincipal())
+        .thenReturn(new UaaPrincipal(userId, "Marissa", null, "uaa", null, null), null, null);
+    when(mfaProviderProvisioning.retrieveByName(
+            mfaProvider.getName(), IdentityZoneHolder.get().getId()))
+        .thenReturn(mfaProvider);
+    when(userDb.retrieveUserByName("Marissa", "uaa"))
+        .thenReturn(
+            new UaaUser(
+                new UaaUserPrototype()
+                    .withUsername("Marissa")
+                    .withOrigin("uaa")
+                    .withId("1234")
+                    .withEmail("marissa@example.com")));
+    IdentityZoneHolder.get()
+        .getConfig()
+        .getMfaConfig()
+        .setEnabled(true)
+        .setProviderName(mfaProvider.getName());
+    SessionStatus sessionStatus = mock(SessionStatus.class);
+    ModelAndView returnView =
+        endpoint.validateCode(
+            mock(Model.class), "asdf123", mock(UserGoogleMfaCredentials.class), sessionStatus);
+    assertEquals("mfa/enter_code", returnView.getViewName());
+    verifyZeroInteractions(sessionStatus);
+    verifyMfaEvent(MfaAuthenticationFailureEvent.class);
+  }
 
-        String returnValue = endpoint.manualRegistration(
-            mock(Model.class),
-            mock(UserGoogleMfaCredentials.class)
-        );
+  @Test
+  public void testManualRegistration() throws Exception {
+    when(uaaAuthentication.getPrincipal())
+        .thenReturn(new UaaPrincipal(userId, "Marissa", null, null, null, null), null, null);
+    when(userGoogleMfaCredentialsProvisioning.activeUserCredentialExists(
+            userId, mfaProvider.getId()))
+        .thenReturn(false);
+    when(mfaProviderProvisioning.retrieveByName(
+            mfaProvider.getName(), IdentityZoneHolder.get().getId()))
+        .thenReturn(mfaProvider);
+    IdentityZoneHolder.get()
+        .getConfig()
+        .getMfaConfig()
+        .setEnabled(true)
+        .setProviderName(mfaProvider.getName());
+    String returnValue =
+        endpoint.manualRegistration(mock(Model.class), mock(UserGoogleMfaCredentials.class));
+    assertEquals("mfa/manual_registration", returnValue);
+  }
 
-        assertEquals("redirect:/login/mfa/verify", returnValue);
-    }
+  @Test
+  public void testManualRegistrationExistingCredential() throws Exception {
+    when(uaaAuthentication.getPrincipal())
+        .thenReturn(new UaaPrincipal(userId, "Marissa", null, null, null, null), null, null);
+    when(userGoogleMfaCredentialsProvisioning.activeUserCredentialExists(
+            userId, mfaProvider.getId()))
+        .thenReturn(true);
+    when(mfaProviderProvisioning.retrieveByName(
+            mfaProvider.getName(), IdentityZoneHolder.get().getId()))
+        .thenReturn(mfaProvider);
+    IdentityZoneHolder.get()
+        .getConfig()
+        .getMfaConfig()
+        .setEnabled(true)
+        .setProviderName(mfaProvider.getName());
 
-    private void verifyMfaEvent(Class<? extends AbstractUaaEvent> eventClass) {
-        List<ApplicationEvent> values = eventCaptor.getAllValues();
-        assertEquals(1, values.size());
-        ApplicationEvent event = values.get(0);
-        assertThat(event, instanceOf(eventClass));
-        AbstractUaaEvent mfaEvent = (AbstractUaaEvent) event;
-        assertEquals("google-authenticator", mfaEvent.getAuditEvent().getAuthenticationType());
-    }
+    String returnValue =
+        endpoint.manualRegistration(mock(Model.class), mock(UserGoogleMfaCredentials.class));
+
+    assertEquals("redirect:/login/mfa/verify", returnValue);
+  }
+
+  private void verifyMfaEvent(Class<? extends AbstractUaaEvent> eventClass) {
+    List<ApplicationEvent> values = eventCaptor.getAllValues();
+    assertEquals(1, values.size());
+    ApplicationEvent event = values.get(0);
+    assertThat(event, instanceOf(eventClass));
+    AbstractUaaEvent mfaEvent = (AbstractUaaEvent) event;
+    assertEquals("google-authenticator", mfaEvent.getAuditEvent().getAuthenticationType());
+  }
 }

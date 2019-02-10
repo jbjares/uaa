@@ -7,80 +7,77 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.cloudfoundry.identity.uaa.provider.saml.idp.SamlServiceProviderDefinition.MetadataLocation.DATA;
-import static org.cloudfoundry.identity.uaa.provider.saml.idp.SamlServiceProviderDefinition.MetadataLocation.UNKNOWN;
-import static org.cloudfoundry.identity.uaa.provider.saml.idp.SamlServiceProviderDefinition.MetadataLocation.URL;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertSame;
+import static org.cloudfoundry.identity.uaa.provider.saml.idp.SamlServiceProviderDefinition.MetadataLocation.*;
+import static org.junit.Assert.*;
 
 public class SamlServiceProviderDefinitionTest {
 
-    SamlServiceProviderDefinition definition;
+  SamlServiceProviderDefinition definition;
 
-    @Before
-    public void createDefinition() {
-        definition = SamlServiceProviderDefinition.Builder.get()
+  @Before
+  public void createDefinition() {
+    definition =
+        SamlServiceProviderDefinition.Builder.get()
             .setMetaDataLocation("location")
             .setNameID("nameID")
             .setMetadataTrustCheck(true)
             .build();
-    }
+  }
 
-    @Test
-    public void no_static_attributes_by_default() throws Exception {
-        assertNotNull(definition.getStaticCustomAttributes());
-        assertEquals(0, definition.getStaticCustomAttributes().size());
-        Map<String,Object> staticAttributes = new HashMap<>();
-        staticAttributes.put("string-value", "string");
-        staticAttributes.put("list-value", Arrays.asList("string"));
-        definition.setStaticCustomAttributes(staticAttributes);
-        assertNotNull(definition.getStaticCustomAttributes());
-        assertEquals(2, definition.getStaticCustomAttributes().size());
-        assertSame(staticAttributes, definition.getStaticCustomAttributes());
+  @Test
+  public void no_static_attributes_by_default() throws Exception {
+    assertNotNull(definition.getStaticCustomAttributes());
+    assertEquals(0, definition.getStaticCustomAttributes().size());
+    Map<String, Object> staticAttributes = new HashMap<>();
+    staticAttributes.put("string-value", "string");
+    staticAttributes.put("list-value", Arrays.asList("string"));
+    definition.setStaticCustomAttributes(staticAttributes);
+    assertNotNull(definition.getStaticCustomAttributes());
+    assertEquals(2, definition.getStaticCustomAttributes().size());
+    assertSame(staticAttributes, definition.getStaticCustomAttributes());
+  }
 
-    }
+  @Test
+  public void testXmlWithDoctypeFails() {
+    definition.setMetaDataLocation(
+        SamlTestUtils.SAML_SP_METADATA.replace(
+            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>", "<?xml version=\"1.0\"?>\n<!DOCTYPE>"));
+    assertEquals(UNKNOWN, definition.getType());
+  }
 
-    @Test
-    public void testXmlWithDoctypeFails() {
-        definition.setMetaDataLocation(SamlTestUtils.SAML_SP_METADATA.replace("<?xml version=\"1.0\" encoding=\"UTF-8\"?>", "<?xml version=\"1.0\"?>\n<!DOCTYPE>"));
-        assertEquals(UNKNOWN, definition.getType());
-    }
+  @Test
+  public void testGetFileTypeFailsAndIsNoLongerSupported() throws Exception {
+    definition.setMetaDataLocation(System.getProperty("user.home"));
+    assertEquals(UNKNOWN, definition.getType());
+  }
 
-    @Test
-    public void testGetFileTypeFailsAndIsNoLongerSupported() throws Exception {
-        definition.setMetaDataLocation(System.getProperty("user.home"));
-        assertEquals(UNKNOWN, definition.getType());
-    }
+  @Test
+  public void testGetUrlTypeMustBeValidUrl() throws Exception {
+    definition.setMetaDataLocation("http");
+    assertEquals(UNKNOWN, definition.getType());
+  }
 
-    @Test
-    public void testGetUrlTypeMustBeValidUrl() throws Exception {
-        definition.setMetaDataLocation("http");
-        assertEquals(UNKNOWN, definition.getType());
-    }
+  @Test
+  public void testGetUrlWhenValid() throws Exception {
+    definition.setMetaDataLocation("http://uaa.com/saml/idp/metadata");
+    assertEquals(URL, definition.getType());
+  }
 
-    @Test
-    public void testGetUrlWhenValid() throws Exception {
-        definition.setMetaDataLocation("http://uaa.com/saml/idp/metadata");
-        assertEquals(URL, definition.getType());
-    }
+  @Test
+  public void testGetDataTypeIsValid() throws Exception {
+    definition.setMetaDataLocation("<?xml");
+    assertEquals(UNKNOWN, definition.getType());
 
-    @Test
-    public void testGetDataTypeIsValid() throws Exception {
-        definition.setMetaDataLocation("<?xml");
-        assertEquals(UNKNOWN, definition.getType());
+    definition.setMetaDataLocation("<md:EntityDescriptor");
+    assertEquals(UNKNOWN, definition.getType());
 
-        definition.setMetaDataLocation("<md:EntityDescriptor");
-        assertEquals(UNKNOWN, definition.getType());
+    definition.setMetaDataLocation("EntityDescriptor");
+    assertEquals(UNKNOWN, definition.getType());
+  }
 
-        definition.setMetaDataLocation("EntityDescriptor");
-        assertEquals(UNKNOWN, definition.getType());
-    }
-
-    @Test
-    public void testGetDataTypeWhenValid() throws Exception {
-        definition.setMetaDataLocation(SamlTestUtils.SAML_SP_METADATA);
-        assertEquals(DATA, definition.getType());
-    }
-
+  @Test
+  public void testGetDataTypeWhenValid() throws Exception {
+    definition.setMetaDataLocation(SamlTestUtils.SAML_SP_METADATA);
+    assertEquals(DATA, definition.getType());
+  }
 }

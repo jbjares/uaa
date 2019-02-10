@@ -23,16 +23,17 @@ import static org.cloudfoundry.identity.uaa.constants.OriginKeys.LDAP;
 
 public class LdapIdentityProviderConfigValidator extends BaseIdentityProviderValidator {
 
-    @Override
-    public void validate(IdentityProvider<? extends AbstractIdentityProviderDefinition> provider) {
-        super.validate(provider);
-        if (!LDAP.equals(provider.getOriginKey())) {
-            throw new IllegalArgumentException(String.format("LDAP provider originKey must be set to '%s'", LDAP));
-        }
+  @Override
+  public void validate(IdentityProvider<? extends AbstractIdentityProviderDefinition> provider) {
+    super.validate(provider);
+    if (!LDAP.equals(provider.getOriginKey())) {
+      throw new IllegalArgumentException(
+          String.format("LDAP provider originKey must be set to '%s'", LDAP));
     }
+  }
 
-    @Override
-    public void validate(AbstractIdentityProviderDefinition definition) {
-        //not yet implemented
-    }
+  @Override
+  public void validate(AbstractIdentityProviderDefinition definition) {
+    // not yet implemented
+  }
 }

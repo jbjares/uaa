@@ -30,55 +30,60 @@ import static org.springframework.security.oauth2.common.util.OAuth2Utils.REDIRE
 
 @Service
 public class EmailInvitationsService implements InvitationsService {
-    public static final String USER_ID = "user_id";
-    public static final String EMAIL = "email";
-    private final Log logger = LogFactory.getLog(getClass());
+  public static final String USER_ID = "user_id";
+  public static final String EMAIL = "email";
+  private final Log logger = LogFactory.getLog(getClass());
 
+  @Autowired private ScimUserProvisioning scimUserProvisioning;
 
-    @Autowired
-    private ScimUserProvisioning scimUserProvisioning;
+  @Autowired private ExpiringCodeStore expiringCodeStore;
 
-    @Autowired
-    private ExpiringCodeStore expiringCodeStore;
+  @Autowired private ClientServicesExtension clientDetailsService;
 
-    @Autowired
-    private ClientServicesExtension clientDetailsService;
+  @Override
+  public AcceptedInvitation acceptInvitation(String code, String password) {
+    ExpiringCode expiringCode =
+        expiringCodeStore.retrieveCode(code, IdentityZoneHolder.get().getId());
 
-    @Override
-    public AcceptedInvitation acceptInvitation(String code, String password) {
-        ExpiringCode expiringCode = expiringCodeStore.retrieveCode(code, IdentityZoneHolder.get().getId());
-
-        if ((null == expiringCode) || (null != expiringCode.getIntent() && !INVITATION.name().equals(expiringCode.getIntent()))) {
-            throw new HttpClientErrorException(HttpStatus.BAD_REQUEST);
-        }
-
-        Map<String,String> userData = JsonUtils.readValue(expiringCode.getData(), new TypeReference<Map<String, String>>() {});
-        String userId = userData.get(USER_ID);
-        String clientId = userData.get(CLIENT_ID);
-        String redirectUri = userData.get(REDIRECT_URI);
-
-        ScimUser user = scimUserProvisioning.retrieve(userId, IdentityZoneHolder.get().getId());
-
-        if (UAA.equals(user.getOrigin())) {
-            user = scimUserProvisioning.verifyUser(userId, user.getVersion(), IdentityZoneHolder.get().getId());
-
-            if (StringUtils.hasText(password)) {
-                PasswordChangeRequest request = new PasswordChangeRequest();
-                request.setPassword(password);
-                scimUserProvisioning.changePassword(userId, null, password, IdentityZoneHolder.get().getId());
-            }
-        }
-
-        String redirectLocation = "/home";
-        try {
-            ClientDetails clientDetails = clientDetailsService.loadClientByClientId(clientId, IdentityZoneHolder.get().getId());
-            Set<String> redirectUris = clientDetails.getRegisteredRedirectUri();
-            redirectLocation = UaaUrlUtils.findMatchingRedirectUri(redirectUris, redirectUri, redirectLocation);
-        } catch (NoSuchClientException x) {
-            logger.debug("Unable to find client_id for invitation:"+clientId);
-        } catch (Exception x) {
-            logger.error("Unable to resolve redirect for clientID:"+clientId, x);
-        }
-        return new AcceptedInvitation(redirectLocation, user);
+    if ((null == expiringCode)
+        || (null != expiringCode.getIntent()
+            && !INVITATION.name().equals(expiringCode.getIntent()))) {
+      throw new HttpClientErrorException(HttpStatus.BAD_REQUEST);
     }
+
+    Map<String, String> userData =
+        JsonUtils.readValue(expiringCode.getData(), new TypeReference<Map<String, String>>() {});
+    String userId = userData.get(USER_ID);
+    String clientId = userData.get(CLIENT_ID);
+    String redirectUri = userData.get(REDIRECT_URI);
+
+    ScimUser user = scimUserProvisioning.retrieve(userId, IdentityZoneHolder.get().getId());
+
+    if (UAA.equals(user.getOrigin())) {
+      user =
+          scimUserProvisioning.verifyUser(
+              userId, user.getVersion(), IdentityZoneHolder.get().getId());
+
+      if (StringUtils.hasText(password)) {
+        PasswordChangeRequest request = new PasswordChangeRequest();
+        request.setPassword(password);
+        scimUserProvisioning.changePassword(
+            userId, null, password, IdentityZoneHolder.get().getId());
+      }
+    }
+
+    String redirectLocation = "/home";
+    try {
+      ClientDetails clientDetails =
+          clientDetailsService.loadClientByClientId(clientId, IdentityZoneHolder.get().getId());
+      Set<String> redirectUris = clientDetails.getRegisteredRedirectUri();
+      redirectLocation =
+          UaaUrlUtils.findMatchingRedirectUri(redirectUris, redirectUri, redirectLocation);
+    } catch (NoSuchClientException x) {
+      logger.debug("Unable to find client_id for invitation:" + clientId);
+    } catch (Exception x) {
+      logger.error("Unable to resolve redirect for clientID:" + clientId, x);
+    }
+    return new AcceptedInvitation(redirectLocation, user);
+  }
 }

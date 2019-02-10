@@ -7,9 +7,10 @@ import org.springframework.http.HttpStatus;
 
 public class InvalidMfaProviderException extends UaaException {
 
-    public final Log logger = LogFactory.getLog(InvalidMfaProviderException.class);
-    public InvalidMfaProviderException(String message) {
-        super("invalid_mfa_provider", message, HttpStatus.UNPROCESSABLE_ENTITY.value());
-        logger.debug("MfaProvider validation error. " + message);
-    }
+  public final Log logger = LogFactory.getLog(InvalidMfaProviderException.class);
+
+  public InvalidMfaProviderException(String message) {
+    super("invalid_mfa_provider", message, HttpStatus.UNPROCESSABLE_ENTITY.value());
+    logger.debug("MfaProvider validation error. " + message);
+  }
 }

@@ -13,28 +13,34 @@ import static org.springframework.http.HttpStatus.OK;
 @Controller
 public class OpenIdConnectEndpoints {
 
-    private String issuer;
+  private String issuer;
 
-    @RequestMapping(value = {"/.well-known/openid-configuration", "/oauth/token/.well-known/openid-configuration"})
-    public ResponseEntity<OpenIdConfiguration> getOpenIdConfiguration(HttpServletRequest request) throws URISyntaxException {
-        OpenIdConfiguration conf = new OpenIdConfiguration(getServerContextPath(request), getTokenEndpoint());
-        return new ResponseEntity<>(conf, OK);
-    }
+  @RequestMapping(
+      value = {
+        "/.well-known/openid-configuration",
+        "/oauth/token/.well-known/openid-configuration"
+      })
+  public ResponseEntity<OpenIdConfiguration> getOpenIdConfiguration(HttpServletRequest request)
+      throws URISyntaxException {
+    OpenIdConfiguration conf =
+        new OpenIdConfiguration(getServerContextPath(request), getTokenEndpoint());
+    return new ResponseEntity<>(conf, OK);
+  }
 
-    private String getServerContextPath(HttpServletRequest request) {
-        StringBuffer requestURL = request.getRequestURL();
-        return requestURL.substring(0, requestURL.length() - request.getServletPath().length());
-    }
+  private String getServerContextPath(HttpServletRequest request) {
+    StringBuffer requestURL = request.getRequestURL();
+    return requestURL.substring(0, requestURL.length() - request.getServletPath().length());
+  }
 
-    public String getTokenEndpoint() throws URISyntaxException {
-        return UaaTokenUtils.constructTokenEndpointUrl(issuer);
-    }
+  public String getTokenEndpoint() throws URISyntaxException {
+    return UaaTokenUtils.constructTokenEndpointUrl(issuer);
+  }
 
-    public String getIssuer() {
-        return issuer;
-    }
+  public String getIssuer() {
+    return issuer;
+  }
 
-    public void setIssuer(String issuer) {
-        this.issuer = issuer;
-    }
+  public void setIssuer(String issuer) {
+    this.issuer = issuer;
+  }
 }

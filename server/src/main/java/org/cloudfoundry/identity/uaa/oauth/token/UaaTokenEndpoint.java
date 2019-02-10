@@ -29,82 +29,82 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 import javax.servlet.http.HttpServletRequest;
 import java.security.Principal;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 import static org.springframework.util.StringUtils.hasText;
 import static org.springframework.web.bind.annotation.RequestMethod.GET;
 import static org.springframework.web.bind.annotation.RequestMethod.POST;
 
-
 @Controller
-@RequestMapping(value = "/oauth/token") //used simply because TokenEndpoint wont match /oauth/token/alias/saml-entity-id
+@RequestMapping(
+    value =
+        "/oauth/token") // used simply because TokenEndpoint wont match
+                        // /oauth/token/alias/saml-entity-id
 public class UaaTokenEndpoint extends TokenEndpoint {
 
-    private Boolean allowQueryString = null;
+  private Boolean allowQueryString = null;
 
-    public UaaTokenEndpoint() {
-        setAllowedRequestMethods(new HashSet<>(Arrays.asList(HttpMethod.GET, HttpMethod.POST)));
+  public UaaTokenEndpoint() {
+    setAllowedRequestMethods(new HashSet<>(Arrays.asList(HttpMethod.GET, HttpMethod.POST)));
+  }
+
+  public boolean isAllowQueryString() {
+    return allowQueryString == null ? true : allowQueryString;
+  }
+
+  public void setAllowQueryString(boolean allowQueryString) {
+    this.allowQueryString = allowQueryString;
+    if (allowQueryString) {
+      setAllowedRequestMethods(new HashSet<>(Arrays.asList(HttpMethod.GET, HttpMethod.POST)));
+    } else {
+      setAllowedRequestMethods(Collections.singleton(HttpMethod.POST));
     }
+  }
 
-    public boolean isAllowQueryString() {
-        return allowQueryString == null ? true : allowQueryString;
+  @RequestMapping(value = "**", method = GET)
+  public ResponseEntity<OAuth2AccessToken> doDelegateGet(
+      Principal principal, @RequestParam Map<String, String> parameters)
+      throws HttpRequestMethodNotSupportedException {
+    return getAccessToken(principal, parameters);
+  }
+
+  @RequestMapping(value = "**", method = POST)
+  public ResponseEntity<OAuth2AccessToken> doDelegatePost(
+      Principal principal, @RequestParam Map<String, String> parameters, HttpServletRequest request)
+      throws HttpRequestMethodNotSupportedException {
+    if (hasText(request.getQueryString()) && !isAllowQueryString()) {
+      logger.debug("Call to /oauth/token contains a query string. Aborting.");
+      throw new HttpRequestMethodNotSupportedException("POST");
     }
+    return postAccessToken(principal, parameters);
+  }
 
-    public void setAllowQueryString(boolean allowQueryString) {
-        this.allowQueryString = allowQueryString;
-        if (allowQueryString) {
-            setAllowedRequestMethods(new HashSet<>(Arrays.asList(HttpMethod.GET, HttpMethod.POST)));
-        } else {
-            setAllowedRequestMethods(Collections.singleton(HttpMethod.POST));
-        }
+  @RequestMapping(value = "**")
+  public void methodsNotAllowed(HttpServletRequest request)
+      throws HttpRequestMethodNotSupportedException {
+    throw new HttpRequestMethodNotSupportedException(request.getMethod());
+  }
+
+  @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+  @Override
+  public ResponseEntity<OAuth2Exception> handleHttpRequestMethodNotSupportedException(
+      HttpRequestMethodNotSupportedException e) throws Exception {
+    return new HttpMethodNotSupportedAdvice().handleMethodNotSupportedException(e);
+  }
+
+  @ExceptionHandler(Exception.class)
+  @Override
+  public ResponseEntity<OAuth2Exception> handleException(Exception e) throws Exception {
+    logger.error("Handling error: " + e.getClass().getSimpleName() + ", " + e.getMessage(), e);
+    return getExceptionTranslator().translate(e);
+  }
+
+  @Override
+  public void setAllowedRequestMethods(Set<HttpMethod> allowedRequestMethods) {
+    if (isAllowQueryString()) {
+      super.setAllowedRequestMethods(allowedRequestMethods);
+    } else {
+      super.setAllowedRequestMethods(Collections.singleton(HttpMethod.POST));
     }
-
-    @RequestMapping(value = "**", method = GET)
-    public ResponseEntity<OAuth2AccessToken> doDelegateGet(Principal principal,
-                                                           @RequestParam Map<String, String> parameters) throws HttpRequestMethodNotSupportedException {
-        return getAccessToken(principal, parameters);
-    }
-
-    @RequestMapping(value = "**", method = POST)
-    public ResponseEntity<OAuth2AccessToken> doDelegatePost(Principal principal,
-                                                            @RequestParam Map<String, String> parameters,
-                                                            HttpServletRequest request) throws HttpRequestMethodNotSupportedException {
-        if (hasText(request.getQueryString()) && !isAllowQueryString()) {
-            logger.debug("Call to /oauth/token contains a query string. Aborting.");
-            throw new HttpRequestMethodNotSupportedException("POST");
-        }
-        return postAccessToken(principal, parameters);
-    }
-
-    @RequestMapping(value = "**")
-    public void methodsNotAllowed(HttpServletRequest request) throws HttpRequestMethodNotSupportedException {
-        throw new HttpRequestMethodNotSupportedException(request.getMethod());
-    }
-
-
-    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
-    @Override
-    public ResponseEntity<OAuth2Exception> handleHttpRequestMethodNotSupportedException(HttpRequestMethodNotSupportedException e) throws Exception {
-        return new HttpMethodNotSupportedAdvice().handleMethodNotSupportedException(e);
-    }
-
-    @ExceptionHandler(Exception.class)
-    @Override
-    public ResponseEntity<OAuth2Exception> handleException(Exception e) throws Exception {
-        logger.error("Handling error: " + e.getClass().getSimpleName() + ", " + e.getMessage(), e);
-        return getExceptionTranslator().translate(e);
-    }
-
-    @Override
-    public void setAllowedRequestMethods(Set<HttpMethod> allowedRequestMethods) {
-        if (isAllowQueryString()) {
-            super.setAllowedRequestMethods(allowedRequestMethods);
-        } else {
-            super.setAllowedRequestMethods(Collections.singleton(HttpMethod.POST));
-        }
-    }
+  }
 }

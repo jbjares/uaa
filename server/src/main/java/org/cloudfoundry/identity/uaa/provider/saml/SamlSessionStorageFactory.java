@@ -26,22 +26,23 @@ import javax.servlet.http.HttpSession;
 
 public class SamlSessionStorageFactory implements SAMLMessageStorageFactory {
 
-    private static Log logger = LogFactory.getLog(SamlSessionStorageFactory.class);
+  private static Log logger = LogFactory.getLog(SamlSessionStorageFactory.class);
 
-    public static final String SAML_REQUEST_DATA = SamlMessageStorage.class.getName() + ".saml.requests";
+  public static final String SAML_REQUEST_DATA =
+      SamlMessageStorage.class.getName() + ".saml.requests";
 
-    @Override
-    public synchronized SAMLMessageStorage getMessageStorage(HttpServletRequest request) {
-        if (IdentityZoneHolder.get().getConfig().getSamlConfig().isDisableInResponseToCheck()) {
-            //add the ability to disable inResponseTo check
-            //https://docs.spring.io/spring-security-saml/docs/current/reference/html/chapter-troubleshooting.html
-            return null;
-        }
-        HttpSession session = request.getSession(true);
-        if (session.getAttribute(SAML_REQUEST_DATA) == null) {
-            session.setAttribute(SAML_REQUEST_DATA, new SamlMessageStorage());
-        }
-        logger.debug("Returning SAML message factory for session ID:"+session.getId());
-        return (SAMLMessageStorage) session.getAttribute(SAML_REQUEST_DATA);
+  @Override
+  public synchronized SAMLMessageStorage getMessageStorage(HttpServletRequest request) {
+    if (IdentityZoneHolder.get().getConfig().getSamlConfig().isDisableInResponseToCheck()) {
+      // add the ability to disable inResponseTo check
+      // https://docs.spring.io/spring-security-saml/docs/current/reference/html/chapter-troubleshooting.html
+      return null;
     }
+    HttpSession session = request.getSession(true);
+    if (session.getAttribute(SAML_REQUEST_DATA) == null) {
+      session.setAttribute(SAML_REQUEST_DATA, new SamlMessageStorage());
+    }
+    logger.debug("Returning SAML message factory for session ID:" + session.getId());
+    return (SAMLMessageStorage) session.getAttribute(SAML_REQUEST_DATA);
+  }
 }

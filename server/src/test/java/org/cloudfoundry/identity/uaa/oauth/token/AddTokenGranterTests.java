@@ -32,31 +32,33 @@ import static org.mockito.Mockito.mock;
 
 public class AddTokenGranterTests {
 
+  private CompositeTokenGranter compositeTokenGranter;
+  private UserTokenGranter userTokenGranter;
 
-    private CompositeTokenGranter compositeTokenGranter;
-    private UserTokenGranter userTokenGranter;
-
-    @Before
-    public void setup() {
-        compositeTokenGranter = new CompositeTokenGranter(emptyList());
-        userTokenGranter = new UserTokenGranter(
+  @Before
+  public void setup() {
+    compositeTokenGranter = new CompositeTokenGranter(emptyList());
+    userTokenGranter =
+        new UserTokenGranter(
             mock(AuthorizationServerTokenServices.class),
             mock(ClientServicesExtension.class),
             mock(OAuth2RequestFactory.class),
-            mock(RevocableTokenProvisioning.class)
-        );
-    }
+            mock(RevocableTokenProvisioning.class));
+  }
 
+  @Test
+  public void happy_day() {
+    new AddTokenGranter(userTokenGranter, compositeTokenGranter);
+    List<TokenGranter> granterList =
+        (List<TokenGranter>) ReflectionTestUtils.getField(compositeTokenGranter, "tokenGranters");
+    assertThat(
+        "User token compositeTokenGranter should have been added to the list.",
+        granterList,
+        Matchers.contains(userTokenGranter));
+  }
 
-    @Test
-    public void happy_day() {
-        new AddTokenGranter(userTokenGranter, compositeTokenGranter);
-        List<TokenGranter> granterList = (List<TokenGranter>) ReflectionTestUtils.getField(compositeTokenGranter, "tokenGranters");
-        assertThat("User token compositeTokenGranter should have been added to the list.", granterList, Matchers.contains(userTokenGranter));
-    }
-
-    @Test(expected = IllegalArgumentException.class)
-    public void invalid_class_used() {
-        new AddTokenGranter(userTokenGranter, mock(TokenGranter.class));
-    }
+  @Test(expected = IllegalArgumentException.class)
+  public void invalid_class_used() {
+    new AddTokenGranter(userTokenGranter, mock(TokenGranter.class));
+  }
 }

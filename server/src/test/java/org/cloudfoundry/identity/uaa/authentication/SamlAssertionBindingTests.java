@@ -24,33 +24,30 @@ import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-/**
- * Created by fhanik on 12/22/16.
- */
+/** Created by fhanik on 12/22/16. */
 public class SamlAssertionBindingTests {
 
-    private SamlAssertionBinding binding;
+  private SamlAssertionBinding binding;
 
-    @Before
-    public void setUp() throws Exception {
-        binding = new SamlAssertionBinding(new BasicParserPool());
-    }
+  @Before
+  public void setUp() throws Exception {
+    binding = new SamlAssertionBinding(new BasicParserPool());
+  }
 
-    @Test
-    public void supports() throws Exception {
-        HTTPInTransport transport = mock(HTTPInTransport.class);
-        assertFalse(binding.supports(transport));
+  @Test
+  public void supports() throws Exception {
+    HTTPInTransport transport = mock(HTTPInTransport.class);
+    assertFalse(binding.supports(transport));
 
-        when(transport.getHTTPMethod()).thenReturn("POST");
-        assertFalse(binding.supports(transport));
+    when(transport.getHTTPMethod()).thenReturn("POST");
+    assertFalse(binding.supports(transport));
 
-        when(transport.getParameterValue("assertion")).thenReturn("some assertion");
-        assertTrue(binding.supports(transport));
-    }
+    when(transport.getParameterValue("assertion")).thenReturn("some assertion");
+    assertTrue(binding.supports(transport));
+  }
 
-    @Test
-    public void getBindingURI() throws Exception {
-        assertEquals("urn:oasis:names:tc:SAML:2.0:bindings:URI", binding.getBindingURI());
-    }
-
+  @Test
+  public void getBindingURI() throws Exception {
+    assertEquals("urn:oasis:names:tc:SAML:2.0:bindings:URI", binding.getBindingURI());
+  }
 }

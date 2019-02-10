@@ -1,16 +1,15 @@
-/*******************************************************************************
- *     Cloud Foundry
- *     Copyright (c) [2009-2017] Pivotal Software, Inc. All Rights Reserved.
+/**
+ * ***************************************************************************** Cloud Foundry
+ * Copyright (c) [2009-2017] Pivotal Software, Inc. All Rights Reserved.
  *
- *     This product is licensed to you under the Apache License, Version 2.0 (the "License").
- *     You may not use this product except in compliance with the License.
+ * <p>This product is licensed to you under the Apache License, Version 2.0 (the "License"). You may
+ * not use this product except in compliance with the License.
  *
- *     This product includes a number of subcomponents with
- *     separate copyright notices and license terms. Your use of these
- *     subcomponents is subject to the terms and conditions of the
- *     subcomponent's license, as noted in the LICENSE file.
- *******************************************************************************/
-
+ * <p>This product includes a number of subcomponents with separate copyright notices and license
+ * terms. Your use of these subcomponents is subject to the terms and conditions of the
+ * subcomponent's license, as noted in the LICENSE file.
+ * *****************************************************************************
+ */
 package org.cloudfoundry.identity.uaa.account.event;
 
 import org.cloudfoundry.identity.uaa.audit.event.AbstractUaaEvent;
@@ -32,89 +31,87 @@ import static java.util.Optional.ofNullable;
 import static org.cloudfoundry.identity.uaa.authentication.SystemAuthentication.SYSTEM_AUTHENTICATION;
 
 /**
- * Event publisher for password changes with the resulting event type varying
- * according to the input and outcome. Can be
- * used as an aspect intercepting calls to a component that changes user
+ * Event publisher for password changes with the resulting event type varying according to the input
+ * and outcome. Can be used as an aspect intercepting calls to a component that changes user
  * password.
- *
  */
 public class PasswordChangeEventPublisher implements ApplicationEventPublisherAware {
 
-    private ScimUserProvisioning dao;
+  private ScimUserProvisioning dao;
 
-    private ApplicationEventPublisher publisher;
+  private ApplicationEventPublisher publisher;
 
-    public PasswordChangeEventPublisher(ScimUserProvisioning provisioning) {
-        this.dao = provisioning;
+  public PasswordChangeEventPublisher(ScimUserProvisioning provisioning) {
+    this.dao = provisioning;
+  }
+
+  @Override
+  public void setApplicationEventPublisher(ApplicationEventPublisher publisher) {
+    this.publisher = publisher;
+  }
+
+  public void passwordFailure(String userId, Exception e) {
+    UaaUser user = getUser(userId);
+    publish(new PasswordChangeFailureEvent(e.getMessage(), user, getPrincipal()));
+  }
+
+  public void passwordChange(String userId) {
+    publish(new PasswordChangeEvent("Password changed", getUser(userId), getPrincipal()));
+  }
+
+  private UaaUser getUser(String userId) {
+    try {
+      // If the request came in for a user by id we should be able to
+      // retrieve the username
+      ScimUser scimUser = dao.retrieve(userId, IdentityZoneHolder.get().getId());
+      Date today = new Date();
+      if (scimUser != null) {
+        return new UaaUser(
+            scimUser.getId(),
+            scimUser.getUserName(),
+            "N/A",
+            getEmail(scimUser),
+            null,
+            scimUser.getGivenName(),
+            scimUser.getFamilyName(),
+            today,
+            today,
+            scimUser.getOrigin(),
+            scimUser.getExternalId(),
+            scimUser.isVerified(),
+            scimUser.getZoneId(),
+            scimUser.getSalt(),
+            scimUser.getPasswordLastModified());
+      }
+    } catch (ScimResourceNotFoundException e) {
+      // ignore
     }
+    return null;
+  }
 
-    @Override
-    public void setApplicationEventPublisher(ApplicationEventPublisher publisher) {
-        this.publisher = publisher;
+  private String getEmail(ScimUser scimUser) {
+    List<Email> emails = scimUser.getEmails();
+    if (emails == null || emails.isEmpty()) {
+      return scimUser.getUserName().contains("@")
+          ? scimUser.getUserName()
+          : scimUser.getUserName() + "@unknown.org";
     }
-
-    public void passwordFailure(String userId, Exception e) {
-        UaaUser user = getUser(userId);
-        publish(new PasswordChangeFailureEvent(e.getMessage(), user, getPrincipal()));
+    for (Email email : emails) {
+      if (email.isPrimary()) {
+        return email.getValue();
+      }
     }
+    return scimUser.getEmails().get(0).getValue();
+  }
 
-    public void passwordChange(String userId) {
-        publish(new PasswordChangeEvent("Password changed", getUser(userId), getPrincipal()));
+  protected Authentication getPrincipal() {
+    return ofNullable(SecurityContextHolder.getContext().getAuthentication())
+        .orElse(SYSTEM_AUTHENTICATION);
+  }
+
+  private void publish(AbstractUaaEvent event) {
+    if (publisher != null) {
+      publisher.publishEvent(event);
     }
-
-    private UaaUser getUser(String userId) {
-        try {
-            // If the request came in for a user by id we should be able to
-            // retrieve the username
-            ScimUser scimUser = dao.retrieve(userId, IdentityZoneHolder.get().getId());
-            Date today = new Date();
-            if (scimUser != null) {
-                return new UaaUser(
-                    scimUser.getId(),
-                    scimUser.getUserName(),
-                    "N/A",
-                    getEmail(scimUser),
-                    null,
-                    scimUser.getGivenName(),
-                    scimUser.getFamilyName(),
-                    today,
-                    today,
-                    scimUser.getOrigin(),
-                    scimUser.getExternalId(),
-                    scimUser.isVerified(),
-                    scimUser.getZoneId(),
-                    scimUser.getSalt(),
-                    scimUser.getPasswordLastModified());
-            }
-        } catch (ScimResourceNotFoundException e) {
-            // ignore
-        }
-        return null;
-    }
-
-    private String getEmail(ScimUser scimUser) {
-        List<Email> emails = scimUser.getEmails();
-        if (emails == null || emails.isEmpty()) {
-            return scimUser.getUserName().contains("@") ? scimUser.getUserName() : scimUser.getUserName()
-                            + "@unknown.org";
-        }
-        for (Email email : emails) {
-            if (email.isPrimary()) {
-                return email.getValue();
-            }
-        }
-        return scimUser.getEmails().get(0).getValue();
-    }
-
-    protected Authentication getPrincipal() {
-        return ofNullable(SecurityContextHolder.getContext().getAuthentication())
-            .orElse(SYSTEM_AUTHENTICATION);
-    }
-
-    private void publish(AbstractUaaEvent event) {
-        if (publisher != null) {
-            publisher.publishEvent(event);
-        }
-    }
-
+  }
 }

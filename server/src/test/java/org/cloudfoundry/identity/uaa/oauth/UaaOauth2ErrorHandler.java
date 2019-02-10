@@ -1,36 +1,36 @@
 package org.cloudfoundry.identity.uaa.oauth;
 
-
-import java.io.IOException;
-
 import org.springframework.http.HttpStatus;
 import org.springframework.http.client.ClientHttpResponse;
 import org.springframework.security.oauth2.client.http.OAuth2ErrorHandler;
 import org.springframework.security.oauth2.client.resource.OAuth2ProtectedResourceDetails;
 
-public class UaaOauth2ErrorHandler extends  OAuth2ErrorHandler {
+import java.io.IOException;
 
-    public HttpStatus.Series getErrorAtLevel() {
-        return errorAtLevel;
-    }
+public class UaaOauth2ErrorHandler extends OAuth2ErrorHandler {
 
-    public void setErrorAtLevel(HttpStatus.Series errorAtLevel) {
-        this.errorAtLevel = errorAtLevel;
-    }
+  public HttpStatus.Series getErrorAtLevel() {
+    return errorAtLevel;
+  }
 
-    private HttpStatus.Series errorAtLevel = HttpStatus.Series.SERVER_ERROR;
+  public void setErrorAtLevel(HttpStatus.Series errorAtLevel) {
+    this.errorAtLevel = errorAtLevel;
+  }
 
-    public UaaOauth2ErrorHandler(OAuth2ProtectedResourceDetails resource) {
-        super(resource);
-    }
+  private HttpStatus.Series errorAtLevel = HttpStatus.Series.SERVER_ERROR;
 
-    public UaaOauth2ErrorHandler(OAuth2ProtectedResourceDetails resource, HttpStatus.Series errorLevel) {
-        this(resource);
-        setErrorAtLevel(errorLevel);
-    }
+  public UaaOauth2ErrorHandler(OAuth2ProtectedResourceDetails resource) {
+    super(resource);
+  }
 
-    @Override
-    public boolean hasError(ClientHttpResponse response) throws IOException {
-        return errorAtLevel.value() - response.getStatusCode().series().value() <= 0;
-    }
+  public UaaOauth2ErrorHandler(
+      OAuth2ProtectedResourceDetails resource, HttpStatus.Series errorLevel) {
+    this(resource);
+    setErrorAtLevel(errorLevel);
+  }
+
+  @Override
+  public boolean hasError(ClientHttpResponse response) throws IOException {
+    return errorAtLevel.value() - response.getStatusCode().series().value() <= 0;
+  }
 }

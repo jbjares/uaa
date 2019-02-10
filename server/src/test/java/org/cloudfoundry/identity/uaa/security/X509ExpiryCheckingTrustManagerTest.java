@@ -22,9 +22,7 @@ import org.springframework.security.saml.trust.X509TrustManager;
 import java.security.cert.CertificateExpiredException;
 import java.security.cert.X509Certificate;
 
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.*;
 
 public class X509ExpiryCheckingTrustManagerTest {
 
@@ -39,7 +37,7 @@ public class X509ExpiryCheckingTrustManagerTest {
     doNothing().when(mockedDelegate).checkServerTrusted(x509Certificates, "string");
     doThrow(new CertificateExpiredException()).when(certificate).checkValidity();
     try {
-      manager.checkServerTrusted(x509Certificates,"string");
+      manager.checkServerTrusted(x509Certificates, "string");
       Assert.fail();
     } catch (CertificateExpiredException e) {
       verify(mockedDelegate).checkServerTrusted(x509Certificates, "string");

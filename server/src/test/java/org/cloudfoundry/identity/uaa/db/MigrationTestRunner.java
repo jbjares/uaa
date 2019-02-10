@@ -12,38 +12,39 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 public class MigrationTestRunner {
-    private Flyway flyway;
+  private Flyway flyway;
 
-    public MigrationTestRunner(Flyway flyway) {
-        this.flyway = flyway;
-    }
+  public MigrationTestRunner(Flyway flyway) {
+    this.flyway = flyway;
+  }
 
-    public void run(MigrationTest... tests) {
-        final int[] assertionsRan = {0};
-        flyway.setCallbacks(new BaseFlywayCallback() {
-            @Override
-            public void afterEachMigrate(Connection connection, MigrationInfo info) {
-                super.afterEachMigrate(connection, info);
-                try {
-                    connection.commit();
-                } catch (SQLException e) {
-                    Assert.fail(e.getMessage());
-                }
-
-                for (MigrationTest test : tests) {
-                    if (test.getTargetMigration().equals(info.getVersion().getVersion())) {
-                        try {
-                            test.runAssertions();
-                        } catch (Exception e) {
-                            Assert.fail(e.getMessage());
-                        }
-                        assertionsRan[0]++;
-                    }
-                }
+  public void run(MigrationTest... tests) {
+    final int[] assertionsRan = {0};
+    flyway.setCallbacks(
+        new BaseFlywayCallback() {
+          @Override
+          public void afterEachMigrate(Connection connection, MigrationInfo info) {
+            super.afterEachMigrate(connection, info);
+            try {
+              connection.commit();
+            } catch (SQLException e) {
+              Assert.fail(e.getMessage());
             }
-        });
-        flyway.migrate();
 
-        assertThat("Not every db migration ran", assertionsRan[0], is(tests.length));
-    }
+            for (MigrationTest test : tests) {
+              if (test.getTargetMigration().equals(info.getVersion().getVersion())) {
+                try {
+                  test.runAssertions();
+                } catch (Exception e) {
+                  Assert.fail(e.getMessage());
+                }
+                assertionsRan[0]++;
+              }
+            }
+          }
+        });
+    flyway.migrate();
+
+    assertThat("Not every db migration ran", assertionsRan[0], is(tests.length));
+  }
 }

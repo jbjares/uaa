@@ -20,14 +20,12 @@ import org.cloudfoundry.identity.uaa.util.JsonUtils;
 
 import java.util.Arrays;
 
-
 public class JsonWebKeyHelper {
-    public static JsonWebKeySet<JsonWebKey> deserialize(String s) {
-        if (!s.contains("\"keys\"")) {
-            return new JsonWebKeySet<>(Arrays.asList(JsonUtils.readValue(s, JsonWebKey.class)));
-        } else {
-            return JsonUtils.readValue(s, new TypeReference<JsonWebKeySet<JsonWebKey>>() {
-            });
-        }
+  public static JsonWebKeySet<JsonWebKey> deserialize(String s) {
+    if (!s.contains("\"keys\"")) {
+      return new JsonWebKeySet<>(Arrays.asList(JsonUtils.readValue(s, JsonWebKey.class)));
+    } else {
+      return JsonUtils.readValue(s, new TypeReference<JsonWebKeySet<JsonWebKey>>() {});
     }
+  }
 }

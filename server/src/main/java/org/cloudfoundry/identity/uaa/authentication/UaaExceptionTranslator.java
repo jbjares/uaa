@@ -10,42 +10,41 @@ import java.io.IOException;
 
 public class UaaExceptionTranslator extends DefaultWebResponseExceptionTranslator {
 
-    @Override
-    public ResponseEntity<OAuth2Exception> translate(Exception e) throws Exception {
-        if (e instanceof AccountNotVerifiedException) {
-            return handleOAuth2Exception(new ForbiddenException(e.getMessage(), e));
-        }
-
-        return super.translate(e);
+  @Override
+  public ResponseEntity<OAuth2Exception> translate(Exception e) throws Exception {
+    if (e instanceof AccountNotVerifiedException) {
+      return handleOAuth2Exception(new ForbiddenException(e.getMessage(), e));
     }
 
-    private ResponseEntity<OAuth2Exception> handleOAuth2Exception(OAuth2Exception e) throws IOException {
+    return super.translate(e);
+  }
 
-        int status = e.getHttpErrorCode();
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("Cache-Control", "no-store");
-        headers.set("Pragma", "no-cache");
+  private ResponseEntity<OAuth2Exception> handleOAuth2Exception(OAuth2Exception e)
+      throws IOException {
 
-        ResponseEntity<OAuth2Exception> response = new ResponseEntity<OAuth2Exception>(e, headers,
-            HttpStatus.valueOf(status));
+    int status = e.getHttpErrorCode();
+    HttpHeaders headers = new HttpHeaders();
+    headers.set("Cache-Control", "no-store");
+    headers.set("Pragma", "no-cache");
 
-        return response;
+    ResponseEntity<OAuth2Exception> response =
+        new ResponseEntity<OAuth2Exception>(e, headers, HttpStatus.valueOf(status));
 
+    return response;
+  }
+
+  private static class ForbiddenException extends OAuth2Exception {
+
+    public ForbiddenException(String msg, Throwable t) {
+      super(msg, t);
     }
 
-    private static class ForbiddenException extends OAuth2Exception {
-
-        public ForbiddenException(String msg, Throwable t) {
-            super(msg, t);
-        }
-
-        public String getOAuth2ErrorCode() {
-            return "access_denied";
-        }
-
-        public int getHttpErrorCode() {
-            return 403;
-        }
-
+    public String getOAuth2ErrorCode() {
+      return "access_denied";
     }
+
+    public int getHttpErrorCode() {
+      return 403;
+    }
+  }
 }

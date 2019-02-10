@@ -32,75 +32,77 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.cloudfoundry.identity.uaa.login.ForcePasswordChangeController.FORCE_PASSWORD_EXPIRED_USER;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.same;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.*;
 import static org.mockito.internal.verification.VerificationModeFactory.times;
 
 public class UaaAuthenticationFailureHandlerTests {
 
-    private ExceptionMappingAuthenticationFailureHandler failureHandler;
-    private MockHttpServletResponse response;
-    private MockHttpServletRequest request;
-    private UaaAuthenticationFailureHandler uaaAuthenticationFailureHandler;
-    private CurrentUserCookieFactory cookieFactory;
+  private ExceptionMappingAuthenticationFailureHandler failureHandler;
+  private MockHttpServletResponse response;
+  private MockHttpServletRequest request;
+  private UaaAuthenticationFailureHandler uaaAuthenticationFailureHandler;
+  private CurrentUserCookieFactory cookieFactory;
 
-    @Before
-    public void setup() throws Exception {
-        failureHandler = new ExceptionMappingAuthenticationFailureHandler();
-        Map<String, String> errorMap = new HashMap<>();
-        errorMap.put("org.cloudfoundry.identity.uaa.authentication.PasswordChangeRequiredException", "/force_password_change");
-        errorMap.put("org.cloudfoundry.identity.uaa.authentication.MfaAuthenticationRequiredException", "/login/mfa/register");
-        failureHandler.setExceptionMappings(errorMap);
-        failureHandler = spy(failureHandler);
-        cookieFactory = new CurrentUserCookieFactory(1234);
-        uaaAuthenticationFailureHandler = new UaaAuthenticationFailureHandler(failureHandler, cookieFactory);
-        request = new MockHttpServletRequest();
-        response = new MockHttpServletResponse();
-    }
+  @Before
+  public void setup() throws Exception {
+    failureHandler = new ExceptionMappingAuthenticationFailureHandler();
+    Map<String, String> errorMap = new HashMap<>();
+    errorMap.put(
+        "org.cloudfoundry.identity.uaa.authentication.PasswordChangeRequiredException",
+        "/force_password_change");
+    errorMap.put(
+        "org.cloudfoundry.identity.uaa.authentication.MfaAuthenticationRequiredException",
+        "/login/mfa/register");
+    failureHandler.setExceptionMappings(errorMap);
+    failureHandler = spy(failureHandler);
+    cookieFactory = new CurrentUserCookieFactory(1234);
+    uaaAuthenticationFailureHandler =
+        new UaaAuthenticationFailureHandler(failureHandler, cookieFactory);
+    request = new MockHttpServletRequest();
+    response = new MockHttpServletResponse();
+  }
 
-    @Test
-    public void onAuthenticationFailure() throws Exception {
-        AuthenticationException exception = mock(AuthenticationException.class);
-        uaaAuthenticationFailureHandler.onAuthenticationFailure(request, response, exception);
-        verify(failureHandler, times(1)).onAuthenticationFailure(same(request), same(response), same(exception));
-        validateCookie();
-    }
+  @Test
+  public void onAuthenticationFailure() throws Exception {
+    AuthenticationException exception = mock(AuthenticationException.class);
+    uaaAuthenticationFailureHandler.onAuthenticationFailure(request, response, exception);
+    verify(failureHandler, times(1))
+        .onAuthenticationFailure(same(request), same(response), same(exception));
+    validateCookie();
+  }
 
-    @Test
-    public void onAuthenticationFailure_Without_Delegate() throws Exception {
-        AuthenticationException exception = mock(AuthenticationException.class);
-        uaaAuthenticationFailureHandler = new UaaAuthenticationFailureHandler(null, cookieFactory);
-        uaaAuthenticationFailureHandler.onAuthenticationFailure(request, response, exception);
-        validateCookie();
-    }
+  @Test
+  public void onAuthenticationFailure_Without_Delegate() throws Exception {
+    AuthenticationException exception = mock(AuthenticationException.class);
+    uaaAuthenticationFailureHandler = new UaaAuthenticationFailureHandler(null, cookieFactory);
+    uaaAuthenticationFailureHandler.onAuthenticationFailure(request, response, exception);
+    validateCookie();
+  }
 
-    @Test
-    public void logout() throws Exception {
-        uaaAuthenticationFailureHandler.logout(request, response, mock(Authentication.class));
-        validateCookie();
-    }
+  @Test
+  public void logout() throws Exception {
+    uaaAuthenticationFailureHandler.logout(request, response, mock(Authentication.class));
+    validateCookie();
+  }
 
-    @Test
-    public void onAuthenticationFailure_ForcePasswordChange() throws IOException, ServletException {
-        UaaAuthentication uaaAuthentication = mock(UaaAuthentication.class);
-        PasswordChangeRequiredException exception = new PasswordChangeRequiredException(uaaAuthentication, "mock");
-        uaaAuthenticationFailureHandler.onAuthenticationFailure(request, response, exception);
-        assertNotNull(request.getSession().getAttribute(FORCE_PASSWORD_EXPIRED_USER));
-        assertEquals(uaaAuthentication, request.getSession().getAttribute(FORCE_PASSWORD_EXPIRED_USER));
-        validateCookie();
-        assertEquals("/force_password_change", response.getRedirectedUrl());
-    }
+  @Test
+  public void onAuthenticationFailure_ForcePasswordChange() throws IOException, ServletException {
+    UaaAuthentication uaaAuthentication = mock(UaaAuthentication.class);
+    PasswordChangeRequiredException exception =
+        new PasswordChangeRequiredException(uaaAuthentication, "mock");
+    uaaAuthenticationFailureHandler.onAuthenticationFailure(request, response, exception);
+    assertNotNull(request.getSession().getAttribute(FORCE_PASSWORD_EXPIRED_USER));
+    assertEquals(uaaAuthentication, request.getSession().getAttribute(FORCE_PASSWORD_EXPIRED_USER));
+    validateCookie();
+    assertEquals("/force_password_change", response.getRedirectedUrl());
+  }
 
-    private void validateCookie() {
-        Cookie cookie = response.getCookie("Current-User");
-        assertNotNull(cookie);
-        assertEquals(0, cookie.getMaxAge());
-        assertFalse(cookie.isHttpOnly());
-    }
-
+  private void validateCookie() {
+    Cookie cookie = response.getCookie("Current-User");
+    assertNotNull(cookie);
+    assertEquals(0, cookie.getMaxAge());
+    assertFalse(cookie.isHttpOnly());
+  }
 }

@@ -10,40 +10,37 @@ import javax.servlet.http.HttpSession;
 import static org.mockito.Mockito.*;
 
 public class SessionIdleTimeoutSetterTest {
-    SessionIdleTimeoutSetter listener;
-    private HttpSessionCreatedEvent event;
-    private HttpSession session;
+  SessionIdleTimeoutSetter listener;
+  private HttpSessionCreatedEvent event;
+  private HttpSession session;
 
-    @Before
-    public void setUp() throws Exception {
-        event = mock(HttpSessionCreatedEvent.class);
-        session = mock(HttpSession.class);
-        when(event.getSession()).thenReturn(session);
+  @Before
+  public void setUp() throws Exception {
+    event = mock(HttpSessionCreatedEvent.class);
+    session = mock(HttpSession.class);
+    when(event.getSession()).thenReturn(session);
 
-        listener = new SessionIdleTimeoutSetter();
+    listener = new SessionIdleTimeoutSetter();
+  }
 
-    }
+  @Test
+  public void testDefaultTimeout() {
 
-    @Test
-    public void testDefaultTimeout() {
+    listener.onApplicationEvent(event);
 
-        listener.onApplicationEvent(event);
+    verify(session, times(1)).setMaxInactiveInterval(30 * 60);
+  }
 
-        verify(session, times(1)).setMaxInactiveInterval(30 * 60);
-    }
+  @Test
+  public void testNonDefaultTimeout() {
 
-    @Test
-    public void testNonDefaultTimeout() {
+    listener.setTimeout(15 * 60);
 
-        listener.setTimeout(15 * 60);
+    listener.onApplicationEvent(event);
 
-        listener.onApplicationEvent(event);
+    verify(session, times(1)).setMaxInactiveInterval(15 * 60);
+  }
 
-        verify(session, times(1)).setMaxInactiveInterval(15 * 60);
-    }
-
-    @After
-    public void tearDown() throws Exception {
-    }
-
+  @After
+  public void tearDown() throws Exception {}
 }

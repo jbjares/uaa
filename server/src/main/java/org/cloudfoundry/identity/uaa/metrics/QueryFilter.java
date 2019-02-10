@@ -24,46 +24,45 @@ import java.util.Map;
 
 public class QueryFilter extends SlowQueryReport {
 
-    private TimeService timeService = new TimeServiceImpl();
+  private TimeService timeService = new TimeServiceImpl();
 
-    protected void report(String query, long start, long delta) {
-        RequestMetric metric = MetricsAccessor.getCurrent();
-        if (metric!=null) {
-            metric.addQuery(new QueryMetric(query, start, delta, delta>getThreshold()));
-        }
+  protected void report(String query, long start, long delta) {
+    RequestMetric metric = MetricsAccessor.getCurrent();
+    if (metric != null) {
+      metric.addQuery(new QueryMetric(query, start, delta, delta > getThreshold()));
     }
+  }
 
-    @Override
-    public void setProperties(Map<String, PoolProperties.InterceptorProperty> properties) {
-        super.setProperties(properties);
-        this.setLogFailed(false);
-        this.setLogSlow(false);
-    }
+  @Override
+  public void setProperties(Map<String, PoolProperties.InterceptorProperty> properties) {
+    super.setProperties(properties);
+    this.setLogFailed(false);
+    this.setLogSlow(false);
+  }
 
-    @Override
-    protected String reportFailedQuery(String query, Object[] args,
-                                       String name, long start, Throwable t) {
-        String sql = super.reportFailedQuery(query, args, name, start, t);
-        long delta = timeService.getCurrentTimeMillis() - start;
-        report(sql, start, delta);
-        return sql;
-    }
+  @Override
+  protected String reportFailedQuery(
+      String query, Object[] args, String name, long start, Throwable t) {
+    String sql = super.reportFailedQuery(query, args, name, start, t);
+    long delta = timeService.getCurrentTimeMillis() - start;
+    report(sql, start, delta);
+    return sql;
+  }
 
-    @Override
-    protected String reportQuery(String query, Object[] args,
-                                 String name, long start, long delta) {
-        String sql = super.reportQuery(query, args, name, start, delta);
-        report(sql, start, delta);
-        return sql;
-    }
+  @Override
+  protected String reportQuery(String query, Object[] args, String name, long start, long delta) {
+    String sql = super.reportQuery(query, args, name, start, delta);
+    report(sql, start, delta);
+    return sql;
+  }
 
-    @Override
-    protected String reportSlowQuery(String query, Object[] args,
-                                     String name, long start, long delta) {
-        return reportQuery(query, args, name, start, delta);
-    }
+  @Override
+  protected String reportSlowQuery(
+      String query, Object[] args, String name, long start, long delta) {
+    return reportQuery(query, args, name, start, delta);
+  }
 
-    public void setTimeService(TimeService timeService) {
-        this.timeService = timeService;
-    }
+  public void setTimeService(TimeService timeService) {
+    this.timeService = timeService;
+  }
 }

@@ -26,26 +26,33 @@ import java.util.concurrent.ConcurrentMap;
 
 public class SamlMessageStorage implements SAMLMessageStorage {
 
-    private static Log logger = LogFactory.getLog(SamlMessageStorage.class);
-    private ConcurrentMap<String, XMLObject> messages = new ConcurrentHashMap<>();
+  private static Log logger = LogFactory.getLog(SamlMessageStorage.class);
+  private ConcurrentMap<String, XMLObject> messages = new ConcurrentHashMap<>();
 
-    @Override
-    public void storeMessage(String messageId, XMLObject message) {
-        logger.debug(String.format("Storing SAML message with ID:%s for subdomain:%s", messageId, IdentityZoneHolder.get().getSubdomain()));
-        XMLObject previous = messages.put(messageId, message);
-        if (previous!=null) {
-            logger.warn(String.format("SAML message replaced, it already exists with ID:%s for subdomain:%s.", messageId, IdentityZoneHolder.get().getSubdomain()));
-        }
+  @Override
+  public void storeMessage(String messageId, XMLObject message) {
+    logger.debug(
+        String.format(
+            "Storing SAML message with ID:%s for subdomain:%s",
+            messageId, IdentityZoneHolder.get().getSubdomain()));
+    XMLObject previous = messages.put(messageId, message);
+    if (previous != null) {
+      logger.warn(
+          String.format(
+              "SAML message replaced, it already exists with ID:%s for subdomain:%s.",
+              messageId, IdentityZoneHolder.get().getSubdomain()));
     }
+  }
 
-    @Override
-    public XMLObject retrieveMessage(String messageId) {
-        XMLObject result = messages.remove(messageId);
-        logger.debug(String.format("%s - Retrieving SAML message with ID:%s for subdomain:%s",
-                                   result==null ? "Failure" : "Success",
-                                   messageId,
-                                   IdentityZoneHolder.get().getSubdomain())
-        );
-        return result;
-    }
+  @Override
+  public XMLObject retrieveMessage(String messageId) {
+    XMLObject result = messages.remove(messageId);
+    logger.debug(
+        String.format(
+            "%s - Retrieving SAML message with ID:%s for subdomain:%s",
+            result == null ? "Failure" : "Success",
+            messageId,
+            IdentityZoneHolder.get().getSubdomain()));
+    return result;
+  }
 }

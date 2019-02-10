@@ -17,17 +17,17 @@ import org.cloudfoundry.identity.uaa.zone.IdentityZone;
 
 public class MfaChecker {
 
-    private final IdentityProviderProvisioning providerProvisioning;
+  private final IdentityProviderProvisioning providerProvisioning;
 
-    public MfaChecker(IdentityProviderProvisioning providerProvisioning) {
-        this.providerProvisioning = providerProvisioning;
-    }
+  public MfaChecker(IdentityProviderProvisioning providerProvisioning) {
+    this.providerProvisioning = providerProvisioning;
+  }
 
-    public boolean isMfaEnabled(IdentityZone zone, String originKey) {
-        return zone.getConfig().getMfaConfig().isEnabled();
-    }
+  public boolean isMfaEnabled(IdentityZone zone, String originKey) {
+    return zone.getConfig().getMfaConfig().isEnabled();
+  }
 
-    public boolean isRequired(IdentityZone zone, String originKey) {
-        return zone.getConfig().getMfaConfig().getIdentityProviders().contains(originKey);
-    }
+  public boolean isRequired(IdentityZone zone, String originKey) {
+    return zone.getConfig().getMfaConfig().getIdentityProviders().contains(originKey);
+  }
 }

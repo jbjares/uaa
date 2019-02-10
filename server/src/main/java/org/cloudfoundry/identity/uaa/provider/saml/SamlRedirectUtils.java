@@ -19,68 +19,60 @@ import org.cloudfoundry.identity.uaa.util.UaaUrlUtils;
 import org.cloudfoundry.identity.uaa.zone.IdentityZoneHolder;
 import org.joda.time.DateTime;
 import org.opensaml.common.SAMLVersion;
-import org.opensaml.saml2.core.Assertion;
-import org.opensaml.saml2.core.Issuer;
-import org.opensaml.saml2.core.Response;
-import org.opensaml.saml2.core.Status;
-import org.opensaml.saml2.core.StatusCode;
-import org.opensaml.saml2.core.StatusMessage;
-import org.opensaml.saml2.core.impl.IssuerBuilder;
-import org.opensaml.saml2.core.impl.ResponseBuilder;
-import org.opensaml.saml2.core.impl.StatusBuilder;
-import org.opensaml.saml2.core.impl.StatusCodeBuilder;
-import org.opensaml.saml2.core.impl.StatusMessageBuilder;
+import org.opensaml.saml2.core.*;
+import org.opensaml.saml2.core.impl.*;
 import org.springframework.web.util.UriComponentsBuilder;
 
 public class SamlRedirectUtils {
 
-    public static String getIdpRedirectUrl(SamlIdentityProviderDefinition definition, String entityId) {
-        UriComponentsBuilder builder = UriComponentsBuilder.fromPath("saml/discovery");
-        builder.queryParam("returnIDParam", "idp");
-        builder.queryParam("entityID", getZonifiedEntityId(entityId));
-        builder.queryParam("idp", definition.getIdpEntityAlias());
-        builder.queryParam("isPassive", "true");
-        return builder.build().toUriString();
-    }
+  public static String getIdpRedirectUrl(
+      SamlIdentityProviderDefinition definition, String entityId) {
+    UriComponentsBuilder builder = UriComponentsBuilder.fromPath("saml/discovery");
+    builder.queryParam("returnIDParam", "idp");
+    builder.queryParam("entityID", getZonifiedEntityId(entityId));
+    builder.queryParam("idp", definition.getIdpEntityAlias());
+    builder.queryParam("isPassive", "true");
+    return builder.build().toUriString();
+  }
 
-    public static String getZonifiedEntityId(String entityID) {
-        try{
-            if (!IdentityZoneHolder.isUaa()) {
-                String url = IdentityZoneHolder.get().getConfig().getSamlConfig().getEntityID();
-                if (url != null) {
-                    return url;
-                }
-            }
-        } catch (Exception ignored) {}
-
-        if (UaaUrlUtils.isUrl(entityID)) {
-            return UaaUrlUtils.addSubdomainToUrl(entityID);
-        } else {
-            return UaaUrlUtils.getSubdomain() + entityID;
+  public static String getZonifiedEntityId(String entityID) {
+    try {
+      if (!IdentityZoneHolder.isUaa()) {
+        String url = IdentityZoneHolder.get().getConfig().getSamlConfig().getEntityID();
+        if (url != null) {
+          return url;
         }
+      }
+    } catch (Exception ignored) {
     }
 
-    public static Response wrapAssertionIntoResponse(Assertion assertion, String assertionIssuer) {
-        Response response = new ResponseBuilder().buildObject();
-        Issuer issuer = new IssuerBuilder().buildObject();
-        issuer.setValue(assertionIssuer);
-        response.setIssuer(issuer);
-        response.setID("id-" + System.currentTimeMillis());
-        Status stat = new StatusBuilder().buildObject();
-        // Set the status code
-        StatusCode statCode = new StatusCodeBuilder().buildObject();
-        statCode.setValue("urn:oasis:names:tc:SAML:2.0:status:Success");
-        stat.setStatusCode(statCode);
-        // Set the status Message
-        StatusMessage statMesssage = new StatusMessageBuilder().buildObject();
-        statMesssage.setMessage(null);
-        stat.setStatusMessage(statMesssage);
-        response.setStatus(stat);
-        response.setVersion(SAMLVersion.VERSION_20);
-        response.setIssueInstant(new DateTime());
-        response.getAssertions().add(assertion);
-        //XMLHelper.adoptElement(assertion.getDOM(), assertion.getDOM().getOwnerDocument());
-        return response;
+    if (UaaUrlUtils.isUrl(entityID)) {
+      return UaaUrlUtils.addSubdomainToUrl(entityID);
+    } else {
+      return UaaUrlUtils.getSubdomain() + entityID;
     }
+  }
 
+  public static Response wrapAssertionIntoResponse(Assertion assertion, String assertionIssuer) {
+    Response response = new ResponseBuilder().buildObject();
+    Issuer issuer = new IssuerBuilder().buildObject();
+    issuer.setValue(assertionIssuer);
+    response.setIssuer(issuer);
+    response.setID("id-" + System.currentTimeMillis());
+    Status stat = new StatusBuilder().buildObject();
+    // Set the status code
+    StatusCode statCode = new StatusCodeBuilder().buildObject();
+    statCode.setValue("urn:oasis:names:tc:SAML:2.0:status:Success");
+    stat.setStatusCode(statCode);
+    // Set the status Message
+    StatusMessage statMesssage = new StatusMessageBuilder().buildObject();
+    statMesssage.setMessage(null);
+    stat.setStatusMessage(statMesssage);
+    response.setStatus(stat);
+    response.setVersion(SAMLVersion.VERSION_20);
+    response.setIssueInstant(new DateTime());
+    response.getAssertions().add(assertion);
+    // XMLHelper.adoptElement(assertion.getDOM(), assertion.getDOM().getOwnerDocument());
+    return response;
+  }
 }

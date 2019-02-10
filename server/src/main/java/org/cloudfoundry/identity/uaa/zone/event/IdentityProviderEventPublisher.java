@@ -1,15 +1,15 @@
-/*******************************************************************************
- *     Cloud Foundry
- *     Copyright (c) [2009-2015] Pivotal Software, Inc. All Rights Reserved.
+/**
+ * ***************************************************************************** Cloud Foundry
+ * Copyright (c) [2009-2015] Pivotal Software, Inc. All Rights Reserved.
  *
- *     This product is licensed to you under the Apache License, Version 2.0 (the "License").
- *     You may not use this product except in compliance with the License.
+ * <p>This product is licensed to you under the Apache License, Version 2.0 (the "License"). You may
+ * not use this product except in compliance with the License.
  *
- *     This product includes a number of subcomponents with
- *     separate copyright notices and license terms. Your use of these
- *     subcomponents is subject to the terms and conditions of the
- *     subcomponent's license, as noted in the LICENSE file.
- *******************************************************************************/
+ * <p>This product includes a number of subcomponents with separate copyright notices and license
+ * terms. Your use of these subcomponents is subject to the terms and conditions of the
+ * subcomponent's license, as noted in the LICENSE file.
+ * *****************************************************************************
+ */
 package org.cloudfoundry.identity.uaa.zone.event;
 
 import org.cloudfoundry.identity.uaa.provider.IdentityProvider;
@@ -18,23 +18,24 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.ApplicationEventPublisherAware;
 
 public class IdentityProviderEventPublisher implements ApplicationEventPublisherAware {
-    private ApplicationEventPublisher publisher;
-    @Override
-    public void setApplicationEventPublisher(ApplicationEventPublisher applicationEventPublisher) {
-        this.publisher = applicationEventPublisher;
-    }
+  private ApplicationEventPublisher publisher;
 
-    public void idpCreated(IdentityProvider identityProvider) {
-        publish(IdentityProviderModifiedEvent.identityProviderCreated(identityProvider));
-    }
+  @Override
+  public void setApplicationEventPublisher(ApplicationEventPublisher applicationEventPublisher) {
+    this.publisher = applicationEventPublisher;
+  }
 
-    public void idpModified(IdentityProvider identityProvider) {
-        publish(IdentityProviderModifiedEvent.identityProviderModified(identityProvider));
+  public void idpCreated(IdentityProvider identityProvider) {
+    publish(IdentityProviderModifiedEvent.identityProviderCreated(identityProvider));
+  }
+
+  public void idpModified(IdentityProvider identityProvider) {
+    publish(IdentityProviderModifiedEvent.identityProviderModified(identityProvider));
+  }
+
+  public void publish(ApplicationEvent event) {
+    if (publisher != null) {
+      publisher.publishEvent(event);
     }
-    
-    public void publish(ApplicationEvent event) {
-        if (publisher!=null) {
-            publisher.publishEvent(event);
-        }
-    }
+  }
 }

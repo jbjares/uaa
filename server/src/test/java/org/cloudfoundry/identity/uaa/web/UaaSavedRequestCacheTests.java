@@ -38,207 +38,194 @@ import java.net.URL;
 
 import static org.cloudfoundry.identity.uaa.web.UaaSavedRequestAwareAuthenticationSuccessHandler.FORM_REDIRECT_PARAMETER;
 import static org.cloudfoundry.identity.uaa.web.UaaSavedRequestAwareAuthenticationSuccessHandler.SAVED_REQUEST_SESSION_ATTRIBUTE;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 import static org.springframework.http.HttpMethod.GET;
 import static org.springframework.http.HttpMethod.POST;
 
 public class UaaSavedRequestCacheTests {
 
-    private UaaSavedRequestCache cache;
-    private UaaSavedRequestCache spy;
-    private MockHttpSession session;
-    private MockHttpServletRequest request;
-    private String redirectUri;
+  private UaaSavedRequestCache cache;
+  private UaaSavedRequestCache spy;
+  private MockHttpSession session;
+  private MockHttpServletRequest request;
+  private String redirectUri;
 
-    @Before
-    public void setup() {
-        cache = new UaaSavedRequestCache();
-        session = new MockHttpSession();
-        request = new MockHttpServletRequest(POST.name(), "/login.do");
-        redirectUri = "http://test";
-        spy = spy(cache);
-    }
+  @Before
+  public void setup() {
+    cache = new UaaSavedRequestCache();
+    session = new MockHttpSession();
+    request = new MockHttpServletRequest(POST.name(), "/login.do");
+    redirectUri = "http://test";
+    spy = spy(cache);
+  }
 
-    @After
-    public void reset() {
-        SecurityContextHolder.clearContext();
-    }
+  @After
+  public void reset() {
+    SecurityContextHolder.clearContext();
+  }
 
-    @Test
-    public void creatingASavedRequestShouldParseParameters() {
-        String url = "http://localhost:8080/?param1=value1&param1=value12&param2=value2";
-        ClientRedirectSavedRequest saved = new ClientRedirectSavedRequest(request, url);
-        assertNotNull(saved.getParameterMap());
-        String[] param1s = saved.getParameterMap().get("param1");
-        assertNotNull(param1s);
-        assertArrayEquals(new String[] {"value1", "value12"}, param1s);
+  @Test
+  public void creatingASavedRequestShouldParseParameters() {
+    String url = "http://localhost:8080/?param1=value1&param1=value12&param2=value2";
+    ClientRedirectSavedRequest saved = new ClientRedirectSavedRequest(request, url);
+    assertNotNull(saved.getParameterMap());
+    String[] param1s = saved.getParameterMap().get("param1");
+    assertNotNull(param1s);
+    assertArrayEquals(new String[] {"value1", "value12"}, param1s);
 
-        param1s = saved.getParameterValues("param1");
-        assertNotNull(param1s);
-        assertArrayEquals(new String[] {"value1", "value12"}, param1s);
+    param1s = saved.getParameterValues("param1");
+    assertNotNull(param1s);
+    assertArrayEquals(new String[] {"value1", "value12"}, param1s);
 
-        assertArrayEquals(new String[] {"param1", "param2"}, saved.getParameterNames().toArray(new String[0]));
+    assertArrayEquals(
+        new String[] {"param1", "param2"}, saved.getParameterNames().toArray(new String[0]));
 
-        String[] param2 = saved.getParameterMap().get("param2");
-        assertNotNull(param2);
-        assertArrayEquals(new String[] {"value2"}, param2);
+    String[] param2 = saved.getParameterMap().get("param2");
+    assertNotNull(param2);
+    assertArrayEquals(new String[] {"value2"}, param2);
 
-        param2 = saved.getParameterValues("param2");
-        assertNotNull(param2);
-        assertArrayEquals(new String[] {"value2"}, param2);
+    param2 = saved.getParameterValues("param2");
+    assertNotNull(param2);
+    assertArrayEquals(new String[] {"value2"}, param2);
+  }
 
+  @Test
+  public void filter_saves_when_needed() throws Exception {
+    FilterChain chain = mock(FilterChain.class);
+    request.setPathInfo("/login.do");
+    request.setRequestURI("/login.do");
+    request.setParameter(FORM_REDIRECT_PARAMETER, redirectUri);
+    request.setServerName(new URL(redirectUri).getHost());
+    assertTrue(cache.shouldSaveFormRedirectParameter(request));
+    ServletResponse response = new MockHttpServletResponse();
 
-    }
+    spy.doFilter(request, response, chain);
+    verify(spy, times(1)).shouldSaveFormRedirectParameter(request);
+    verify(spy, times(1)).saveClientRedirect(any(), anyString());
 
-    @Test
-    public void filter_saves_when_needed() throws Exception {
-        FilterChain chain = mock(FilterChain.class);
-        request.setPathInfo("/login.do");
-        request.setRequestURI("/login.do");
-        request.setParameter(FORM_REDIRECT_PARAMETER, redirectUri);
-        request.setServerName(new URL(redirectUri).getHost());
-        assertTrue(cache.shouldSaveFormRedirectParameter(request));
-        ServletResponse response = new MockHttpServletResponse();
+    Authentication auth = mock(Authentication.class);
+    when(auth.isAuthenticated()).thenReturn(true);
+    SecurityContextHolder.getContext().setAuthentication(auth);
 
-        spy.doFilter(request, response, chain);
-        verify(spy, times(1)).shouldSaveFormRedirectParameter(request);
-        verify(spy, times(1)).saveClientRedirect(any(), anyString());
+    spy.doFilter(request, response, chain);
+    verify(spy, times(2)).shouldSaveFormRedirectParameter(request);
+    verify(spy, times(1)).saveClientRedirect(any(), anyString());
+    verify(chain, times(2)).doFilter(request, response);
+  }
 
-        Authentication auth = mock(Authentication.class);
-        when(auth.isAuthenticated()).thenReturn(true);
-        SecurityContextHolder.getContext().setAuthentication(auth);
+  @Test
+  public void saveClientRedirect_On_Regular_Get() throws Exception {
+    request.setSession(session);
+    request.setScheme("http");
+    request.setServerName("localhost");
+    request.setRequestURI("/test");
+    request.setMethod(HttpMethod.GET.name());
+    spy.saveRequest(request, new MockHttpServletResponse());
+    verify(spy, times(1)).saveClientRedirect(request, "http://localhost/test");
+  }
 
-        spy.doFilter(request, response, chain);
-        verify(spy, times(2)).shouldSaveFormRedirectParameter(request);
-        verify(spy, times(1)).saveClientRedirect(any(), anyString());
-        verify(chain, times(2)).doFilter(request, response);
+  @Test
+  public void saveFormRedirectRequest_GET_Method() throws Exception {
+    request.setSession(session);
+    request.setParameter(FORM_REDIRECT_PARAMETER, "http://login");
+    request.setMethod(HttpMethod.GET.name());
+    spy.saveRequest(request, new MockHttpServletResponse());
+    verify(spy, never()).saveClientRedirect(request, request.getParameter(FORM_REDIRECT_PARAMETER));
+  }
 
-    }
+  @Test
+  public void saveFormRedirectRequest() throws Exception {
+    String redirectUri = "http://login";
+    request.setSession(session);
+    request.setParameter(FORM_REDIRECT_PARAMETER, redirectUri);
+    request.setServerName(new URL(redirectUri).getHost());
 
-    @Test
-    public void saveClientRedirect_On_Regular_Get() throws Exception {
-        request.setSession(session);
-        request.setScheme("http");
-        request.setServerName("localhost");
-        request.setRequestURI("/test");
-        request.setMethod(HttpMethod.GET.name());
-        spy.saveRequest(request, new MockHttpServletResponse());
-        verify(spy, times(1)).saveClientRedirect(request, "http://localhost/test");
-    }
+    spy.saveRequest(request, new MockHttpServletResponse());
+    verify(spy).saveClientRedirect(request, request.getParameter(FORM_REDIRECT_PARAMETER));
+  }
 
+  @Test
+  public void do_not_save_form() throws Exception {
+    request.setSession(session);
+    spy.saveRequest(request, new MockHttpServletResponse());
+    verify(spy, never()).saveClientRedirect(request, request.getParameter(FORM_REDIRECT_PARAMETER));
+  }
 
-    @Test
-    public void saveFormRedirectRequest_GET_Method() throws Exception {
-        request.setSession(session);
-        request.setParameter(FORM_REDIRECT_PARAMETER, "http://login");
-        request.setMethod(HttpMethod.GET.name());
-        spy.saveRequest(request, new MockHttpServletResponse());
-        verify(spy, never()).saveClientRedirect(request, request.getParameter(FORM_REDIRECT_PARAMETER));
-    }
+  @Test
+  public void only_save_for_POST_calls() {
+    request.setMethod(GET.name());
+    assertFalse(cache.shouldSaveFormRedirectParameter(request));
+    request.setPathInfo("/login.do");
+    assertFalse(cache.shouldSaveFormRedirectParameter(request));
+    request.setParameter(FORM_REDIRECT_PARAMETER, redirectUri);
+    assertFalse(cache.shouldSaveFormRedirectParameter(request));
+  }
 
+  @Test
+  public void should_save_condition_works() throws MalformedURLException {
+    assertFalse(cache.shouldSaveFormRedirectParameter(request));
 
-    @Test
-    public void saveFormRedirectRequest() throws Exception {
-        String redirectUri = "http://login";
-        request.setSession(session);
-        request.setParameter(FORM_REDIRECT_PARAMETER, redirectUri);
-        request.setServerName(new URL(redirectUri).getHost());
+    request.setPathInfo("/login.do");
+    assertFalse(cache.shouldSaveFormRedirectParameter(request));
 
-        spy.saveRequest(request, new MockHttpServletResponse());
-        verify(spy).saveClientRedirect(request, request.getParameter(FORM_REDIRECT_PARAMETER));
-    }
+    request.setParameter(FORM_REDIRECT_PARAMETER, redirectUri);
+    request.setServerName(new URL(redirectUri).getHost());
+    assertTrue(cache.shouldSaveFormRedirectParameter(request));
 
-    @Test
-    public void do_not_save_form() throws Exception {
-        request.setSession(session);
-        spy.saveRequest(request, new MockHttpServletResponse());
-        verify(spy, never()).saveClientRedirect(request, request.getParameter(FORM_REDIRECT_PARAMETER));
-    }
+    request.setSession(session);
+    assertTrue(cache.shouldSaveFormRedirectParameter(request));
 
-    @Test
-    public void only_save_for_POST_calls() {
-        request.setMethod(GET.name());
-        assertFalse(cache.shouldSaveFormRedirectParameter(request));
-        request.setPathInfo("/login.do");
-        assertFalse(cache.shouldSaveFormRedirectParameter(request));
-        request.setParameter(FORM_REDIRECT_PARAMETER, redirectUri);
-        assertFalse(cache.shouldSaveFormRedirectParameter(request));
-    }
+    ClientRedirectSavedRequest savedRequest = new ClientRedirectSavedRequest(request, redirectUri);
+    session.setAttribute(SAVED_REQUEST_SESSION_ATTRIBUTE, savedRequest);
+    assertFalse(cache.shouldSaveFormRedirectParameter(request));
+  }
 
-    @Test
-    public void should_save_condition_works() throws MalformedURLException {
-        assertFalse(cache.shouldSaveFormRedirectParameter(request));
+  @Test
+  public void save_returns_correct_object() {
+    request.setParameter(FORM_REDIRECT_PARAMETER, redirectUri);
+    cache.saveClientRedirect(request, request.getParameter(FORM_REDIRECT_PARAMETER));
+    HttpSession session = request.getSession(false);
+    assertNotNull(session);
+    SavedRequest savedRequest =
+        (SavedRequest) session.getAttribute(SAVED_REQUEST_SESSION_ATTRIBUTE);
+    assertNotNull(savedRequest);
+    assertEquals(redirectUri, savedRequest.getRedirectUrl());
+    assertEquals(GET.name(), savedRequest.getMethod());
+  }
 
-        request.setPathInfo("/login.do");
-        assertFalse(cache.shouldSaveFormRedirectParameter(request));
+  @Test
+  public void saved_request_matcher() {
+    String redirectUrl = "https://example.com/example?name=value";
+    request.setScheme("https");
+    request.setRequestURI("/example");
+    request.setServerName("example.com");
+    request.setQueryString("name=value");
+    request.setServerPort(443);
+    ClientRedirectSavedRequest saved = new ClientRedirectSavedRequest(request, redirectUrl);
+    assertTrue(saved.doesRequestMatch(request, null));
 
-        request.setParameter(FORM_REDIRECT_PARAMETER, redirectUri);
-        request.setServerName(new URL(redirectUri).getHost());
-        assertTrue(cache.shouldSaveFormRedirectParameter(request));
+    request.setQueryString("name=value&name2=value2");
+    assertFalse(saved.doesRequestMatch(request, null));
+    request.setQueryString("name=value");
 
-        request.setSession(session);
-        assertTrue(cache.shouldSaveFormRedirectParameter(request));
+    request = new MockHttpServletRequest(POST.name(), "/login.do");
+    request.setParameter(FORM_REDIRECT_PARAMETER, redirectUrl);
+    assertTrue(saved.doesRequestMatch(request, null));
+  }
 
-        ClientRedirectSavedRequest savedRequest = new ClientRedirectSavedRequest(request, redirectUri);
-        session.setAttribute(SAVED_REQUEST_SESSION_ATTRIBUTE, savedRequest);
-        assertFalse(cache.shouldSaveFormRedirectParameter(request));
-    }
+  @Test
+  public void unapprovedFormRedirectRequestDoesNotSave() throws IOException, ServletException {
+    request.setPathInfo("/login.do");
+    request.setRequestURI("/login.do");
+    request.setMethod(HttpMethod.POST.name());
+    request.setParameter(FORM_REDIRECT_PARAMETER, "http://test.com");
+    request.setServerName("not-test.com");
 
-    @Test
-    public void save_returns_correct_object() {
-        request.setParameter(FORM_REDIRECT_PARAMETER, redirectUri);
-        cache.saveClientRedirect(request, request.getParameter(FORM_REDIRECT_PARAMETER));
-        HttpSession session = request.getSession(false);
-        assertNotNull(session);
-        SavedRequest savedRequest = (SavedRequest) session.getAttribute(SAVED_REQUEST_SESSION_ATTRIBUTE);
-        assertNotNull(savedRequest);
-        assertEquals(redirectUri, savedRequest.getRedirectUrl());
-        assertEquals(GET.name(), savedRequest.getMethod());
-    }
+    spy.doFilter(request, new MockHttpServletResponse(), mock(FilterChain.class));
 
-    @Test
-    public void saved_request_matcher() {
-        String redirectUrl = "https://example.com/example?name=value";
-        request.setScheme("https");
-        request.setRequestURI("/example");
-        request.setServerName("example.com");
-        request.setQueryString("name=value");
-        request.setServerPort(443);
-        ClientRedirectSavedRequest saved = new ClientRedirectSavedRequest(request, redirectUrl);
-        assertTrue(saved.doesRequestMatch(request, null));
-
-        request.setQueryString("name=value&name2=value2");
-        assertFalse(saved.doesRequestMatch(request, null));
-        request.setQueryString("name=value");
-
-        request = new MockHttpServletRequest(POST.name(), "/login.do");
-        request.setParameter(FORM_REDIRECT_PARAMETER, redirectUrl);
-        assertTrue(saved.doesRequestMatch(request, null));
-
-    }
-
-    @Test
-    public void unapprovedFormRedirectRequestDoesNotSave() throws IOException, ServletException {
-        request.setPathInfo("/login.do");
-        request.setRequestURI("/login.do");
-        request.setMethod(HttpMethod.POST.name());
-        request.setParameter(FORM_REDIRECT_PARAMETER, "http://test.com");
-        request.setServerName("not-test.com");
-
-        spy.doFilter(request, new MockHttpServletResponse(), mock(FilterChain.class));
-
-        verify(spy, never()).saveClientRedirect(any(HttpServletRequest.class), anyString());
-    }
+    verify(spy, never()).saveClientRedirect(any(HttpServletRequest.class), anyString());
+  }
 }

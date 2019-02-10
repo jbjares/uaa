@@ -1,16 +1,15 @@
-/*******************************************************************************
- *     Cloud Foundry
- *     Copyright (c) [2009-2016] Pivotal Software, Inc. All Rights Reserved.
+/**
+ * ***************************************************************************** Cloud Foundry
+ * Copyright (c) [2009-2016] Pivotal Software, Inc. All Rights Reserved.
  *
- *     This product is licensed to you under the Apache License, Version 2.0 (the "License").
- *     You may not use this product except in compliance with the License.
+ * <p>This product is licensed to you under the Apache License, Version 2.0 (the "License"). You may
+ * not use this product except in compliance with the License.
  *
- *     This product includes a number of subcomponents with
- *     separate copyright notices and license terms. Your use of these
- *     subcomponents is subject to the terms and conditions of the
- *     subcomponent's license, as noted in the LICENSE file.
- *******************************************************************************/
-
+ * <p>This product includes a number of subcomponents with separate copyright notices and license
+ * terms. Your use of these subcomponents is subject to the terms and conditions of the
+ * subcomponent's license, as noted in the LICENSE file.
+ * *****************************************************************************
+ */
 package org.cloudfoundry.identity.uaa.oauth;
 
 import org.cloudfoundry.identity.uaa.user.UaaUserApprovalHandler;
@@ -31,54 +30,57 @@ import static org.cloudfoundry.identity.uaa.oauth.token.TokenConstants.GRANT_TYP
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-/**
- * @author Dave Syer
- *
- */
+/** @author Dave Syer */
 public class UaaUserApprovalHandlerTests {
 
-    private UaaUserApprovalHandler handler = new UaaUserApprovalHandler();
+  private UaaUserApprovalHandler handler = new UaaUserApprovalHandler();
 
-    private ClientServicesExtension clientDetailsService = Mockito.mock(ClientServicesExtension.class);
+  private ClientServicesExtension clientDetailsService =
+      Mockito.mock(ClientServicesExtension.class);
 
-    private AuthorizationServerTokenServices tokenServices = Mockito.mock(AuthorizationServerTokenServices.class);
+  private AuthorizationServerTokenServices tokenServices =
+      Mockito.mock(AuthorizationServerTokenServices.class);
 
-    private AuthorizationRequest authorizationRequest = new AuthorizationRequest("client",Arrays.asList("read"));
+  private AuthorizationRequest authorizationRequest =
+      new AuthorizationRequest("client", Arrays.asList("read"));
 
-    private Authentication userAuthentication = new UsernamePasswordAuthenticationToken("joe", "", AuthorityUtils.commaSeparatedStringToAuthorityList("USER"));
+  private Authentication userAuthentication =
+      new UsernamePasswordAuthenticationToken(
+          "joe", "", AuthorityUtils.commaSeparatedStringToAuthorityList("USER"));
 
-    public UaaUserApprovalHandlerTests() {
-        handler.setClientDetailsService(clientDetailsService);
-        handler.setTokenServices(tokenServices);
-    }
+  public UaaUserApprovalHandlerTests() {
+    handler.setClientDetailsService(clientDetailsService);
+    handler.setTokenServices(tokenServices);
+  }
 
-    @Test
-    public void testNotAutoApprove() {
-        BaseClientDetails client =
-                new BaseClientDetails("client", "none", "read,write", GRANT_TYPE_AUTHORIZATION_CODE, "uaa.none");
-        Mockito.when(clientDetailsService.loadClientByClientId("client", "uaa")).thenReturn(client);
-        assertFalse(handler.isApproved(authorizationRequest, userAuthentication));
-    }
+  @Test
+  public void testNotAutoApprove() {
+    BaseClientDetails client =
+        new BaseClientDetails(
+            "client", "none", "read,write", GRANT_TYPE_AUTHORIZATION_CODE, "uaa.none");
+    Mockito.when(clientDetailsService.loadClientByClientId("client", "uaa")).thenReturn(client);
+    assertFalse(handler.isApproved(authorizationRequest, userAuthentication));
+  }
 
-    @Test
-    public void testAutoApproveAll() {
-        BaseClientDetails client =
-                new BaseClientDetails("client", "none", "read,write", GRANT_TYPE_AUTHORIZATION_CODE, "uaa.none");
-        client.setAutoApproveScopes(singleton("true"));
-            Mockito.when(clientDetailsService.loadClientByClientId("client", "uaa")).thenReturn(client);
-        assertTrue(handler.isApproved(authorizationRequest, userAuthentication));
-    }
+  @Test
+  public void testAutoApproveAll() {
+    BaseClientDetails client =
+        new BaseClientDetails(
+            "client", "none", "read,write", GRANT_TYPE_AUTHORIZATION_CODE, "uaa.none");
+    client.setAutoApproveScopes(singleton("true"));
+    Mockito.when(clientDetailsService.loadClientByClientId("client", "uaa")).thenReturn(client);
+    assertTrue(handler.isApproved(authorizationRequest, userAuthentication));
+  }
 
-    @Test
-    public void testAutoApproveByScope() {
-        BaseClientDetails client =
-                new BaseClientDetails("client", "none", "read,write", GRANT_TYPE_AUTHORIZATION_CODE, "uaa.none");
-        Mockito.when(clientDetailsService.loadClientByClientId("client", "uaa")).thenReturn(client);
-        client.setAutoApproveScopes(singleton("read"));
-        assertTrue(handler.isApproved(authorizationRequest, userAuthentication));
-        client.setAutoApproveScopes(singleton("write"));
-        assertFalse(handler.isApproved(authorizationRequest, userAuthentication));
-    }
-
-
+  @Test
+  public void testAutoApproveByScope() {
+    BaseClientDetails client =
+        new BaseClientDetails(
+            "client", "none", "read,write", GRANT_TYPE_AUTHORIZATION_CODE, "uaa.none");
+    Mockito.when(clientDetailsService.loadClientByClientId("client", "uaa")).thenReturn(client);
+    client.setAutoApproveScopes(singleton("read"));
+    assertTrue(handler.isApproved(authorizationRequest, userAuthentication));
+    client.setAutoApproveScopes(singleton("write"));
+    assertFalse(handler.isApproved(authorizationRequest, userAuthentication));
+  }
 }

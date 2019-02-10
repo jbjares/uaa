@@ -18,63 +18,56 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 import static org.cloudfoundry.identity.uaa.zone.ZoneManagementScopes.ZONES_ZONE_ID_PREFIX;
 import static org.cloudfoundry.identity.uaa.zone.ZoneManagementScopes.getZoneSwitchingScopes;
 
 /**
- * If the X-Identity-Zone-Id header is set and the user has a scope
- * of zones.&lt;id&gt;.admin, this filter switches the IdentityZone in the IdentityZoneHolder
- * to the one in the header.
- *
+ * If the X-Identity-Zone-Id header is set and the user has a scope of zones.&lt;id&gt;.admin, this
+ * filter switches the IdentityZone in the IdentityZoneHolder to the one in the header.
  */
 public class IdentityZoneSwitchingFilter extends OncePerRequestFilter {
 
-    @Autowired
-    public IdentityZoneSwitchingFilter(IdentityZoneProvisioning dao) {
-        super();
-        this.dao = dao;
+  @Autowired
+  public IdentityZoneSwitchingFilter(IdentityZoneProvisioning dao) {
+    super();
+    this.dao = dao;
+  }
+
+  private final IdentityZoneProvisioning dao;
+  public static final String HEADER = "X-Identity-Zone-Id";
+  public static final String SUBDOMAIN_HEADER = "X-Identity-Zone-Subdomain";
+  public static final List<String> zoneScopestoNotStripPrefix =
+      Collections.unmodifiableList(Arrays.asList("admin", "read"));
+
+  protected OAuth2Authentication getAuthenticationForZone(
+      String identityZoneId, HttpServletRequest servletRequest) {
+    Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+    if (!(authentication instanceof OAuth2Authentication)) {
+      return null;
     }
+    OAuth2Authentication oa = (OAuth2Authentication) authentication;
 
-    private final IdentityZoneProvisioning dao;
-    public static final String HEADER = "X-Identity-Zone-Id";
-    public static final String SUBDOMAIN_HEADER = "X-Identity-Zone-Subdomain";
-    public static final List<String> zoneScopestoNotStripPrefix = Collections.unmodifiableList(
-         Arrays.asList(
-            "admin",
-            "read")
-            );
+    Object oaDetails = oa.getDetails();
 
-    protected OAuth2Authentication getAuthenticationForZone(String identityZoneId, HttpServletRequest servletRequest) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if(!(authentication instanceof OAuth2Authentication)) {
-            return null;
-        }
-        OAuth2Authentication oa = (OAuth2Authentication) authentication;
-
-        Object oaDetails = oa.getDetails();
-
-        //strip client scopes
-        OAuth2Request request = oa.getOAuth2Request();
-        Collection<String> requestAuthorities = UaaStringUtils.getStringsFromAuthorities(request.getAuthorities());
-        Set<String> clientScopes = new HashSet<>();
-        Set<String> clientAuthorities = new HashSet<>();
-        for (String s : getZoneSwitchingScopes(identityZoneId)) {
-            String scope = stripPrefix(s, identityZoneId);
-            if (request.getScope().contains(s)) {
-                clientScopes.add(scope);
-            }
-            if (requestAuthorities.contains(s)) {
-                clientAuthorities.add(scope);
-            }
-        }
-        request = new OAuth2Request(
+    // strip client scopes
+    OAuth2Request request = oa.getOAuth2Request();
+    Collection<String> requestAuthorities =
+        UaaStringUtils.getStringsFromAuthorities(request.getAuthorities());
+    Set<String> clientScopes = new HashSet<>();
+    Set<String> clientAuthorities = new HashSet<>();
+    for (String s : getZoneSwitchingScopes(identityZoneId)) {
+      String scope = stripPrefix(s, identityZoneId);
+      if (request.getScope().contains(s)) {
+        clientScopes.add(scope);
+      }
+      if (requestAuthorities.contains(s)) {
+        clientAuthorities.add(scope);
+      }
+    }
+    request =
+        new OAuth2Request(
             request.getRequestParameters(),
             request.getClientId(),
             UaaStringUtils.getAuthoritiesFromStrings(clientAuthorities),
@@ -83,97 +76,112 @@ public class IdentityZoneSwitchingFilter extends OncePerRequestFilter {
             request.getResourceIds(),
             request.getRedirectUri(),
             request.getResponseTypes(),
-            request.getExtensions()
-            );
+            request.getExtensions());
 
-
-        UaaAuthentication userAuthentication = (UaaAuthentication)oa.getUserAuthentication();
-        if (userAuthentication!=null) {
-            userAuthentication = new UaaAuthentication(
-                userAuthentication.getPrincipal(),
-                null,
-                UaaStringUtils.getAuthoritiesFromStrings(clientScopes),
-                new UaaAuthenticationDetails(servletRequest),
-                true, userAuthentication.getAuthenticatedTime());
-        }
-        oa = new UaaOauth2Authentication(((UaaOauth2Authentication)oa).getTokenValue(), IdentityZoneHolder.get().getId(), request, userAuthentication);
-        oa.setDetails(oaDetails);
-        return oa;
+    UaaAuthentication userAuthentication = (UaaAuthentication) oa.getUserAuthentication();
+    if (userAuthentication != null) {
+      userAuthentication =
+          new UaaAuthentication(
+              userAuthentication.getPrincipal(),
+              null,
+              UaaStringUtils.getAuthoritiesFromStrings(clientScopes),
+              new UaaAuthenticationDetails(servletRequest),
+              true,
+              userAuthentication.getAuthenticatedTime());
     }
+    oa =
+        new UaaOauth2Authentication(
+            ((UaaOauth2Authentication) oa).getTokenValue(),
+            IdentityZoneHolder.get().getId(),
+            request,
+            userAuthentication);
+    oa.setDetails(oaDetails);
+    return oa;
+  }
 
-    protected String stripPrefix(String s, String identityZoneId) {
-        if (!StringUtils.hasText(s)) {
-            return s;
-        }
-        //dont touch the zones.{zone.id}.admin scope
-        String replace = ZONES_ZONE_ID_PREFIX+identityZoneId+".";
-        for (String scope : zoneScopestoNotStripPrefix) {
-            if (s.equals(replace + scope)) {
-                return s;
-            }
-        }
-
-        //replace zones.<id>.
-
-        if (s.startsWith(replace)) {
-            return s.substring(replace.length());
-        }
+  protected String stripPrefix(String s, String identityZoneId) {
+    if (!StringUtils.hasText(s)) {
+      return s;
+    }
+    // dont touch the zones.{zone.id}.admin scope
+    String replace = ZONES_ZONE_ID_PREFIX + identityZoneId + ".";
+    for (String scope : zoneScopestoNotStripPrefix) {
+      if (s.equals(replace + scope)) {
         return s;
+      }
     }
 
+    // replace zones.<id>.
 
+    if (s.startsWith(replace)) {
+      return s.substring(replace.length());
+    }
+    return s;
+  }
 
-    @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
-            throws ServletException, IOException {
+  @Override
+  protected void doFilterInternal(
+      HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+      throws ServletException, IOException {
 
+    String identityZoneIdFromHeader = request.getHeader(HEADER);
+    String identityZoneSubDomainFromHeader = request.getHeader(SUBDOMAIN_HEADER);
 
-        String identityZoneIdFromHeader = request.getHeader(HEADER);
-        String identityZoneSubDomainFromHeader = request.getHeader(SUBDOMAIN_HEADER);
-
-        if (StringUtils.isEmpty(identityZoneIdFromHeader) && StringUtils.isEmpty(identityZoneSubDomainFromHeader)) {
-            filterChain.doFilter(request, response);
-            return;
-        }
-
-        IdentityZone identityZone = validateIdentityZone(identityZoneIdFromHeader, identityZoneSubDomainFromHeader);
-        if (identityZone == null) {
-            response.sendError(HttpServletResponse.SC_NOT_FOUND, "Identity zone with id/subdomain " + identityZoneIdFromHeader + "/" + identityZoneSubDomainFromHeader + " does not exist");
-            return;
-        }
-
-        String identityZoneId = identityZone.getId();
-        OAuth2Authentication oAuth2Authentication = getAuthenticationForZone(identityZoneId, request);
-        if (IdentityZoneHolder.isUaa() && oAuth2Authentication != null && !oAuth2Authentication.getOAuth2Request().getScope().isEmpty()) {
-            SecurityContextHolder.getContext().setAuthentication(oAuth2Authentication);
-        } else {
-            response.sendError(HttpServletResponse.SC_FORBIDDEN, "User is not authorized to switch to IdentityZone with id "+identityZoneId);
-            return;
-        }
-
-        IdentityZone originalIdentityZone = IdentityZoneHolder.get();
-        try {
-            IdentityZoneHolder.set(identityZone);
-            filterChain.doFilter(request, response);
-        } finally {
-            IdentityZoneHolder.set(originalIdentityZone);
-        }
+    if (StringUtils.isEmpty(identityZoneIdFromHeader)
+        && StringUtils.isEmpty(identityZoneSubDomainFromHeader)) {
+      filterChain.doFilter(request, response);
+      return;
     }
 
-    private IdentityZone validateIdentityZone(String identityZoneId, String identityZoneSubDomain) throws IOException {
-        IdentityZone identityZone = null;
-
-        try {
-            if (StringUtils.isEmpty(identityZoneId)) {
-                identityZone = dao.retrieveBySubdomain(identityZoneSubDomain);
-            } else {
-                identityZone = dao.retrieve(identityZoneId);
-            }
-        } catch (ZoneDoesNotExistsException | EmptyResultDataAccessException ex) {
-        } catch (Exception ex) {
-            throw ex;
-        }
-        return identityZone;
+    IdentityZone identityZone =
+        validateIdentityZone(identityZoneIdFromHeader, identityZoneSubDomainFromHeader);
+    if (identityZone == null) {
+      response.sendError(
+          HttpServletResponse.SC_NOT_FOUND,
+          "Identity zone with id/subdomain "
+              + identityZoneIdFromHeader
+              + "/"
+              + identityZoneSubDomainFromHeader
+              + " does not exist");
+      return;
     }
 
+    String identityZoneId = identityZone.getId();
+    OAuth2Authentication oAuth2Authentication = getAuthenticationForZone(identityZoneId, request);
+    if (IdentityZoneHolder.isUaa()
+        && oAuth2Authentication != null
+        && !oAuth2Authentication.getOAuth2Request().getScope().isEmpty()) {
+      SecurityContextHolder.getContext().setAuthentication(oAuth2Authentication);
+    } else {
+      response.sendError(
+          HttpServletResponse.SC_FORBIDDEN,
+          "User is not authorized to switch to IdentityZone with id " + identityZoneId);
+      return;
+    }
+
+    IdentityZone originalIdentityZone = IdentityZoneHolder.get();
+    try {
+      IdentityZoneHolder.set(identityZone);
+      filterChain.doFilter(request, response);
+    } finally {
+      IdentityZoneHolder.set(originalIdentityZone);
+    }
+  }
+
+  private IdentityZone validateIdentityZone(String identityZoneId, String identityZoneSubDomain)
+      throws IOException {
+    IdentityZone identityZone = null;
+
+    try {
+      if (StringUtils.isEmpty(identityZoneId)) {
+        identityZone = dao.retrieveBySubdomain(identityZoneSubDomain);
+      } else {
+        identityZone = dao.retrieve(identityZoneId);
+      }
+    } catch (ZoneDoesNotExistsException | EmptyResultDataAccessException ex) {
+    } catch (Exception ex) {
+      throw ex;
+    }
+    return identityZone;
+  }
 }

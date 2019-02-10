@@ -9,23 +9,23 @@ import java.io.IOException;
 import java.io.PrintStream;
 
 public class Decryptor {
-    public static void main(String[] args) {
-        if (args.length != 3) {
-            return;
-        }
-
-        String outputFilePath = args[0];
-        String passphrase = args[1];
-        String cipherValue = args[2];
-        File file = new File(outputFilePath);
-        try {
-            System.setOut(new PrintStream(file));
-
-            byte[] base64DecodedCipherValue = Base64Utils.decodeFromString(cipherValue);
-            byte[] decryptedValue = new EncryptionService(passphrase).decrypt(base64DecodedCipherValue);
-            System.out.print(new String(decryptedValue));
-        } catch (IOException | EncryptionServiceException e) {
-            e.printStackTrace();
-        }
+  public static void main(String[] args) {
+    if (args.length != 3) {
+      return;
     }
+
+    String outputFilePath = args[0];
+    String passphrase = args[1];
+    String cipherValue = args[2];
+    File file = new File(outputFilePath);
+    try {
+      System.setOut(new PrintStream(file));
+
+      byte[] base64DecodedCipherValue = Base64Utils.decodeFromString(cipherValue);
+      byte[] decryptedValue = new EncryptionService(passphrase).decrypt(base64DecodedCipherValue);
+      System.out.print(new String(decryptedValue));
+    } catch (IOException | EncryptionServiceException e) {
+      e.printStackTrace();
+    }
+  }
 }

@@ -18,59 +18,59 @@ import java.net.URI;
 import static org.cloudfoundry.identity.uaa.web.UaaSavedRequestAwareAuthenticationSuccessHandler.SAVED_REQUEST_SESSION_ATTRIBUTE;
 
 /**
- * This class is used to provide OAuth error redirects when SAML login fails
- * with LoginSAMLException. Currently, the only scenario for this is when a
- * shadow account does not exist for the user and the IdP configuration does not
- * allow automatic creation of the shadow account.
- *
+ * This class is used to provide OAuth error redirects when SAML login fails with
+ * LoginSAMLException. Currently, the only scenario for this is when a shadow account does not exist
+ * for the user and the IdP configuration does not allow automatic creation of the shadow account.
  */
 public class LoginSAMLAuthenticationFailureHandler extends SimpleUrlAuthenticationFailureHandler {
-    private static final Log LOG = LogFactory.getLog(LoginSAMLAuthenticationFailureHandler.class);
+  private static final Log LOG = LogFactory.getLog(LoginSAMLAuthenticationFailureHandler.class);
 
-    @Override
-    public void onAuthenticationFailure(final HttpServletRequest request, final HttpServletResponse response,
-            final AuthenticationException exception) throws IOException, ServletException {
+  @Override
+  public void onAuthenticationFailure(
+      final HttpServletRequest request,
+      final HttpServletResponse response,
+      final AuthenticationException exception)
+      throws IOException, ServletException {
 
-        String redirectTo = null;
+    String redirectTo = null;
 
-        if (exception instanceof LoginSAMLException) {
+    if (exception instanceof LoginSAMLException) {
 
-            HttpSession session = request.getSession();
-            if (session != null) {
-                DefaultSavedRequest savedRequest =
-                        (DefaultSavedRequest) session.getAttribute(SAVED_REQUEST_SESSION_ATTRIBUTE);
-                if (savedRequest != null) {
-                    String[] redirectURI = savedRequest.getParameterMap().get("redirect_uri");
+      HttpSession session = request.getSession();
+      if (session != null) {
+        DefaultSavedRequest savedRequest =
+            (DefaultSavedRequest) session.getAttribute(SAVED_REQUEST_SESSION_ATTRIBUTE);
+        if (savedRequest != null) {
+          String[] redirectURI = savedRequest.getParameterMap().get("redirect_uri");
 
-                    if (redirectURI != null && redirectURI.length > 0) {
-                        URI uri = URI.create(redirectURI[0]);
-                        URIBuilder uriBuilder = new URIBuilder(uri);
-                        uriBuilder.addParameter("error", "access_denied");
-                        uriBuilder.addParameter("error_description", exception.getMessage());
-                        redirectTo = uriBuilder.toString();
+          if (redirectURI != null && redirectURI.length > 0) {
+            URI uri = URI.create(redirectURI[0]);
+            URIBuilder uriBuilder = new URIBuilder(uri);
+            uriBuilder.addParameter("error", "access_denied");
+            uriBuilder.addParameter("error_description", exception.getMessage());
+            redirectTo = uriBuilder.toString();
 
-                        if (LOG.isDebugEnabled()) {
-                            LOG.debug("Error redirect to: " + redirectTo);
-                        }
-
-                        getRedirectStrategy().sendRedirect(request, response, redirectTo);
-                    }
-                }
+            if (LOG.isDebugEnabled()) {
+              LOG.debug("Error redirect to: " + redirectTo);
             }
+
+            getRedirectStrategy().sendRedirect(request, response, redirectTo);
+          }
         }
-
-        if (redirectTo == null) {
-            Throwable cause = exception.getCause();
-            if (cause != null) {
-                AuthenticationException e = new AuthenticationServiceException(cause.getMessage(), cause.getCause());
-                logger.debug(cause);
-                super.onAuthenticationFailure(request, response, e);
-            }
-            else {
-                logger.debug(exception);
-                super.onAuthenticationFailure(request, response, exception);
-            }
-
-        }
+      }
     }
+
+    if (redirectTo == null) {
+      Throwable cause = exception.getCause();
+      if (cause != null) {
+        AuthenticationException e =
+            new AuthenticationServiceException(cause.getMessage(), cause.getCause());
+        logger.debug(cause);
+        super.onAuthenticationFailure(request, response, e);
+      } else {
+        logger.debug(exception);
+        super.onAuthenticationFailure(request, response, exception);
+      }
+    }
+  }
 }

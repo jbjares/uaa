@@ -14,7 +14,6 @@
 
 package org.cloudfoundry.identity.uaa.user;
 
-
 import org.junit.Assert;
 import org.junit.Test;
 import org.springframework.security.crypto.bcrypt.BCrypt;
@@ -23,20 +22,18 @@ import org.springframework.security.oauth2.common.util.RandomValueStringGenerato
 
 public class BCryptPasswordEncoderTest {
 
+  @Test
+  public void testSameSaltHash() {
+    String salt = BCrypt.gensalt();
+    String passwd = "testpassword" + new RandomValueStringGenerator().generate();
+    Assert.assertEquals(BCrypt.hashpw(passwd, salt), BCrypt.hashpw(passwd, salt));
+  }
 
-    @Test
-    public void testSameSaltHash() {
-        String salt = BCrypt.gensalt();
-        String passwd = "testpassword"+new RandomValueStringGenerator().generate();
-        Assert.assertEquals(BCrypt.hashpw(passwd, salt), BCrypt.hashpw(passwd, salt));
-    }
+  @Test
+  public void testEmptyPassword() {
 
-    @Test
-    public void testEmptyPassword() {
-
-        String passwd = "";
-        Assert.assertTrue(new BCryptPasswordEncoder().matches("", new BCryptPasswordEncoder().encode("")));
-    }
-
-
+    String passwd = "";
+    Assert.assertTrue(
+        new BCryptPasswordEncoder().matches("", new BCryptPasswordEncoder().encode("")));
+  }
 }

@@ -15,7 +15,6 @@
 package org.cloudfoundry.identity.uaa.oauth;
 
 import org.cloudfoundry.identity.uaa.client.UaaScopes;
-
 import org.junit.jupiter.api.Test;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -27,56 +26,54 @@ import static org.junit.Assert.*;
 
 public class UaaScopesTests {
 
-    private UaaScopes uaaScopes = new UaaScopes();
+  private UaaScopes uaaScopes = new UaaScopes();
 
-    @Test
-    public void testGetUaaScopes() throws Exception {
-        assertEquals(31, uaaScopes.getUaaScopes().size());
-        assertEquals(31, uaaScopes.getUaaAuthorities().size());
+  @Test
+  public void testGetUaaScopes() throws Exception {
+    assertEquals(31, uaaScopes.getUaaScopes().size());
+    assertEquals(31, uaaScopes.getUaaAuthorities().size());
+  }
+
+  @Test
+  public void testGetUaaAuthorities() throws Exception {
+    List<GrantedAuthority> authorities = uaaScopes.getUaaAuthorities();
+    List<GrantedAuthority> expected = getGrantedAuthorities();
+    assertEquals(expected, authorities);
+  }
+
+  protected List<GrantedAuthority> getGrantedAuthorities() {
+    List<GrantedAuthority> expected = new LinkedList<>();
+    for (String s : uaaScopes.getUaaScopes()) {
+      expected.add(new SimpleGrantedAuthority(s));
+    }
+    return expected;
+  }
+
+  @Test
+  public void testIsWildcardScope() throws Exception {
+    for (String s : uaaScopes.getUaaScopes()) {
+      if (s.contains("*")) {
+        assertTrue(uaaScopes.isWildcardScope(s));
+        assertTrue(uaaScopes.isWildcardScope(new SimpleGrantedAuthority(s)));
+      } else {
+        assertFalse(uaaScopes.isWildcardScope(s));
+        assertFalse(uaaScopes.isWildcardScope(new SimpleGrantedAuthority(s)));
+      }
+    }
+  }
+
+  @Test
+  public void testIsUaaScope() throws Exception {
+    for (String scope : uaaScopes.getUaaScopes()) {
+      assertTrue(uaaScopes.isUaaScope(scope));
     }
 
-    @Test
-    public void testGetUaaAuthorities() throws Exception {
-        List<GrantedAuthority> authorities = uaaScopes.getUaaAuthorities();
-        List<GrantedAuthority> expected = getGrantedAuthorities();
-        assertEquals(expected, authorities);
+    for (GrantedAuthority scope : uaaScopes.getUaaAuthorities()) {
+      assertTrue(uaaScopes.isUaaScope(scope));
     }
 
-    protected List<GrantedAuthority> getGrantedAuthorities() {
-        List<GrantedAuthority> expected = new LinkedList<>();
-        for (String s : uaaScopes.getUaaScopes()) {
-            expected.add(new SimpleGrantedAuthority(s));
-        }
-        return expected;
+    for (GrantedAuthority scope : getGrantedAuthorities()) {
+      assertTrue(uaaScopes.isUaaScope(scope));
     }
-
-    @Test
-    public void testIsWildcardScope() throws Exception {
-        for (String s : uaaScopes.getUaaScopes()) {
-            if (s.contains("*")) {
-                assertTrue(uaaScopes.isWildcardScope(s));
-                assertTrue(uaaScopes.isWildcardScope(new SimpleGrantedAuthority(s)));
-            } else {
-                assertFalse(uaaScopes.isWildcardScope(s));
-                assertFalse(uaaScopes.isWildcardScope(new SimpleGrantedAuthority(s)));
-            }
-        }
-    }
-
-    @Test
-    public void testIsUaaScope() throws Exception {
-        for (String scope : uaaScopes.getUaaScopes()) {
-            assertTrue(uaaScopes.isUaaScope(scope));
-        }
-
-        for (GrantedAuthority scope : uaaScopes.getUaaAuthorities()) {
-            assertTrue(uaaScopes.isUaaScope(scope));
-        }
-
-        for (GrantedAuthority scope : getGrantedAuthorities()) {
-            assertTrue(uaaScopes.isUaaScope(scope));
-        }
-    }
-
-
+  }
 }

@@ -10,29 +10,29 @@ import java.util.List;
 
 public class InvalidClientSecretException extends InvalidClientDetailsException {
 
-    private final List<String> errorMessages;
+  private final List<String> errorMessages;
 
-    public InvalidClientSecretException(String message) {
-        super(message);
-        errorMessages = Arrays.asList(message);
-    }
+  public InvalidClientSecretException(String message) {
+    super(message);
+    errorMessages = Arrays.asList(message);
+  }
 
-    public InvalidClientSecretException(List<String> errorMessages) {
-        super(concatenate(errorMessages));
-        this.errorMessages = errorMessages;
-    }
+  public InvalidClientSecretException(List<String> errorMessages) {
+    super(concatenate(errorMessages));
+    this.errorMessages = errorMessages;
+  }
 
-    public List<String> getErrorMessages() {
-        return errorMessages;
-    }
+  public List<String> getErrorMessages() {
+    return errorMessages;
+  }
 
-    public String getMessagesAsOneString() {
-        return concatenate(errorMessages);
-    }
+  public String getMessagesAsOneString() {
+    return concatenate(errorMessages);
+  }
 
-    private static String concatenate(List<String> errorMessages) {
-        ArrayList<String> sortedMessages = new ArrayList<String>(errorMessages);
-        Collections.sort(sortedMessages);
-        return StringUtils.collectionToDelimitedString(sortedMessages, " ");
-    }
+  private static String concatenate(List<String> errorMessages) {
+    ArrayList<String> sortedMessages = new ArrayList<String>(errorMessages);
+    Collections.sort(sortedMessages);
+    return StringUtils.collectionToDelimitedString(sortedMessages, " ");
+  }
 }

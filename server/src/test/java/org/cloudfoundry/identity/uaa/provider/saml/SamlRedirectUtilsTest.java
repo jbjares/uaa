@@ -21,19 +21,23 @@ import org.junit.Test;
 
 public class SamlRedirectUtilsTest {
 
-    @Test
-    public void testGetIdpRedirectUrl() throws Exception {
-        SamlIdentityProviderDefinition definition =
-            new SamlIdentityProviderDefinition()
-                .setMetaDataLocation("http://some.meta.data")
-                .setIdpEntityAlias("simplesamlphp-url")
-                .setNameID("nameID")
-                .setMetadataTrustCheck(true)
-                .setLinkText("link text")
-                .setZoneId(IdentityZone.getUaa().getId());
+  @Test
+  public void testGetIdpRedirectUrl() throws Exception {
+    SamlIdentityProviderDefinition definition =
+        new SamlIdentityProviderDefinition()
+            .setMetaDataLocation("http://some.meta.data")
+            .setIdpEntityAlias("simplesamlphp-url")
+            .setNameID("nameID")
+            .setMetadataTrustCheck(true)
+            .setLinkText("link text")
+            .setZoneId(IdentityZone.getUaa().getId());
 
-        String domain = "login.random-made-up-url.com";
-        String url = SamlRedirectUtils.getIdpRedirectUrl(definition, domain);
-        Assert.assertEquals("saml/discovery?returnIDParam=idp&entityID=" + domain + "&idp=simplesamlphp-url&isPassive=true", url);
-    }
+    String domain = "login.random-made-up-url.com";
+    String url = SamlRedirectUtils.getIdpRedirectUrl(definition, domain);
+    Assert.assertEquals(
+        "saml/discovery?returnIDParam=idp&entityID="
+            + domain
+            + "&idp=simplesamlphp-url&isPassive=true",
+        url);
+  }
 }

@@ -32,175 +32,186 @@ import java.net.UnknownHostException;
 import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @RunWith(SpringJUnit4ClassRunner.class)
-@ContextConfiguration(classes = {ThymeleafAdditional.class, ThymeleafConfig.class, ForcePasswordChangeControllerTest.SpringContextConfiguration.class})
-public class ForcePasswordChangeControllerTest  extends TestClassNullifier {
+@ContextConfiguration(
+    classes = {
+      ThymeleafAdditional.class,
+      ThymeleafConfig.class,
+      ForcePasswordChangeControllerTest.SpringContextConfiguration.class
+    })
+public class ForcePasswordChangeControllerTest extends TestClassNullifier {
 
-    private MockMvc mockMvc;
-    private ResetPasswordService resetPasswordService;
-    private ResourcePropertySource resourcePropertySource;
-    private AccountSavingAuthenticationSuccessHandler successHandler = mock(AccountSavingAuthenticationSuccessHandler.class);
-    private UaaAuthentication authentication;
+  private MockMvc mockMvc;
+  private ResetPasswordService resetPasswordService;
+  private ResourcePropertySource resourcePropertySource;
+  private AccountSavingAuthenticationSuccessHandler successHandler =
+      mock(AccountSavingAuthenticationSuccessHandler.class);
+  private UaaAuthentication authentication;
 
-    @Before
-    public void setUp() throws Exception {
-        ForcePasswordChangeController controller = new ForcePasswordChangeController();
-        resetPasswordService = mock(ResetPasswordService.class);
-        controller.setResetPasswordService(resetPasswordService);
-        resourcePropertySource = mock(ResourcePropertySource.class);
-        controller.setResourcePropertySource(resourcePropertySource);
-        successHandler = mock(AccountSavingAuthenticationSuccessHandler.class);
-        mockMvc = MockMvcBuilders
-            .standaloneSetup(controller)
-            .setViewResolvers(getResolver())
-            .build();
-    }
+  @Before
+  public void setUp() throws Exception {
+    ForcePasswordChangeController controller = new ForcePasswordChangeController();
+    resetPasswordService = mock(ResetPasswordService.class);
+    controller.setResetPasswordService(resetPasswordService);
+    resourcePropertySource = mock(ResourcePropertySource.class);
+    controller.setResourcePropertySource(resourcePropertySource);
+    successHandler = mock(AccountSavingAuthenticationSuccessHandler.class);
+    mockMvc = MockMvcBuilders.standaloneSetup(controller).setViewResolvers(getResolver()).build();
+  }
 
-    @After
-    public void clear() {
-        SecurityContextHolder.clearContext();
-        IdentityZoneHolder.clear();
-    }
+  @After
+  public void clear() {
+    SecurityContextHolder.clearContext();
+    IdentityZoneHolder.clear();
+  }
 
-    @Test
-    public void testForcePasswordChange() throws Exception {
-        setAuthentication();
-        mockMvc.perform(get("/force_password_change"))
-            .andExpect(status().isOk())
-            .andExpect(view().name("force_password_change"))
-            .andExpect(model().attribute("email", "mail"));
-    }
+  @Test
+  public void testForcePasswordChange() throws Exception {
+    setAuthentication();
+    mockMvc
+        .perform(get("/force_password_change"))
+        .andExpect(status().isOk())
+        .andExpect(view().name("force_password_change"))
+        .andExpect(model().attribute("email", "mail"));
+  }
 
-    private void setAuthentication() {
-        authentication = mock(UaaAuthentication.class);
-        UaaPrincipal principal = mock(UaaPrincipal.class);
-        when(authentication.getPrincipal()).thenReturn(principal);
-        when(principal.getEmail()).thenReturn("mail");
-        SecurityContextHolder.getContext().setAuthentication(authentication);
-    }
+  private void setAuthentication() {
+    authentication = mock(UaaAuthentication.class);
+    UaaPrincipal principal = mock(UaaPrincipal.class);
+    when(authentication.getPrincipal()).thenReturn(principal);
+    when(principal.getEmail()).thenReturn("mail");
+    SecurityContextHolder.getContext().setAuthentication(authentication);
+  }
 
-    @Test
-    public void testRedirectToLogInIfPasswordIsNotExpired() throws Exception {
-        setAuthentication();
-        mockMvc.perform(get("/force_password_change"))
-            .andExpect(status().isOk())
-            .andExpect(view().name("force_password_change"));
-    }
+  @Test
+  public void testRedirectToLogInIfPasswordIsNotExpired() throws Exception {
+    setAuthentication();
+    mockMvc
+        .perform(get("/force_password_change"))
+        .andExpect(status().isOk())
+        .andExpect(view().name("force_password_change"));
+  }
 
-
-    @Test
-    public void testHandleForcePasswordChange() throws Exception {
-        setAuthentication();
-        mockMvc.perform(
+  @Test
+  public void testHandleForcePasswordChange() throws Exception {
+    setAuthentication();
+    mockMvc
+        .perform(
             post("/uaa/force_password_change")
-                .param("password","pwd")
+                .param("password", "pwd")
                 .param("password_confirmation", "pwd")
                 .contextPath("/uaa"))
-                .andExpect(status().isFound())
-                .andExpect(redirectedUrl("/uaa/force_password_change_completed"));
-        verify(authentication, times(1)).setAuthenticatedTime(anyLong());
-    }
+        .andExpect(status().isFound())
+        .andExpect(redirectedUrl("/uaa/force_password_change_completed"));
+    verify(authentication, times(1)).setAuthenticatedTime(anyLong());
+  }
 
-    @Test
-    public void testHandleForcePasswordChangeWithRedirect() throws Exception {
-        setAuthentication();
-        mockMvc.perform(
+  @Test
+  public void testHandleForcePasswordChangeWithRedirect() throws Exception {
+    setAuthentication();
+    mockMvc
+        .perform(
             post("/force_password_change")
-                .param("password","pwd")
+                .param("password", "pwd")
                 .param("password_confirmation", "pwd"))
-            .andExpect(status().isFound())
-            .andExpect(redirectedUrl("/force_password_change_completed"));
-    }
+        .andExpect(status().isFound())
+        .andExpect(redirectedUrl("/force_password_change_completed"));
+  }
 
-    @Test
-    public void testPasswordAndConfirmAreDifferent() throws Exception {
-        setAuthentication();
-        when(resourcePropertySource.getProperty("force_password_change.form_error")).thenReturn("Passwords must match and not be empty.");
-        mockMvc.perform(
+  @Test
+  public void testPasswordAndConfirmAreDifferent() throws Exception {
+    setAuthentication();
+    when(resourcePropertySource.getProperty("force_password_change.form_error"))
+        .thenReturn("Passwords must match and not be empty.");
+    mockMvc
+        .perform(
             post("/force_password_change")
-                .param("password","pwd")
+                .param("password", "pwd")
                 .param("password_confirmation", "nopwd"))
-            .andExpect(status().isUnprocessableEntity());
+        .andExpect(status().isUnprocessableEntity());
+  }
+
+  @Configuration
+  static class SpringContextConfiguration {
+    @Bean
+    public EventFactory honeycombEventFactory(
+        @Value("#{T(System).getenv('HONEYCOMB_KEY')}") String honeycombKey,
+        @Value("#{T(System).getenv('HONEYCOMB_DATASET')}") String dataset,
+        @Value("${testId:-1}") String testId) {
+      HoneyClient honeyClient =
+          LibHoney.create(LibHoney.options().setWriteKey(honeycombKey).setDataset(dataset).build());
+
+      if (honeycombKey == null || dataset == null) {
+        return honeyClient.buildEventFactory().build();
+      }
+
+      String hostName = "";
+      try {
+        hostName = InetAddress.getLocalHost().getHostName();
+
+      } catch (UnknownHostException e) {
+        e.printStackTrace();
+      }
+
+      EventFactory.Builder builder =
+          honeyClient
+              .buildEventFactory()
+              .addField("junit", "4")
+              .addField("testId", testId)
+              .addField("cpuCores", Runtime.getRuntime().availableProcessors())
+              .addField("hostname", hostName);
+
+      for (Map.Entry entry : System.getProperties().entrySet()) {
+        builder.addField(entry.getKey().toString(), entry.getValue());
+      }
+
+      builder.addField("DB", System.getenv().get("DB"));
+      builder.addField("SPRING_PROFILE", System.getenv().get("SPRING_PROFILE"));
+      builder.addField("JAVA_HOME", System.getenv().get("JAVA_HOME"));
+
+      return builder.build();
     }
 
-    @Configuration
-    static class SpringContextConfiguration {
-        @Bean
-        public EventFactory honeycombEventFactory(@Value("#{T(System).getenv('HONEYCOMB_KEY')}") String honeycombKey,
-                                                  @Value("#{T(System).getenv('HONEYCOMB_DATASET')}") String dataset,
-                                                  @Value("${testId:-1}") String testId) {
-            HoneyClient honeyClient = LibHoney.create(
-                    LibHoney.options()
-                            .setWriteKey(honeycombKey)
-                            .setDataset(dataset)
-                            .build()
-            );
-
-            if (honeycombKey == null || dataset == null) {
-                return honeyClient.buildEventFactory().build();
-            }
-
-            String hostName = "";
-            try {
-                hostName = InetAddress.getLocalHost().getHostName();
-
-            } catch (UnknownHostException e) {
-                e.printStackTrace();
-            }
-
-            EventFactory.Builder builder = honeyClient.buildEventFactory()
-                    .addField("junit", "4")
-                    .addField("testId", testId)
-                    .addField("cpuCores", Runtime.getRuntime().availableProcessors())
-                    .addField("hostname", hostName);
-
-            for (Map.Entry entry : System.getProperties().entrySet()) {
-                builder.addField(entry.getKey().toString(), entry.getValue());
-            }
-
-            builder.addField("DB", System.getenv().get("DB"));
-            builder.addField("SPRING_PROFILE", System.getenv().get("SPRING_PROFILE"));
-            builder.addField("JAVA_HOME", System.getenv().get("JAVA_HOME"));
-
-            return builder.build();
-        }
-
-        @Bean
-        public HoneycombAuditEventTestListener honeycombAuditEventTestListenerAuthenticationFailureLockedEvent(ConfigurableApplicationContext configurableApplicationContext, EventFactory honeycombEventFactory) {
-            HoneycombAuditEventTestListener<AuthenticationFailureLockedEvent> listener =
-                    HoneycombAuditEventTestListener.forEventClass(AuthenticationFailureLockedEvent.class);
-            listener.setHoneycombEventFactory(honeycombEventFactory);
-            configurableApplicationContext.addApplicationListener(listener);
-            return listener;
-        }
-
-        @Bean
-        public HoneycombAuditEventTestListener honeycombAuditEventTestListenerIdentityProviderAuthenticationFailureEvent(ConfigurableApplicationContext configurableApplicationContext,EventFactory honeycombEventFactory) {
-            HoneycombAuditEventTestListener<IdentityProviderAuthenticationFailureEvent> listener =
-                    HoneycombAuditEventTestListener.forEventClass(IdentityProviderAuthenticationFailureEvent.class);
-            listener.setHoneycombEventFactory(honeycombEventFactory);
-            configurableApplicationContext.addApplicationListener(listener);
-            return listener;
-        }
-
-        @Bean
-        public HoneycombAuditEventTestListener honeycombAuditEventTestListenerMfaAuthenticationFailureEvent(ConfigurableApplicationContext configurableApplicationContext, EventFactory honeycombEventFactory) {
-            HoneycombAuditEventTestListener<MfaAuthenticationFailureEvent> listener =
-                    HoneycombAuditEventTestListener.forEventClass(MfaAuthenticationFailureEvent.class);
-            listener.setHoneycombEventFactory(honeycombEventFactory);
-            configurableApplicationContext.addApplicationListener(listener);
-            return listener;
-        }
+    @Bean
+    public HoneycombAuditEventTestListener
+        honeycombAuditEventTestListenerAuthenticationFailureLockedEvent(
+            ConfigurableApplicationContext configurableApplicationContext,
+            EventFactory honeycombEventFactory) {
+      HoneycombAuditEventTestListener<AuthenticationFailureLockedEvent> listener =
+          HoneycombAuditEventTestListener.forEventClass(AuthenticationFailureLockedEvent.class);
+      listener.setHoneycombEventFactory(honeycombEventFactory);
+      configurableApplicationContext.addApplicationListener(listener);
+      return listener;
     }
+
+    @Bean
+    public HoneycombAuditEventTestListener
+        honeycombAuditEventTestListenerIdentityProviderAuthenticationFailureEvent(
+            ConfigurableApplicationContext configurableApplicationContext,
+            EventFactory honeycombEventFactory) {
+      HoneycombAuditEventTestListener<IdentityProviderAuthenticationFailureEvent> listener =
+          HoneycombAuditEventTestListener.forEventClass(
+              IdentityProviderAuthenticationFailureEvent.class);
+      listener.setHoneycombEventFactory(honeycombEventFactory);
+      configurableApplicationContext.addApplicationListener(listener);
+      return listener;
+    }
+
+    @Bean
+    public HoneycombAuditEventTestListener
+        honeycombAuditEventTestListenerMfaAuthenticationFailureEvent(
+            ConfigurableApplicationContext configurableApplicationContext,
+            EventFactory honeycombEventFactory) {
+      HoneycombAuditEventTestListener<MfaAuthenticationFailureEvent> listener =
+          HoneycombAuditEventTestListener.forEventClass(MfaAuthenticationFailureEvent.class);
+      listener.setHoneycombEventFactory(honeycombEventFactory);
+      configurableApplicationContext.addApplicationListener(listener);
+      return listener;
+    }
+  }
 }

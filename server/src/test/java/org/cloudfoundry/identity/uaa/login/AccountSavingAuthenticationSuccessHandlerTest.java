@@ -33,139 +33,144 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.mockito.Mockito.*;
 
-
 @RunWith(Parameterized.class)
 public class AccountSavingAuthenticationSuccessHandlerTest {
 
-    // Parameterized fields:
-    private final boolean secure;
+  // Parameterized fields:
+  private final boolean secure;
 
-    public AccountSavingAuthenticationSuccessHandlerTest(boolean secure) {
-        this.secure = secure;
+  public AccountSavingAuthenticationSuccessHandlerTest(boolean secure) {
+    this.secure = secure;
+  }
+
+  private AccountSavingAuthenticationSuccessHandler successHandler;
+  private SavedRequestAwareAuthenticationSuccessHandler redirectingHandler;
+  private CurrentUserCookieFactory currentUserCookieFactory;
+
+  @Parameterized.Parameters
+  public static Collection parameters() {
+    return asList(new Object[][] {{false}, {true}});
+  }
+
+  @Before
+  public void setup() throws Exception {
+    redirectingHandler = mock(SavedRequestAwareAuthenticationSuccessHandler.class);
+    currentUserCookieFactory = mock(CurrentUserCookieFactory.class);
+    when(currentUserCookieFactory.getCookie(any()))
+        .thenReturn(new Cookie("Current-User", "%7B%22userId%22%3A%22user-id%22%7D"));
+    successHandler =
+        new AccountSavingAuthenticationSuccessHandler(redirectingHandler, currentUserCookieFactory);
+  }
+
+  @Test
+  public void invalid_principal_throws() {
+    Authentication a = mock(Authentication.class);
+    when(a.getPrincipal()).thenReturn(new Object());
+    try {
+      successHandler.setSavedAccountOptionCookie(
+          new MockHttpServletRequest(), new MockHttpServletResponse(), a);
+    } catch (IllegalArgumentException x) {
+      assertEquals("Unrecognized authentication principle.", x.getMessage());
     }
+  }
 
-    private AccountSavingAuthenticationSuccessHandler successHandler;
-    private SavedRequestAwareAuthenticationSuccessHandler redirectingHandler;
-    private CurrentUserCookieFactory currentUserCookieFactory;
+  @SuppressWarnings("deprecation")
+  @Test
+  public void whenSuccessfullyAuthenticated_accountGetsSavedViaCookie()
+      throws IOException, ServletException,
+          CurrentUserCookieFactory.CurrentUserCookieEncodingException {
+    IdentityZoneHolder.get().getConfig().setAccountChooserEnabled(true);
+    Date yesterday = new Date(System.currentTimeMillis() - (1000 * 60 * 60 * 24));
+    UaaUser user =
+        new UaaUser(
+            "user-id",
+            "username",
+            "password",
+            "email",
+            Collections.EMPTY_LIST,
+            "given name",
+            "family name",
+            yesterday,
+            yesterday,
+            "user-origin",
+            null,
+            true,
+            IdentityZone.getUaa().getId(),
+            "salt",
+            yesterday);
 
-    @Parameterized.Parameters
-    public static Collection parameters() {
-        return asList(new Object[][]{
-                {false}, {true}
-        });
-    }
+    UaaPrincipal principal = new UaaPrincipal(user);
+    UaaAuthentication authentication =
+        new UaaAuthentication(
+            principal, null, Collections.EMPTY_LIST, null, true, System.currentTimeMillis());
 
-    @Before
-    public void setup() throws Exception {
-        redirectingHandler = mock(SavedRequestAwareAuthenticationSuccessHandler.class);
-        currentUserCookieFactory = mock(CurrentUserCookieFactory.class);
-        when(currentUserCookieFactory.getCookie(any())).thenReturn(new Cookie("Current-User", "%7B%22userId%22%3A%22user-id%22%7D"));
-        successHandler = new AccountSavingAuthenticationSuccessHandler(redirectingHandler, currentUserCookieFactory);
-    }
+    MockHttpServletRequest request = new MockHttpServletRequest();
+    request.setSecure(secure);
+    MockHttpServletResponse response = new MockHttpServletResponse();
 
-    @Test
-    public void invalid_principal_throws() {
-        Authentication a = mock(Authentication.class);
-        when(a.getPrincipal()).thenReturn(new Object());
-        try {
-            successHandler.setSavedAccountOptionCookie(new MockHttpServletRequest(), new MockHttpServletResponse(), a);
-        }catch (IllegalArgumentException x) {
-            assertEquals("Unrecognized authentication principle.", x.getMessage());
-        }
+    successHandler.onAuthenticationSuccess(request, response, authentication);
 
-    }
+    Cookie accountOptionCookie = response.getCookie("Saved-Account-user-id");
+    assertThat(accountOptionCookie, notNullValue());
+    String cookieValue = accountOptionCookie.getValue();
 
-    @SuppressWarnings("deprecation")
-    @Test
-    public void whenSuccessfullyAuthenticated_accountGetsSavedViaCookie() throws IOException, ServletException, CurrentUserCookieFactory.CurrentUserCookieEncodingException {
-        IdentityZoneHolder.get().getConfig().setAccountChooserEnabled(true);
-        Date yesterday = new Date(System.currentTimeMillis()-(1000*60*60*24));
-        UaaUser user = new UaaUser(
-                "user-id",
-                "username",
-                "password",
-                "email",
-                Collections.EMPTY_LIST,
-                "given name",
-                "family name",
-                yesterday,
-                yesterday,
-                "user-origin",
-                null,
-                true,
-                IdentityZone.getUaa().getId(),
-                "salt",
-                yesterday
-        );
+    SavedAccountOption expectedCookieValue = new SavedAccountOption();
+    expectedCookieValue.setUserId(user.getId());
+    expectedCookieValue.setUsername(user.getUsername());
+    expectedCookieValue.setEmail(user.getEmail());
+    expectedCookieValue.setOrigin(user.getOrigin());
 
-        UaaPrincipal principal = new UaaPrincipal(user);
-        UaaAuthentication authentication = new UaaAuthentication(principal, null, Collections.EMPTY_LIST, null, true, System.currentTimeMillis());
+    assertEquals(URLEncoder.encode(JsonUtils.writeValueAsString(expectedCookieValue)), cookieValue);
+    assertEquals(true, accountOptionCookie.isHttpOnly());
+    assertEquals(365 * 24 * 60 * 60, accountOptionCookie.getMaxAge());
+    assertEquals("/login", accountOptionCookie.getPath());
+    Assert.assertEquals(secure, accountOptionCookie.getSecure());
 
-        MockHttpServletRequest request = new MockHttpServletRequest();
-        request.setSecure(secure);
-        MockHttpServletResponse response = new MockHttpServletResponse();
+    verify(redirectingHandler, times(1)).onAuthenticationSuccess(request, response, authentication);
 
-        successHandler.onAuthenticationSuccess(request, response, authentication);
+    ArgumentCaptor<UaaPrincipal> uaaPrincipal = ArgumentCaptor.forClass(UaaPrincipal.class);
+    verify(currentUserCookieFactory).getCookie(uaaPrincipal.capture());
+    assertEquals("user-id", uaaPrincipal.getValue().getId());
 
-        Cookie accountOptionCookie = response.getCookie("Saved-Account-user-id");
-        assertThat(accountOptionCookie, notNullValue());
-        String cookieValue = accountOptionCookie.getValue();
+    Cookie currentUserCookie = response.getCookie("Current-User");
+    assertThat(currentUserCookie, notNullValue());
+    assertThat(currentUserCookie.getValue(), containsString("user-id"));
+  }
 
-        SavedAccountOption expectedCookieValue = new SavedAccountOption();
-        expectedCookieValue.setUserId(user.getId());
-        expectedCookieValue.setUsername(user.getUsername());
-        expectedCookieValue.setEmail(user.getEmail());
-        expectedCookieValue.setOrigin(user.getOrigin());
+  @Test
+  public void empty_Account_Cookie() throws IOException, ServletException {
+    IdentityZoneHolder.get().getConfig().setAccountChooserEnabled(false);
+    Date yesterday = new Date(System.currentTimeMillis() - (1000 * 60 * 60 * 24));
+    UaaUser user =
+        new UaaUser(
+            "user-id",
+            "username",
+            "password",
+            "email",
+            Collections.EMPTY_LIST,
+            "given name",
+            "family name",
+            yesterday,
+            yesterday,
+            "user-origin",
+            null,
+            true,
+            IdentityZone.getUaa().getId(),
+            "salt",
+            yesterday);
 
-        assertEquals(URLEncoder.encode(JsonUtils.writeValueAsString(expectedCookieValue)), cookieValue);
-        assertEquals(true, accountOptionCookie.isHttpOnly());
-        assertEquals(365*24*60*60, accountOptionCookie.getMaxAge());
-        assertEquals("/login", accountOptionCookie.getPath());
-        Assert.assertEquals(secure, accountOptionCookie.getSecure());
+    UaaPrincipal principal = new UaaPrincipal(user);
+    UaaAuthentication authentication =
+        new UaaAuthentication(
+            principal, null, Collections.EMPTY_LIST, null, true, System.currentTimeMillis());
 
-        verify(redirectingHandler, times(1)).onAuthenticationSuccess(request, response, authentication);
+    MockHttpServletRequest request = new MockHttpServletRequest();
+    request.setSecure(secure);
+    MockHttpServletResponse response = new MockHttpServletResponse();
 
-        ArgumentCaptor<UaaPrincipal> uaaPrincipal = ArgumentCaptor.forClass(UaaPrincipal.class);
-        verify(currentUserCookieFactory).getCookie(uaaPrincipal.capture());
-        assertEquals("user-id", uaaPrincipal.getValue().getId());
+    successHandler.onAuthenticationSuccess(request, response, authentication);
 
-        Cookie currentUserCookie = response.getCookie("Current-User");
-        assertThat(currentUserCookie, notNullValue());
-        assertThat(currentUserCookie.getValue(), containsString("user-id"));
-    }
-
-    @Test
-    public void empty_Account_Cookie() throws IOException, ServletException {
-        IdentityZoneHolder.get().getConfig().setAccountChooserEnabled(false);
-        Date yesterday = new Date(System.currentTimeMillis()-(1000*60*60*24));
-        UaaUser user = new UaaUser(
-                "user-id",
-                "username",
-                "password",
-                "email",
-                Collections.EMPTY_LIST,
-                "given name",
-                "family name",
-                yesterday,
-                yesterday,
-                "user-origin",
-                null,
-                true,
-                IdentityZone.getUaa().getId(),
-                "salt",
-                yesterday
-        );
-
-        UaaPrincipal principal = new UaaPrincipal(user);
-        UaaAuthentication authentication = new UaaAuthentication(principal, null, Collections.EMPTY_LIST, null, true, System.currentTimeMillis());
-
-        MockHttpServletRequest request = new MockHttpServletRequest();
-        request.setSecure(secure);
-        MockHttpServletResponse response = new MockHttpServletResponse();
-
-        successHandler.onAuthenticationSuccess(request, response, authentication);
-
-        Cookie accountOptionCookie = response.getCookie("Saved-Account-user-id");
-        assertThat(accountOptionCookie, nullValue());
-    }
+    Cookie accountOptionCookie = response.getCookie("Saved-Account-user-id");
+    assertThat(accountOptionCookie, nullValue());
+  }
 }

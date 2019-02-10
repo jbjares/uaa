@@ -16,35 +16,32 @@ package org.cloudfoundry.identity.uaa.provider;
 
 import java.util.Map;
 
-import static org.cloudfoundry.identity.uaa.constants.OriginKeys.LDAP;
-import static org.cloudfoundry.identity.uaa.constants.OriginKeys.OAUTH20;
-import static org.cloudfoundry.identity.uaa.constants.OriginKeys.OIDC10;
-import static org.cloudfoundry.identity.uaa.constants.OriginKeys.UAA;
+import static org.cloudfoundry.identity.uaa.constants.OriginKeys.*;
 
 public class IdentityProviderConfigValidationDelegator implements IdentityProviderConfigValidator {
-    private Map<String, IdentityProviderConfigValidator> delegates;
+  private Map<String, IdentityProviderConfigValidator> delegates;
 
-    public void setDelegates(Map<String, IdentityProviderConfigValidator> delegates) {
-        this.delegates = delegates;
-    }
+  public void setDelegates(Map<String, IdentityProviderConfigValidator> delegates) {
+    this.delegates = delegates;
+  }
 
-    @Override
-    public void validate(IdentityProvider<? extends AbstractIdentityProviderDefinition> provider) {
-        if (provider == null) {
-            throw new IllegalArgumentException("Provider cannot be null");
-        }
-        String type = provider.getType();
-        switch (type) {
-            case OAUTH20:
-            case OIDC10:
-                delegates.get("xoauth").validate(provider);
-                break;
-            case UAA:
-                delegates.get(UAA).validate(provider);
-                break;
-            case LDAP:
-                delegates.get(LDAP).validate(provider);
-                break;
-        }
+  @Override
+  public void validate(IdentityProvider<? extends AbstractIdentityProviderDefinition> provider) {
+    if (provider == null) {
+      throw new IllegalArgumentException("Provider cannot be null");
     }
+    String type = provider.getType();
+    switch (type) {
+      case OAUTH20:
+      case OIDC10:
+        delegates.get("xoauth").validate(provider);
+        break;
+      case UAA:
+        delegates.get(UAA).validate(provider);
+        break;
+      case LDAP:
+        delegates.get(LDAP).validate(provider);
+        break;
+    }
+  }
 }

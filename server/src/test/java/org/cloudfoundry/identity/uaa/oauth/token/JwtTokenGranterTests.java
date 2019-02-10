@@ -30,11 +30,7 @@ import org.junit.rules.ExpectedException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.common.exceptions.InvalidGrantException;
 import org.springframework.security.oauth2.common.util.OAuth2Utils;
-import org.springframework.security.oauth2.provider.ClientDetails;
-import org.springframework.security.oauth2.provider.OAuth2Authentication;
-import org.springframework.security.oauth2.provider.OAuth2Request;
-import org.springframework.security.oauth2.provider.OAuth2RequestFactory;
-import org.springframework.security.oauth2.provider.TokenRequest;
+import org.springframework.security.oauth2.provider.*;
 import org.springframework.security.oauth2.provider.client.BaseClientDetails;
 import org.springframework.security.oauth2.provider.token.AuthorizationServerTokenServices;
 
@@ -48,139 +44,137 @@ import static org.junit.Assert.assertSame;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.same;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 import static org.springframework.security.oauth2.common.util.OAuth2Utils.GRANT_TYPE;
 
 public class JwtTokenGranterTests {
 
-    @Rule
-    public ExpectedException exception = ExpectedException.none();
+  @Rule public ExpectedException exception = ExpectedException.none();
 
-    private JwtTokenGranter granter;
-    private TokenRequest tokenRequest;
-    private ClientDetails client;
-    private UaaOauth2Authentication authentication;
-    private UaaAuthentication uaaAuthentication;
-    private AuthorizationServerTokenServices tokenServices;
-    private ClientServicesExtension clientDetailsService;
-    private OAuth2RequestFactory requestFactory;
-    private Map<String, String> requestParameters;
+  private JwtTokenGranter granter;
+  private TokenRequest tokenRequest;
+  private ClientDetails client;
+  private UaaOauth2Authentication authentication;
+  private UaaAuthentication uaaAuthentication;
+  private AuthorizationServerTokenServices tokenServices;
+  private ClientServicesExtension clientDetailsService;
+  private OAuth2RequestFactory requestFactory;
+  private Map<String, String> requestParameters;
 
-    @Before
-    public void setUp() throws Exception {
-        tokenServices = mock(AuthorizationServerTokenServices.class);
-        clientDetailsService = mock(ClientServicesExtension.class);
-        requestFactory = mock(OAuth2RequestFactory.class);
-        granter = spy(new JwtTokenGranter(tokenServices, clientDetailsService, requestFactory));
-        tokenRequest = new TokenRequest(Collections.emptyMap(), "client_ID", Collections.emptySet(), GRANT_TYPE_JWT_BEARER);
+  @Before
+  public void setUp() throws Exception {
+    tokenServices = mock(AuthorizationServerTokenServices.class);
+    clientDetailsService = mock(ClientServicesExtension.class);
+    requestFactory = mock(OAuth2RequestFactory.class);
+    granter = spy(new JwtTokenGranter(tokenServices, clientDetailsService, requestFactory));
+    tokenRequest =
+        new TokenRequest(
+            Collections.emptyMap(), "client_ID", Collections.emptySet(), GRANT_TYPE_JWT_BEARER);
 
-        authentication = mock(UaaOauth2Authentication.class);
-        UaaUser user = new UaaUser("id",
-                                   "username",
-                                   null,
-                                   "user@user.org",
-                                   Collections.emptyList(),
-                                   "Firstname",
-                                   "lastName",
-                                   new Date(),
-                                   new Date(),
-                                   OriginKeys.OIDC10,
-                                   null,
-                                   true,
-                                   IdentityZoneHolder.get().getId(),
-                                   "salt",
-                                   new Date()
-        );
-        uaaAuthentication = new UaaAuthentication(
-            new UaaPrincipal(user), Collections.emptyList(), null
-        );
-        SecurityContextHolder.getContext().setAuthentication(authentication);
+    authentication = mock(UaaOauth2Authentication.class);
+    UaaUser user =
+        new UaaUser(
+            "id",
+            "username",
+            null,
+            "user@user.org",
+            Collections.emptyList(),
+            "Firstname",
+            "lastName",
+            new Date(),
+            new Date(),
+            OriginKeys.OIDC10,
+            null,
+            true,
+            IdentityZoneHolder.get().getId(),
+            "salt",
+            new Date());
+    uaaAuthentication =
+        new UaaAuthentication(new UaaPrincipal(user), Collections.emptyList(), null);
+    SecurityContextHolder.getContext().setAuthentication(authentication);
 
-        client = new BaseClientDetails("clientID",null,"uaa.user",GRANT_TYPE_JWT_BEARER, null);
-        when(clientDetailsService.loadClientByClientId(eq(client.getClientId()), anyString())).thenReturn(client);
-        requestParameters = new HashMap<>();
-        requestParameters.put(OAuth2Utils.CLIENT_ID, client.getClientId());
-        requestParameters.put(GRANT_TYPE, GRANT_TYPE_JWT_BEARER);
-        tokenRequest.setRequestParameters(requestParameters);
-    }
+    client = new BaseClientDetails("clientID", null, "uaa.user", GRANT_TYPE_JWT_BEARER, null);
+    when(clientDetailsService.loadClientByClientId(eq(client.getClientId()), anyString()))
+        .thenReturn(client);
+    requestParameters = new HashMap<>();
+    requestParameters.put(OAuth2Utils.CLIENT_ID, client.getClientId());
+    requestParameters.put(GRANT_TYPE, GRANT_TYPE_JWT_BEARER);
+    tokenRequest.setRequestParameters(requestParameters);
+  }
 
-    @After
-    public void tearDown() throws Exception {
-        IdentityZoneHolder.clear();
-        SecurityContextHolder.clearContext();
-    }
+  @After
+  public void tearDown() throws Exception {
+    IdentityZoneHolder.clear();
+    SecurityContextHolder.clearContext();
+  }
 
-    @Test
-    public void non_authentication_validates_correctly() throws Exception {
-        exception.expect(InvalidGrantException.class);
-        exception.expectMessage("User authentication not found");
-        granter.validateRequest(tokenRequest);
-    }
+  @Test
+  public void non_authentication_validates_correctly() throws Exception {
+    exception.expect(InvalidGrantException.class);
+    exception.expectMessage("User authentication not found");
+    granter.validateRequest(tokenRequest);
+  }
 
-    @Test
-    public void client_authentication_only() throws Exception {
-        exception.expect(InvalidGrantException.class);
-        exception.expectMessage("User authentication not found");
-        SecurityContextHolder.getContext().setAuthentication(authentication);
-        granter.validateRequest(tokenRequest);
-    }
+  @Test
+  public void client_authentication_only() throws Exception {
+    exception.expect(InvalidGrantException.class);
+    exception.expectMessage("User authentication not found");
+    SecurityContextHolder.getContext().setAuthentication(authentication);
+    granter.validateRequest(tokenRequest);
+  }
 
-    @Test
-    public void missing_token_request() throws Exception {
-        SecurityContextHolder.getContext().setAuthentication(uaaAuthentication);
-        exception.expect(InvalidGrantException.class);
-        exception.expectMessage("Missing token request object");
-        granter.validateRequest(null);
-    }
+  @Test
+  public void missing_token_request() throws Exception {
+    SecurityContextHolder.getContext().setAuthentication(uaaAuthentication);
+    exception.expect(InvalidGrantException.class);
+    exception.expectMessage("Missing token request object");
+    granter.validateRequest(null);
+  }
 
-    @Test
-    public void missing_request_parameters() throws Exception {
-        SecurityContextHolder.getContext().setAuthentication(uaaAuthentication);
-        exception.expect(InvalidGrantException.class);
-        exception.expectMessage("Missing token request object");
-        tokenRequest.setRequestParameters(Collections.emptyMap());
-        granter.validateRequest(tokenRequest);
-    }
+  @Test
+  public void missing_request_parameters() throws Exception {
+    SecurityContextHolder.getContext().setAuthentication(uaaAuthentication);
+    exception.expect(InvalidGrantException.class);
+    exception.expectMessage("Missing token request object");
+    tokenRequest.setRequestParameters(Collections.emptyMap());
+    granter.validateRequest(tokenRequest);
+  }
 
-    @Test
-    public void missing_grant_type() throws Exception {
-        SecurityContextHolder.getContext().setAuthentication(uaaAuthentication);
-        exception.expect(InvalidGrantException.class);
-        exception.expectMessage("Missing grant type");
-        requestParameters.remove(GRANT_TYPE);
-        tokenRequest.setRequestParameters(requestParameters);
-        granter.validateRequest(tokenRequest);
-    }
+  @Test
+  public void missing_grant_type() throws Exception {
+    SecurityContextHolder.getContext().setAuthentication(uaaAuthentication);
+    exception.expect(InvalidGrantException.class);
+    exception.expectMessage("Missing grant type");
+    requestParameters.remove(GRANT_TYPE);
+    tokenRequest.setRequestParameters(requestParameters);
+    granter.validateRequest(tokenRequest);
+  }
 
-    @Test
-    public void invalid_grant_type() throws Exception {
-        SecurityContextHolder.getContext().setAuthentication(uaaAuthentication);
-        exception.expect(InvalidGrantException.class);
-        exception.expectMessage("Invalid grant type");
-        requestParameters.put(GRANT_TYPE, "password");
-        tokenRequest.setRequestParameters(requestParameters);
-        granter.validateRequest(tokenRequest);
-    }
+  @Test
+  public void invalid_grant_type() throws Exception {
+    SecurityContextHolder.getContext().setAuthentication(uaaAuthentication);
+    exception.expect(InvalidGrantException.class);
+    exception.expectMessage("Invalid grant type");
+    requestParameters.put(GRANT_TYPE, "password");
+    tokenRequest.setRequestParameters(requestParameters);
+    granter.validateRequest(tokenRequest);
+  }
 
-    @Test
-    public void get_oauth2_authentication_validates_request() throws Exception {
-        exception.expect(InvalidGrantException.class);
-        exception.expectMessage("User authentication not found");
-        granter.getOAuth2Authentication(client, tokenRequest);
-        verify(granter, times(1)).validateRequest(same(tokenRequest));
-    }
+  @Test
+  public void get_oauth2_authentication_validates_request() throws Exception {
+    exception.expect(InvalidGrantException.class);
+    exception.expectMessage("User authentication not found");
+    granter.getOAuth2Authentication(client, tokenRequest);
+    verify(granter, times(1)).validateRequest(same(tokenRequest));
+  }
 
-    @Test
-    public void get_oauth2_authentication() throws Exception {
-        SecurityContextHolder.getContext().setAuthentication(uaaAuthentication);
-        OAuth2Request request = mock(OAuth2Request.class);
-        when(requestFactory.createOAuth2Request(same(client), same(tokenRequest))).thenReturn(request);
-        OAuth2Authentication result = granter.getOAuth2Authentication(client, tokenRequest);
-        assertSame(request, result.getOAuth2Request());
-        assertSame(uaaAuthentication, result.getUserAuthentication());
-    }
+  @Test
+  public void get_oauth2_authentication() throws Exception {
+    SecurityContextHolder.getContext().setAuthentication(uaaAuthentication);
+    OAuth2Request request = mock(OAuth2Request.class);
+    when(requestFactory.createOAuth2Request(same(client), same(tokenRequest))).thenReturn(request);
+    OAuth2Authentication result = granter.getOAuth2Authentication(client, tokenRequest);
+    assertSame(request, result.getOAuth2Request());
+    assertSame(uaaAuthentication, result.getUserAuthentication());
+  }
 }

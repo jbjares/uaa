@@ -1,15 +1,15 @@
-/*******************************************************************************
- *     Cloud Foundry
- *     Copyright (c) [2009-2016] Pivotal Software, Inc. All Rights Reserved.
+/**
+ * ***************************************************************************** Cloud Foundry
+ * Copyright (c) [2009-2016] Pivotal Software, Inc. All Rights Reserved.
  *
- *     This product is licensed to you under the Apache License, Version 2.0 (the "License").
- *     You may not use this product except in compliance with the License.
+ * <p>This product is licensed to you under the Apache License, Version 2.0 (the "License"). You may
+ * not use this product except in compliance with the License.
  *
- *     This product includes a number of subcomponents with
- *     separate copyright notices and license terms. Your use of these
- *     subcomponents is subject to the terms and conditions of the
- *     subcomponent's license, as noted in the LICENSE file.
- *******************************************************************************/
+ * <p>This product includes a number of subcomponents with separate copyright notices and license
+ * terms. Your use of these subcomponents is subject to the terms and conditions of the
+ * subcomponent's license, as noted in the LICENSE file.
+ * *****************************************************************************
+ */
 package org.cloudfoundry.identity.uaa.provider.saml.idp;
 
 import org.opensaml.common.SAMLException;
@@ -27,9 +27,11 @@ import org.springframework.security.saml.context.SAMLMessageContext;
  */
 public interface IdpWebSsoProfile {
 
-    void sendResponse(Authentication authentication, SAMLMessageContext context, IdpWebSSOProfileOptions options)
-            throws SAMLException, MetadataProviderException, MessageEncodingException, SecurityException,
-            MarshallingException, SignatureException;
+  void sendResponse(
+      Authentication authentication, SAMLMessageContext context, IdpWebSSOProfileOptions options)
+      throws SAMLException, MetadataProviderException, MessageEncodingException, SecurityException,
+          MarshallingException, SignatureException;
 
-    AuthnRequest buildIdpInitiatedAuthnRequest(String nameIDFormat, String spEntityID, String assertionUrl);
+  AuthnRequest buildIdpInitiatedAuthnRequest(
+      String nameIDFormat, String spEntityID, String assertionUrl);
 }

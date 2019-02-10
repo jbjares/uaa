@@ -12,36 +12,37 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.not;
 
 public class EncryptionServiceTest {
-    private EncryptionService service;
-    @BeforeClass
-    public static void key() {
-        Security.setProperty("crypto.policy", "unlimited");
-    }
+  private EncryptionService service;
 
-    @Before
-    public void setup() {
-        service = new EncryptionService("some-password");
-    }
+  @BeforeClass
+  public static void key() {
+    Security.setProperty("crypto.policy", "unlimited");
+  }
 
-    @Test
-    public void encrypt_shouldEncrypt() throws EncryptionServiceException {
-        byte[] ciphertext = service.encrypt("bob");
-        assertThat(ciphertext, is(notNullValue()));
-        byte[] decrypt = service.decrypt(ciphertext);
-        assertThat(new String(decrypt), is("bob"));
-    }
+  @Before
+  public void setup() {
+    service = new EncryptionService("some-password");
+  }
 
-    @Test
-    public void encrypt_shouldReturnDifferentCiphertextEachTime() throws EncryptionServiceException {
-        byte[] ciphertext1 = service.encrypt("bob");
-        byte[] ciphertext2 = service.encrypt("bob");
-        assertThat(ciphertext1, not(ciphertext2));
-    }
+  @Test
+  public void encrypt_shouldEncrypt() throws EncryptionServiceException {
+    byte[] ciphertext = service.encrypt("bob");
+    assertThat(ciphertext, is(notNullValue()));
+    byte[] decrypt = service.decrypt(ciphertext);
+    assertThat(new String(decrypt), is("bob"));
+  }
 
-    @Test(expected = EncryptionServiceException.class)
-    public void decrypt_shouldNotDecryptWithInvalidPassphrase() throws EncryptionServiceException {
-        byte[] ciphertext = service.encrypt("bob");
-        assertThat(ciphertext, is(notNullValue()));
-        new EncryptionService("invalid-password").decrypt(ciphertext);
-    }
+  @Test
+  public void encrypt_shouldReturnDifferentCiphertextEachTime() throws EncryptionServiceException {
+    byte[] ciphertext1 = service.encrypt("bob");
+    byte[] ciphertext2 = service.encrypt("bob");
+    assertThat(ciphertext1, not(ciphertext2));
+  }
+
+  @Test(expected = EncryptionServiceException.class)
+  public void decrypt_shouldNotDecryptWithInvalidPassphrase() throws EncryptionServiceException {
+    byte[] ciphertext = service.encrypt("bob");
+    assertThat(ciphertext, is(notNullValue()));
+    new EncryptionService("invalid-password").decrypt(ciphertext);
+  }
 }

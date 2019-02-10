@@ -7,57 +7,57 @@ import java.net.URL;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class OidcMetadata {
-    @JsonProperty("authorization_endpoint")
-    private URL authorizationEndpoint;
+  @JsonProperty("authorization_endpoint")
+  private URL authorizationEndpoint;
 
-    @JsonProperty("userinfo_endpoint")
-    private URL userinfoEndpoint;
+  @JsonProperty("userinfo_endpoint")
+  private URL userinfoEndpoint;
 
-    @JsonProperty("token_endpoint")
-    private URL tokenEndpoint;
+  @JsonProperty("token_endpoint")
+  private URL tokenEndpoint;
 
-    @JsonProperty("jwks_uri")
-    private URL jsonWebKeysUri;
+  @JsonProperty("jwks_uri")
+  private URL jsonWebKeysUri;
 
-    private String issuer;
+  private String issuer;
 
-    public URL getAuthorizationEndpoint() {
-        return authorizationEndpoint;
-    }
+  public URL getAuthorizationEndpoint() {
+    return authorizationEndpoint;
+  }
 
-    public void setAuthorizationEndpoint(URL authorizationEndpoint) {
-        this.authorizationEndpoint = authorizationEndpoint;
-    }
+  public void setAuthorizationEndpoint(URL authorizationEndpoint) {
+    this.authorizationEndpoint = authorizationEndpoint;
+  }
 
-    public URL getUserinfoEndpoint() {
-        return userinfoEndpoint;
-    }
+  public URL getUserinfoEndpoint() {
+    return userinfoEndpoint;
+  }
 
-    public void setUserinfoEndpoint(URL userinfoEndpoint) {
-        this.userinfoEndpoint = userinfoEndpoint;
-    }
+  public void setUserinfoEndpoint(URL userinfoEndpoint) {
+    this.userinfoEndpoint = userinfoEndpoint;
+  }
 
-    public URL getTokenEndpoint() {
-        return tokenEndpoint;
-    }
+  public URL getTokenEndpoint() {
+    return tokenEndpoint;
+  }
 
-    public void setTokenEndpoint(URL tokenEndpoint) {
-        this.tokenEndpoint = tokenEndpoint;
-    }
+  public void setTokenEndpoint(URL tokenEndpoint) {
+    this.tokenEndpoint = tokenEndpoint;
+  }
 
-    public URL getJsonWebKeysUri() {
-        return jsonWebKeysUri;
-    }
+  public URL getJsonWebKeysUri() {
+    return jsonWebKeysUri;
+  }
 
-    public void setJsonWebKeysUri(URL jsonWebKeysUri) {
-        this.jsonWebKeysUri = jsonWebKeysUri;
-    }
+  public void setJsonWebKeysUri(URL jsonWebKeysUri) {
+    this.jsonWebKeysUri = jsonWebKeysUri;
+  }
 
-    public String getIssuer() {
-        return issuer;
-    }
+  public String getIssuer() {
+    return issuer;
+  }
 
-    public void setIssuer(String issuer) {
-        this.issuer = issuer;
-    }
+  public void setIssuer(String issuer) {
+    this.issuer = issuer;
+  }
 }

@@ -14,7 +14,6 @@
  */
 package org.cloudfoundry.identity.uaa.authentication.manager;
 
-
 import org.cloudfoundry.identity.uaa.constants.OriginKeys;
 import org.cloudfoundry.identity.uaa.provider.IdentityProvider;
 import org.cloudfoundry.identity.uaa.provider.IdentityProviderProvisioning;
@@ -38,39 +37,50 @@ import static org.mockito.Mockito.when;
 
 public class CheckIdpEnabledAuthenticationManagerTest extends JdbcTestBase {
 
-    private IdentityProviderProvisioning identityProviderProvisioning;
-    private CheckIdpEnabledAuthenticationManager manager;
-    private UsernamePasswordAuthenticationToken token;
+  private IdentityProviderProvisioning identityProviderProvisioning;
+  private CheckIdpEnabledAuthenticationManager manager;
+  private UsernamePasswordAuthenticationToken token;
 
-    @Before
-    public void setupAuthManager() {
-        identityProviderProvisioning = new JdbcIdentityProviderProvisioning(jdbcTemplate);
-        MockUaaUserDatabase userDatabase = new MockUaaUserDatabase(u -> u.withId("id").withUsername("marissa").withEmail("test@test.org").withVerified(true).withPassword("koala"));
-        PasswordEncoder encoder = mock(PasswordEncoder.class);
-        when(encoder.matches(anyString(),anyString())).thenReturn(true);
-        AuthzAuthenticationManager authzAuthenticationManager = new AuthzAuthenticationManager(userDatabase, encoder, identityProviderProvisioning);
-        authzAuthenticationManager.setOrigin(OriginKeys.UAA);
-        AccountLoginPolicy mockAccountLoginPolicy = mock(AccountLoginPolicy.class);
-        when(mockAccountLoginPolicy.isAllowed(any(), any())).thenReturn(true);
-        authzAuthenticationManager.setAccountLoginPolicy(mockAccountLoginPolicy);
+  @Before
+  public void setupAuthManager() {
+    identityProviderProvisioning = new JdbcIdentityProviderProvisioning(jdbcTemplate);
+    MockUaaUserDatabase userDatabase =
+        new MockUaaUserDatabase(
+            u ->
+                u.withId("id")
+                    .withUsername("marissa")
+                    .withEmail("test@test.org")
+                    .withVerified(true)
+                    .withPassword("koala"));
+    PasswordEncoder encoder = mock(PasswordEncoder.class);
+    when(encoder.matches(anyString(), anyString())).thenReturn(true);
+    AuthzAuthenticationManager authzAuthenticationManager =
+        new AuthzAuthenticationManager(userDatabase, encoder, identityProviderProvisioning);
+    authzAuthenticationManager.setOrigin(OriginKeys.UAA);
+    AccountLoginPolicy mockAccountLoginPolicy = mock(AccountLoginPolicy.class);
+    when(mockAccountLoginPolicy.isAllowed(any(), any())).thenReturn(true);
+    authzAuthenticationManager.setAccountLoginPolicy(mockAccountLoginPolicy);
 
-        manager = new CheckIdpEnabledAuthenticationManager(authzAuthenticationManager, OriginKeys.UAA, identityProviderProvisioning);
-        token = new UsernamePasswordAuthenticationToken("marissa", "koala");
-    }
+    manager =
+        new CheckIdpEnabledAuthenticationManager(
+            authzAuthenticationManager, OriginKeys.UAA, identityProviderProvisioning);
+    token = new UsernamePasswordAuthenticationToken("marissa", "koala");
+  }
 
-    @Test
-    public void testAuthenticate() {
-        Authentication auth = manager.authenticate(token);
-        assertNotNull(auth);
-        assertTrue(auth.isAuthenticated());
-    }
+  @Test
+  public void testAuthenticate() {
+    Authentication auth = manager.authenticate(token);
+    assertNotNull(auth);
+    assertTrue(auth.isAuthenticated());
+  }
 
-    @Test(expected = ProviderNotFoundException.class)
-    public void testAuthenticateIdpDisabled() {
-        IdentityProvider provider = identityProviderProvisioning.retrieveByOrigin(OriginKeys.UAA, IdentityZoneHolder.get().getId());
-        provider.setActive(false);
-        identityProviderProvisioning.update(provider, IdentityZoneHolder.get().getId());
-        manager.authenticate(token);
-    }
-
+  @Test(expected = ProviderNotFoundException.class)
+  public void testAuthenticateIdpDisabled() {
+    IdentityProvider provider =
+        identityProviderProvisioning.retrieveByOrigin(
+            OriginKeys.UAA, IdentityZoneHolder.get().getId());
+    provider.setActive(false);
+    identityProviderProvisioning.update(provider, IdentityZoneHolder.get().getId());
+    manager.authenticate(token);
+  }
 }

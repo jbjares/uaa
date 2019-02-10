@@ -22,5 +22,4 @@ import java.lang.annotation.Target;
 @ActiveProfiles("default")
 @WebAppConfiguration
 @ContextConfiguration(classes = TestWebAppContext.class)
-public @interface WithSpring {
-}
+public @interface WithSpring {}

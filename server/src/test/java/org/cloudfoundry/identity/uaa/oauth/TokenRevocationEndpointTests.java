@@ -48,77 +48,80 @@ import static org.mockito.Mockito.spy;
 
 public class TokenRevocationEndpointTests extends JdbcTestBase {
 
-    private TokenRevocationEndpoint endpoint;
-    private RandomValueStringGenerator generator;
-    private BaseClientDetails client;
-    private ApplicationEventPublisher publisher;
-    private MultitenantJdbcClientDetailsService clientService;
+  private TokenRevocationEndpoint endpoint;
+  private RandomValueStringGenerator generator;
+  private BaseClientDetails client;
+  private ApplicationEventPublisher publisher;
+  private MultitenantJdbcClientDetailsService clientService;
 
-    @Before
-    public void setupForTokenRevocation() throws Exception {
-        String zoneId = IdentityZoneHolder.get().getId();
-        generator = new RandomValueStringGenerator();
-        String clientId = generator.generate().toLowerCase();
-        client = new BaseClientDetails(clientId, "", "some.scopes", "client_credentials", "authorities");
-        client.addAdditionalInformation(TOKEN_SALT, "pre-salt");
-        clientService = spy(new MultitenantJdbcClientDetailsService(jdbcTemplate));
-        clientService.addClientDetails(client, zoneId);
+  @Before
+  public void setupForTokenRevocation() throws Exception {
+    String zoneId = IdentityZoneHolder.get().getId();
+    generator = new RandomValueStringGenerator();
+    String clientId = generator.generate().toLowerCase();
+    client =
+        new BaseClientDetails(clientId, "", "some.scopes", "client_credentials", "authorities");
+    client.addAdditionalInformation(TOKEN_SALT, "pre-salt");
+    clientService = spy(new MultitenantJdbcClientDetailsService(jdbcTemplate));
+    clientService.addClientDetails(client, zoneId);
 
-        ScimUserProvisioning userProvisioning = new JdbcScimUserProvisioning(
-            jdbcTemplate,
-            new JdbcPagingListFactory(jdbcTemplate, limitSqlAdapter)
-        );
-        JdbcRevocableTokenProvisioning provisioning = spy(new JdbcRevocableTokenProvisioning(jdbcTemplate, limitSqlAdapter, new TimeServiceImpl()));
-        endpoint = spy(new TokenRevocationEndpoint(clientService, userProvisioning, provisioning));
-        publisher = mock(ApplicationEventPublisher.class);
-        endpoint.setApplicationEventPublisher(publisher);
+    ScimUserProvisioning userProvisioning =
+        new JdbcScimUserProvisioning(
+            jdbcTemplate, new JdbcPagingListFactory(jdbcTemplate, limitSqlAdapter));
+    JdbcRevocableTokenProvisioning provisioning =
+        spy(
+            new JdbcRevocableTokenProvisioning(
+                jdbcTemplate, limitSqlAdapter, new TimeServiceImpl()));
+    endpoint = spy(new TokenRevocationEndpoint(clientService, userProvisioning, provisioning));
+    publisher = mock(ApplicationEventPublisher.class);
+    endpoint.setApplicationEventPublisher(publisher);
 
-        SecurityContextHolder.getContext().setAuthentication(
+    SecurityContextHolder.getContext()
+        .setAuthentication(
             new UaaOauth2Authentication(
                 "token-value",
                 zoneId,
                 mock(OAuth2Request.class),
                 new UaaAuthentication(
-                    new UaaPrincipal("id", "username", "username@test.com", OriginKeys.UAA, "", zoneId),
+                    new UaaPrincipal(
+                        "id", "username", "username@test.com", OriginKeys.UAA, "", zoneId),
                     Collections.emptyList(),
-                    mock(UaaAuthenticationDetails.class)
-                )
-            )
-        );
+                    mock(UaaAuthenticationDetails.class))));
 
-        provisioning.create(
-            new RevocableToken()
-                .setClientId(client.getClientId())
-                .setTokenId("token-id")
-                .setUserId(null)
-                .setResponseType(RevocableToken.TokenType.ACCESS_TOKEN)
-                .setValue("value")
-                .setIssuedAt(System.currentTimeMillis()),
-            zoneId
-        );
-    }
+    provisioning.create(
+        new RevocableToken()
+            .setClientId(client.getClientId())
+            .setTokenId("token-id")
+            .setUserId(null)
+            .setResponseType(RevocableToken.TokenType.ACCESS_TOKEN)
+            .setValue("value")
+            .setIssuedAt(System.currentTimeMillis()),
+        zoneId);
+  }
 
-    @After
-    public void cleanup() throws Exception {
-        SecurityContextHolder.clearContext();
-        IdentityZoneHolder.clear();
-    }
+  @After
+  public void cleanup() throws Exception {
+    SecurityContextHolder.clearContext();
+    IdentityZoneHolder.clear();
+  }
 
-    @Test
-    public void revokeTokensForClient() throws Exception {
-        assertEquals("pre-salt", getClient().getAdditionalInformation().get(TOKEN_SALT));
-        assertEquals(1, clientTokenCount());
-        endpoint.revokeTokensForClient(client.getClientId());
-        assertNotEquals("pre-salt", getClient().getAdditionalInformation().get(TOKEN_SALT));
-        assertEquals(0, clientTokenCount());
-    }
+  @Test
+  public void revokeTokensForClient() throws Exception {
+    assertEquals("pre-salt", getClient().getAdditionalInformation().get(TOKEN_SALT));
+    assertEquals(1, clientTokenCount());
+    endpoint.revokeTokensForClient(client.getClientId());
+    assertNotEquals("pre-salt", getClient().getAdditionalInformation().get(TOKEN_SALT));
+    assertEquals(0, clientTokenCount());
+  }
 
-    public ClientDetails getClient() {
-        return clientService.loadClientByClientId(client.getClientId());
-    }
+  public ClientDetails getClient() {
+    return clientService.loadClientByClientId(client.getClientId());
+  }
 
-    public int clientTokenCount() {
-        return jdbcTemplate.queryForObject("select count(*) from revocable_tokens where client_id = ?", Integer.class, client.getClientId());
-    }
-
+  public int clientTokenCount() {
+    return jdbcTemplate.queryForObject(
+        "select count(*) from revocable_tokens where client_id = ?",
+        Integer.class,
+        client.getClientId());
+  }
 }

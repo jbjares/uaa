@@ -2,51 +2,52 @@ package org.cloudfoundry.identity.uaa.util;
 
 public class TestUaaUrlBuilder {
 
-    private String systemDomain;
-    private String subdomain = "";
-    private String path = "";
-    private String scheme = "https";
+  private String systemDomain;
+  private String subdomain = "";
+  private String path = "";
+  private String scheme = "https";
 
-    public TestUaaUrlBuilder() {
-        systemDomain = System.getenv().get("TARGET_CF_SYSTEM_DOMAIN");
+  public TestUaaUrlBuilder() {
+    systemDomain = System.getenv().get("TARGET_CF_SYSTEM_DOMAIN");
+  }
+
+  public String build() {
+    if (systemDomain == null || "".equals(systemDomain)) {
+      throw new RuntimeException(
+          "TARGET_CF_SYSTEM_DOMAIN environment variable must be set for tests to run. Example value: oms.identity.team");
     }
 
-    public String build() {
-        if (systemDomain == null || "".equals(systemDomain)) {
-            throw new RuntimeException("TARGET_CF_SYSTEM_DOMAIN environment variable must be set for tests to run. Example value: oms.identity.team");
-        }
+    systemDomain = systemDomain.replaceAll("/$", "");
+    path = path.replaceAll("^/", "");
 
-        systemDomain = systemDomain.replaceAll("/$","");
-        path = path.replaceAll("^/", "");
+    String url;
 
-        String url;
-
-        if (!"".equals(subdomain)) {
-            url = String.format("%s://%s.uaa.%s/%s", scheme, subdomain, systemDomain, path);
-        } else {
-            url = String.format("%s://uaa.%s/%s", scheme, systemDomain, path);
-        }
-
-        return url;
+    if (!"".equals(subdomain)) {
+      url = String.format("%s://%s.uaa.%s/%s", scheme, subdomain, systemDomain, path);
+    } else {
+      url = String.format("%s://uaa.%s/%s", scheme, systemDomain, path);
     }
 
-    public TestUaaUrlBuilder withScheme(String scheme) {
-        this.scheme = scheme;
-        return this;
-    }
+    return url;
+  }
 
-    public TestUaaUrlBuilder withPath(String path) {
-        this.path = path;
-        return this;
-    }
+  public TestUaaUrlBuilder withScheme(String scheme) {
+    this.scheme = scheme;
+    return this;
+  }
 
-    public TestUaaUrlBuilder withSubdomain(String subdomain) {
-        this.subdomain = subdomain;
-        return this;
-    }
+  public TestUaaUrlBuilder withPath(String path) {
+    this.path = path;
+    return this;
+  }
 
-    public String getSystemDomain() {
-        systemDomain = systemDomain.replaceAll("/$","");
-        return systemDomain;
-    }
+  public TestUaaUrlBuilder withSubdomain(String subdomain) {
+    this.subdomain = subdomain;
+    return this;
+  }
+
+  public String getSystemDomain() {
+    systemDomain = systemDomain.replaceAll("/$", "");
+    return systemDomain;
+  }
 }

@@ -36,447 +36,494 @@ import java.util.List;
 import java.util.regex.Pattern;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.springframework.http.HttpHeaders.ACCEPT;
-import static org.springframework.http.HttpHeaders.ACCEPT_LANGUAGE;
-import static org.springframework.http.HttpHeaders.AUTHORIZATION;
-import static org.springframework.http.HttpHeaders.CONTENT_LANGUAGE;
-import static org.springframework.http.HttpHeaders.CONTENT_TYPE;
+import static org.junit.Assert.*;
+import static org.springframework.http.HttpHeaders.*;
 
 public class CorsFilterTests {
 
-    StringWriter writer;
-    Appender appender;
+  StringWriter writer;
+  Appender appender;
+
+  @Before
+  public void start() {
+    this.writer = new StringWriter();
+    this.appender = new WriterAppender(new PatternLayout("%p, %m%n"), this.writer);
+    this.writer.getBuffer().setLength(0);
+    Logger.getRootLogger().addAppender(this.appender);
+  }
+
+  @After
+  public void clean() {
+    Logger.getRootLogger().removeAppender(this.appender);
+  }
+
+  @Test
+  public void test_XHR_Default_Allowed_Methods() {
+    CorsFilter filter = new CorsFilter();
+    assertThat(
+        filter.getXhrConfiguration().getAllowedMethods(), containsInAnyOrder("GET", "OPTIONS"));
+  }
+
+  @Test
+  public void test_NonXHR_Default_Allowed_Methods() {
+    CorsFilter filter = new CorsFilter();
+    assertThat(
+        filter.getDefaultConfiguration().getAllowedMethods(),
+        containsInAnyOrder("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
+  }
+
+  @Test
+  public void test_XHR_Default_Allowed_Headers() {
+    CorsFilter filter = new CorsFilter();
+    assertThat(
+        filter.getXhrConfiguration().getAllowedHeaders(),
+        containsInAnyOrder(
+            ACCEPT,
+            ACCEPT_LANGUAGE,
+            CONTENT_TYPE,
+            CONTENT_LANGUAGE,
+            AUTHORIZATION,
+            CorsFilter.X_REQUESTED_WITH));
+  }
 
-    @Before
-    public void start() {
-        this.writer = new StringWriter();
-        this.appender = new WriterAppender(new PatternLayout("%p, %m%n"), this.writer);
-        this.writer.getBuffer().setLength(0);
-        Logger.getRootLogger().addAppender(this.appender);
-    }
+  @Test
+  public void test_NonXHR_Default_Allowed_Headers() {
+    CorsFilter filter = new CorsFilter();
+    assertThat(
+        filter.getDefaultConfiguration().getAllowedHeaders(),
+        containsInAnyOrder(ACCEPT, ACCEPT_LANGUAGE, CONTENT_TYPE, CONTENT_LANGUAGE, AUTHORIZATION));
+  }
 
-    @After
-    public void clean() {
-        Logger.getRootLogger().removeAppender(this.appender);
-    }
+  @Test
+  public void test_XHR_Default_Allowed_Credentials() {
+    CorsFilter filter = new CorsFilter();
+    assertTrue(filter.getXhrConfiguration().isAllowedCredentials());
+  }
 
-    @Test
-    public void test_XHR_Default_Allowed_Methods() {
-        CorsFilter filter = new CorsFilter();
-        assertThat(filter.getXhrConfiguration().getAllowedMethods(), containsInAnyOrder("GET", "OPTIONS"));
-    }
+  @Test
+  public void test_NonXHR_Default_Allowed_Credentials() {
+    CorsFilter filter = new CorsFilter();
+    assertFalse(filter.getDefaultConfiguration().isAllowedCredentials());
+  }
 
-    @Test
-    public void test_NonXHR_Default_Allowed_Methods() {
-        CorsFilter filter = new CorsFilter();
-        assertThat(filter.getDefaultConfiguration().getAllowedMethods(), containsInAnyOrder("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
-    }
+  @Test
+  public void testRequestExpectStandardCorsResponse() throws ServletException, IOException {
+    CorsFilter corsFilter = createConfiguredCorsFilter();
 
-    @Test
-    public void test_XHR_Default_Allowed_Headers() {
-        CorsFilter filter = new CorsFilter();
-        assertThat(filter.getXhrConfiguration().getAllowedHeaders(), containsInAnyOrder(ACCEPT, ACCEPT_LANGUAGE, CONTENT_TYPE, CONTENT_LANGUAGE,AUTHORIZATION, CorsFilter.X_REQUESTED_WITH));
-    }
+    MockHttpServletRequest request = new MockHttpServletRequest("GET", "/uaa/userinfo");
+    request.addHeader("Origin", "example.com");
 
-    @Test
-    public void test_NonXHR_Default_Allowed_Headers() {
-        CorsFilter filter = new CorsFilter();
-        assertThat(filter.getDefaultConfiguration().getAllowedHeaders(), containsInAnyOrder(ACCEPT, ACCEPT_LANGUAGE, CONTENT_TYPE, CONTENT_LANGUAGE,AUTHORIZATION));
-    }
+    MockHttpServletResponse response = new MockHttpServletResponse();
 
-    @Test
-    public void test_XHR_Default_Allowed_Credentials() {
-        CorsFilter filter = new CorsFilter();
-        assertTrue(filter.getXhrConfiguration().isAllowedCredentials());
-    }
+    FilterChain filterChain = newMockFilterChain();
 
-    @Test
-    public void test_NonXHR_Default_Allowed_Credentials() {
-        CorsFilter filter = new CorsFilter();
-        assertFalse(filter.getDefaultConfiguration().isAllowedCredentials());
-    }
+    corsFilter.doFilter(request, response, filterChain);
 
-    @Test
-    public void testRequestExpectStandardCorsResponse() throws ServletException, IOException {
-        CorsFilter corsFilter = createConfiguredCorsFilter();
+    assertEquals("*", response.getHeaderValue("Access-Control-Allow-Origin"));
+  }
 
-        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/uaa/userinfo");
-        request.addHeader("Origin", "example.com");
+  @Test
+  public void testRequestWithMaliciousOrigin() throws ServletException, IOException {
+    CorsFilter corsFilter = createConfiguredCorsFilter();
 
-        MockHttpServletResponse response = new MockHttpServletResponse();
+    MockHttpServletRequest request = new MockHttpServletRequest("GET", "/uaa/userinfo");
+    request.addHeader("Origin", "<script>alert('1ee7 h@x0r')</script>");
+    request.addHeader("X-Requested-With", "XMLHttpRequest");
 
-        FilterChain filterChain = newMockFilterChain();
+    MockHttpServletResponse response = new MockHttpServletResponse();
 
-        corsFilter.doFilter(request, response, filterChain);
+    FilterChain filterChain = newMockFilterChain();
 
-        assertEquals("*", response.getHeaderValue("Access-Control-Allow-Origin"));
-    }
+    corsFilter.doFilter(request, response, filterChain);
 
-    @Test
-    public void testRequestWithMaliciousOrigin() throws ServletException, IOException {
-        CorsFilter corsFilter = createConfiguredCorsFilter();
+    assertEquals(403, response.getStatus());
+  }
 
-        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/uaa/userinfo");
-        request.addHeader("Origin", "<script>alert('1ee7 h@x0r')</script>");
-        request.addHeader("X-Requested-With", "XMLHttpRequest");
+  @Test
+  public void testRequestExpectXhrCorsResponse() throws ServletException, IOException {
+    CorsFilter corsFilter = createConfiguredCorsFilter();
 
-        MockHttpServletResponse response = new MockHttpServletResponse();
+    MockHttpServletRequest request = new MockHttpServletRequest("GET", "/uaa/userinfo");
+    request.addHeader("Origin", "example.com");
+    request.addHeader("X-Requested-With", "XMLHttpRequest");
 
-        FilterChain filterChain = newMockFilterChain();
+    MockHttpServletResponse response = new MockHttpServletResponse();
 
-        corsFilter.doFilter(request, response, filterChain);
+    FilterChain filterChain = newMockFilterChain();
 
-        assertEquals(403, response.getStatus());
-    }
+    corsFilter.doFilter(request, response, filterChain);
 
-    @Test
-    public void testRequestExpectXhrCorsResponse() throws ServletException, IOException {
-        CorsFilter corsFilter = createConfiguredCorsFilter();
+    assertEquals("example.com", response.getHeaderValue("Access-Control-Allow-Origin"));
+  }
 
-        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/uaa/userinfo");
-        request.addHeader("Origin", "example.com");
-        request.addHeader("X-Requested-With", "XMLHttpRequest");
+  @Test
+  public void testSameOriginRequest() throws ServletException, IOException {
+    CorsFilter corsFilter = createConfiguredCorsFilter();
 
-        MockHttpServletResponse response = new MockHttpServletResponse();
+    MockHttpServletRequest request = new MockHttpServletRequest("GET", "/uaa/userinfo");
+    request.addHeader("X-Requested-With", "XMLHttpRequest");
 
-        FilterChain filterChain = newMockFilterChain();
+    MockHttpServletResponse response = new MockHttpServletResponse();
 
-        corsFilter.doFilter(request, response, filterChain);
+    FilterChain filterChain = newMockFilterChain();
 
-        assertEquals("example.com", response.getHeaderValue("Access-Control-Allow-Origin"));
-    }
+    corsFilter.doFilter(request, response, filterChain);
 
-    @Test
-    public void testSameOriginRequest() throws ServletException, IOException {
-        CorsFilter corsFilter = createConfiguredCorsFilter();
+    assertEquals(200, response.getStatus());
+  }
 
-        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/uaa/userinfo");
-        request.addHeader("X-Requested-With", "XMLHttpRequest");
+  @Test
+  public void testRequestWithForbiddenOrigin() throws ServletException, IOException {
+    CorsFilter corsFilter = createConfiguredCorsFilter();
 
-        MockHttpServletResponse response = new MockHttpServletResponse();
+    MockHttpServletRequest request = new MockHttpServletRequest("GET", "/uaa/userinfo");
+    request.addHeader("Origin", "bunnyoutlet.com");
+    request.addHeader("X-Requested-With", "XMLHttpRequest");
 
-        FilterChain filterChain = newMockFilterChain();
+    MockHttpServletResponse response = new MockHttpServletResponse();
 
-        corsFilter.doFilter(request, response, filterChain);
+    FilterChain filterChain = newMockFilterChain();
 
-        assertEquals(200, response.getStatus());
-    }
+    corsFilter.doFilter(request, response, filterChain);
 
-    @Test
-    public void testRequestWithForbiddenOrigin() throws ServletException, IOException {
-        CorsFilter corsFilter = createConfiguredCorsFilter();
+    assertEquals(403, response.getStatus());
+  }
 
-        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/uaa/userinfo");
-        request.addHeader("Origin", "bunnyoutlet.com");
-        request.addHeader("X-Requested-With", "XMLHttpRequest");
+  @Test
+  public void testRequestWithForbiddenUri() throws ServletException, IOException {
+    CorsFilter corsFilter = createConfiguredCorsFilter();
 
-        MockHttpServletResponse response = new MockHttpServletResponse();
+    MockHttpServletRequest request = new MockHttpServletRequest("GET", "/uaa/login");
+    request.addHeader("Origin", "example.com");
+    request.addHeader("X-Requested-With", "XMLHttpRequest");
 
-        FilterChain filterChain = newMockFilterChain();
+    MockHttpServletResponse response = new MockHttpServletResponse();
 
-        corsFilter.doFilter(request, response, filterChain);
+    FilterChain filterChain = newMockFilterChain();
 
-        assertEquals(403, response.getStatus());
-    }
+    corsFilter.doFilter(request, response, filterChain);
 
-    @Test
-    public void testRequestWithForbiddenUri() throws ServletException, IOException {
-        CorsFilter corsFilter = createConfiguredCorsFilter();
+    assertEquals(403, response.getStatus());
+  }
 
-        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/uaa/login");
-        request.addHeader("Origin", "example.com");
-        request.addHeader("X-Requested-With", "XMLHttpRequest");
+  @Test
+  public void testRequestWithMethodNotAllowed() throws ServletException, IOException {
+    CorsFilter corsFilter = createConfiguredCorsFilter();
 
-        MockHttpServletResponse response = new MockHttpServletResponse();
+    MockHttpServletRequest request = new MockHttpServletRequest("POST", "/uaa/userinfo");
+    request.addHeader("Origin", "example.com");
+    request.addHeader("X-Requested-With", "XMLHttpRequest");
 
-        FilterChain filterChain = newMockFilterChain();
+    MockHttpServletResponse response = new MockHttpServletResponse();
 
-        corsFilter.doFilter(request, response, filterChain);
+    FilterChain filterChain = newMockFilterChain();
 
-        assertEquals(403, response.getStatus());
-    }
+    corsFilter.doFilter(request, response, filterChain);
 
-    @Test
-    public void testRequestWithMethodNotAllowed() throws ServletException, IOException {
-        CorsFilter corsFilter = createConfiguredCorsFilter();
+    assertEquals(405, response.getStatus());
+  }
 
-        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/uaa/userinfo");
-        request.addHeader("Origin", "example.com");
-        request.addHeader("X-Requested-With", "XMLHttpRequest");
+  @Test
+  public void testPreFlightExpectStandardCorsResponse() throws ServletException, IOException {
+    CorsFilter corsFilter = createConfiguredCorsFilter();
+    corsFilter
+        .getDefaultConfiguration()
+        .setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE"));
 
-        MockHttpServletResponse response = new MockHttpServletResponse();
+    MockHttpServletRequest request = new MockHttpServletRequest("OPTIONS", "/uaa/userinfo");
+    request.addHeader("Access-Control-Request-Headers", "Authorization");
+    request.addHeader("Access-Control-Request-Method", "GET");
+    request.addHeader("Origin", "example.com");
 
-        FilterChain filterChain = newMockFilterChain();
+    MockHttpServletResponse response = new MockHttpServletResponse();
 
-        corsFilter.doFilter(request, response, filterChain);
+    FilterChain filterChain = newMockFilterChain();
 
-        assertEquals(405, response.getStatus());
-    }
+    corsFilter.doFilter(request, response, filterChain);
 
-    @Test
-    public void testPreFlightExpectStandardCorsResponse() throws ServletException, IOException {
-        CorsFilter corsFilter = createConfiguredCorsFilter();
-        corsFilter.getDefaultConfiguration().setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE"));
+    assertStandardCorsPreFlightResponse(response, "GET, POST, PUT, DELETE", "Authorization");
+  }
 
-        MockHttpServletRequest request = new MockHttpServletRequest("OPTIONS", "/uaa/userinfo");
-        request.addHeader("Access-Control-Request-Headers", "Authorization");
-        request.addHeader("Access-Control-Request-Method", "GET");
-        request.addHeader("Origin", "example.com");
+  @Test
+  public void testPreFlightExpectXhrCorsResponse() throws ServletException, IOException {
+    CorsFilter corsFilter = createConfiguredCorsFilter();
+    corsFilter
+        .getXhrConfiguration()
+        .setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE"));
+    MockHttpServletRequest request = new MockHttpServletRequest("OPTIONS", "/uaa/userinfo");
+    request.addHeader("Access-Control-Request-Headers", "Authorization, X-Requested-With");
+    request.addHeader("Access-Control-Request-Method", "GET");
+    request.addHeader("Origin", "example.com");
 
-        MockHttpServletResponse response = new MockHttpServletResponse();
+    MockHttpServletResponse response = new MockHttpServletResponse();
 
-        FilterChain filterChain = newMockFilterChain();
+    FilterChain filterChain = newMockFilterChain();
 
-        corsFilter.doFilter(request, response, filterChain);
+    corsFilter.doFilter(request, response, filterChain);
 
-        assertStandardCorsPreFlightResponse(response, "GET, POST, PUT, DELETE", "Authorization");
-    }
+    assertXhrCorsPreFlightResponse(response);
+  }
 
-    @Test
-    public void testPreFlightExpectXhrCorsResponse() throws ServletException, IOException {
-        CorsFilter corsFilter = createConfiguredCorsFilter();
-        corsFilter.getXhrConfiguration().setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE"));
-        MockHttpServletRequest request = new MockHttpServletRequest("OPTIONS", "/uaa/userinfo");
-        request.addHeader("Access-Control-Request-Headers", "Authorization, X-Requested-With");
-        request.addHeader("Access-Control-Request-Method", "GET");
-        request.addHeader("Origin", "example.com");
+  @Test
+  public void testPreFlightWrongOriginSpecified() throws ServletException, IOException {
+    CorsFilter corsFilter = createConfiguredCorsFilter();
 
-        MockHttpServletResponse response = new MockHttpServletResponse();
+    MockHttpServletRequest request = new MockHttpServletRequest("OPTIONS", "/uaa/userinfo");
+    request.addHeader("Access-Control-Request-Headers", "Authorization, X-Requested-With");
+    request.addHeader("Access-Control-Request-Method", "GET");
+    request.addHeader("Origin", "bunnyoutlet.com");
 
-        FilterChain filterChain = newMockFilterChain();
+    MockHttpServletResponse response = new MockHttpServletResponse();
 
-        corsFilter.doFilter(request, response, filterChain);
+    FilterChain filterChain = newMockFilterChain();
 
-        assertXhrCorsPreFlightResponse(response);
-    }
+    corsFilter.doFilter(request, response, filterChain);
 
-    @Test
-    public void testPreFlightWrongOriginSpecified() throws ServletException, IOException {
-        CorsFilter corsFilter = createConfiguredCorsFilter();
+    assertEquals(403, response.getStatus());
+  }
 
-        MockHttpServletRequest request = new MockHttpServletRequest("OPTIONS", "/uaa/userinfo");
-        request.addHeader("Access-Control-Request-Headers", "Authorization, X-Requested-With");
-        request.addHeader("Access-Control-Request-Method", "GET");
-        request.addHeader("Origin", "bunnyoutlet.com");
+  @Test
+  public void testPreFlightRequestNoRequestMethod() throws ServletException, IOException {
+    CorsFilter corsFilter = createConfiguredCorsFilter();
 
-        MockHttpServletResponse response = new MockHttpServletResponse();
+    MockHttpServletRequest request = new MockHttpServletRequest("OPTIONS", "/uaa/userinfo");
+    request.addHeader("Access-Control-Request-Headers", "Authorization, X-Requested-With");
+    request.addHeader("Origin", "example.com");
 
-        FilterChain filterChain = newMockFilterChain();
+    MockHttpServletResponse response = new MockHttpServletResponse();
 
-        corsFilter.doFilter(request, response, filterChain);
+    FilterChain filterChain = newMockFilterChain();
 
-        assertEquals(403, response.getStatus());
-    }
+    corsFilter.doFilter(request, response, filterChain);
 
-    @Test
-    public void testPreFlightRequestNoRequestMethod() throws ServletException, IOException {
-        CorsFilter corsFilter = createConfiguredCorsFilter();
+    assertEquals("example.com", response.getHeaderValue("Access-Control-Allow-Origin"));
+  }
 
-        MockHttpServletRequest request = new MockHttpServletRequest("OPTIONS", "/uaa/userinfo");
-        request.addHeader("Access-Control-Request-Headers", "Authorization, X-Requested-With");
-        request.addHeader("Origin", "example.com");
+  @Test
+  public void testPreFlightRequestMethodNotAllowed() throws ServletException, IOException {
+    CorsFilter corsFilter = createConfiguredCorsFilter();
 
-        MockHttpServletResponse response = new MockHttpServletResponse();
+    MockHttpServletRequest request = new MockHttpServletRequest("OPTIONS", "/uaa/userinfo");
+    request.addHeader("Access-Control-Request-Headers", "Authorization, X-Requested-With");
+    request.addHeader("Access-Control-Request-Method", "POST");
+    request.addHeader("Origin", "example.com");
 
-        FilterChain filterChain = newMockFilterChain();
+    MockHttpServletResponse response = new MockHttpServletResponse();
 
-        corsFilter.doFilter(request, response, filterChain);
+    FilterChain filterChain = newMockFilterChain();
 
-        assertEquals("example.com", response.getHeaderValue("Access-Control-Allow-Origin"));
-    }
+    corsFilter.doFilter(request, response, filterChain);
 
-    @Test
-    public void testPreFlightRequestMethodNotAllowed() throws ServletException, IOException {
-        CorsFilter corsFilter = createConfiguredCorsFilter();
+    assertEquals(405, response.getStatus());
+  }
 
-        MockHttpServletRequest request = new MockHttpServletRequest("OPTIONS", "/uaa/userinfo");
-        request.addHeader("Access-Control-Request-Headers", "Authorization, X-Requested-With");
-        request.addHeader("Access-Control-Request-Method", "POST");
-        request.addHeader("Origin", "example.com");
+  @Test
+  public void testPreFlightRequestHeaderNotAllowed() throws ServletException, IOException {
+    CorsFilter corsFilter = createConfiguredCorsFilter();
 
-        MockHttpServletResponse response = new MockHttpServletResponse();
+    MockHttpServletRequest request = new MockHttpServletRequest("OPTIONS", "/uaa/userinfo");
+    request.addHeader(
+        "Access-Control-Request-Headers", "Authorization, X-Requested-With, X-Not-Allowed");
+    request.addHeader("Access-Control-Request-Method", "GET");
+    request.addHeader("Origin", "example.com");
 
-        FilterChain filterChain = newMockFilterChain();
+    MockHttpServletResponse response = new MockHttpServletResponse();
 
-        corsFilter.doFilter(request, response, filterChain);
+    FilterChain filterChain = newMockFilterChain();
 
-        assertEquals(405, response.getStatus());
-    }
+    corsFilter.doFilter(request, response, filterChain);
 
-    @Test
-    public void testPreFlightRequestHeaderNotAllowed() throws ServletException, IOException {
-        CorsFilter corsFilter = createConfiguredCorsFilter();
+    assertEquals(403, response.getStatus());
+  }
 
-        MockHttpServletRequest request = new MockHttpServletRequest("OPTIONS", "/uaa/userinfo");
-        request.addHeader("Access-Control-Request-Headers", "Authorization, X-Requested-With, X-Not-Allowed");
-        request.addHeader("Access-Control-Request-Method", "GET");
-        request.addHeader("Origin", "example.com");
+  @Test
+  public void testPreFlightRequestUriNotWhitelisted() throws ServletException, IOException {
+    CorsFilter corsFilter = createConfiguredCorsFilter();
 
-        MockHttpServletResponse response = new MockHttpServletResponse();
+    MockHttpServletRequest request = new MockHttpServletRequest("OPTIONS", "/uaa/login");
+    request.addHeader("Access-Control-Request-Method", "GET");
+    request.addHeader("Access-Control-Request-Headers", "X-Requested-With");
+    request.addHeader("Origin", "example.com");
 
-        FilterChain filterChain = newMockFilterChain();
+    MockHttpServletResponse response = new MockHttpServletResponse();
 
-        corsFilter.doFilter(request, response, filterChain);
+    FilterChain filterChain = newMockFilterChain();
 
-        assertEquals(403, response.getStatus());
-    }
+    corsFilter.doFilter(request, response, filterChain);
 
-    @Test
-    public void testPreFlightRequestUriNotWhitelisted() throws ServletException, IOException {
-        CorsFilter corsFilter = createConfiguredCorsFilter();
+    assertEquals(403, response.getStatus());
+  }
 
-        MockHttpServletRequest request = new MockHttpServletRequest("OPTIONS", "/uaa/login");
-        request.addHeader("Access-Control-Request-Method", "GET");
-        request.addHeader("Access-Control-Request-Headers", "X-Requested-With");
-        request.addHeader("Origin", "example.com");
+  @Test
+  public void testPreFlightOriginNotWhitelisted() throws ServletException, IOException {
+    CorsFilter corsFilter = createConfiguredCorsFilter();
 
-        MockHttpServletResponse response = new MockHttpServletResponse();
+    MockHttpServletRequest request = new MockHttpServletRequest("OPTIONS", "/uaa/userinfo");
+    request.addHeader("Access-Control-Request-Method", "GET");
+    request.addHeader("Access-Control-Request-Headers", "X-Requested-With");
+    request.addHeader("Origin", "bunnyoutlet.com");
 
-        FilterChain filterChain = newMockFilterChain();
+    MockHttpServletResponse response = new MockHttpServletResponse();
 
-        corsFilter.doFilter(request, response, filterChain);
+    FilterChain filterChain = newMockFilterChain();
 
-        assertEquals(403, response.getStatus());
-    }
+    corsFilter.doFilter(request, response, filterChain);
 
-    @Test
-    public void testPreFlightOriginNotWhitelisted() throws ServletException, IOException {
-        CorsFilter corsFilter = createConfiguredCorsFilter();
+    assertEquals(403, response.getStatus());
+  }
 
-        MockHttpServletRequest request = new MockHttpServletRequest("OPTIONS", "/uaa/userinfo");
-        request.addHeader("Access-Control-Request-Method", "GET");
-        request.addHeader("Access-Control-Request-Headers", "X-Requested-With");
-        request.addHeader("Origin", "bunnyoutlet.com");
+  @Test
+  public void doInitializeWithNoPropertiesSet() throws ServletException, IOException {
 
-        MockHttpServletResponse response = new MockHttpServletResponse();
+    CorsFilter corsFilter = new CorsFilter();
 
-        FilterChain filterChain = newMockFilterChain();
+    // We need to set the default value that Spring would otherwise set.
+    List<String> allowedUris = new ArrayList<>(Arrays.asList(".*"));
+    corsFilter.getXhrConfiguration().setAllowedUris(allowedUris);
+    corsFilter.getDefaultConfiguration().setAllowedUris(allowedUris);
 
-        corsFilter.doFilter(request, response, filterChain);
+    // We need to set the default value that Spring would otherwise set.
+    List<String> allowedOrigins = new ArrayList<>(Arrays.asList(".*"));
+    corsFilter.getDefaultConfiguration().setAllowedOrigins(allowedOrigins);
 
-        assertEquals(403, response.getStatus());
-    }
+    corsFilter.initialize();
 
-    @Test
-    public void doInitializeWithNoPropertiesSet() throws ServletException, IOException {
+    @SuppressWarnings("unchecked")
+    List<Pattern> allowedUriPatterns = corsFilter.getXhrConfiguration().getAllowedUriPatterns();
+    assertEquals(1, allowedUriPatterns.size());
 
-        CorsFilter corsFilter = new CorsFilter();
+    @SuppressWarnings("unchecked")
+    List<Pattern> allowedOriginPatterns =
+        corsFilter.getXhrConfiguration().getAllowedOriginPatterns();
+    assertEquals(1, allowedOriginPatterns.size());
 
-        // We need to set the default value that Spring would otherwise set.
-        List<String> allowedUris = new ArrayList<>(Arrays.asList(".*"));
-        corsFilter.getXhrConfiguration().setAllowedUris(allowedUris);
-        corsFilter.getDefaultConfiguration().setAllowedUris(allowedUris);
+    MockHttpServletRequest request = new MockHttpServletRequest("OPTIONS", "/uaa/userinfo");
+    request.addHeader("Access-Control-Request-Method", "GET");
+    request.addHeader(
+        "Access-Control-Request-Headers",
+        AUTHORIZATION
+            + ", "
+            + ACCEPT
+            + ", "
+            + CONTENT_TYPE
+            + ", "
+            + ACCEPT_LANGUAGE
+            + ", "
+            + CONTENT_LANGUAGE);
+    request.addHeader("Origin", "example.com");
 
-        // We need to set the default value that Spring would otherwise set.
-        List<String> allowedOrigins = new ArrayList<>(Arrays.asList(".*"));
-        corsFilter.getDefaultConfiguration().setAllowedOrigins(allowedOrigins);
+    MockHttpServletResponse response = new MockHttpServletResponse();
 
-        corsFilter.initialize();
+    FilterChain filterChain = newMockFilterChain();
 
-        @SuppressWarnings("unchecked")
-        List<Pattern> allowedUriPatterns = corsFilter.getXhrConfiguration().getAllowedUriPatterns();
-        assertEquals(1, allowedUriPatterns.size());
+    corsFilter.doFilter(request, response, filterChain);
 
-        @SuppressWarnings("unchecked")
-        List<Pattern> allowedOriginPatterns = corsFilter.getXhrConfiguration().getAllowedOriginPatterns();
-        assertEquals(1, allowedOriginPatterns.size());
+    assertStandardCorsPreFlightResponse(
+        response,
+        "GET, OPTIONS, POST, PUT, DELETE, PATCH",
+        AUTHORIZATION,
+        ACCEPT,
+        CONTENT_TYPE,
+        ACCEPT_LANGUAGE,
+        CONTENT_LANGUAGE);
+  }
 
-        MockHttpServletRequest request = new MockHttpServletRequest("OPTIONS", "/uaa/userinfo");
-        request.addHeader("Access-Control-Request-Method", "GET");
-        request.addHeader("Access-Control-Request-Headers", AUTHORIZATION+", "+ACCEPT+", "+CONTENT_TYPE+", "+ACCEPT_LANGUAGE+", "+CONTENT_LANGUAGE);
-        request.addHeader("Origin", "example.com");
+  @Test
+  public void doInitializeWithInvalidUriRegex() {
 
-        MockHttpServletResponse response = new MockHttpServletResponse();
+    CorsFilter corsFilter = new CorsFilter();
 
-        FilterChain filterChain = newMockFilterChain();
+    List<String> allowedUris =
+        new ArrayList<String>(Arrays.asList(new String[] {"^/uaa/userinfo(", "^/uaa/logout.do$"}));
+    corsFilter.getXhrConfiguration().setAllowedUris(allowedUris);
 
-        corsFilter.doFilter(request, response, filterChain);
+    List<String> allowedOrigins =
+        new ArrayList<String>(Arrays.asList(new String[] {"example.com$"}));
+    corsFilter.getXhrConfiguration().setAllowedOrigins(allowedOrigins);
 
-        assertStandardCorsPreFlightResponse(response, "GET, OPTIONS, POST, PUT, DELETE, PATCH", AUTHORIZATION, ACCEPT, CONTENT_TYPE, ACCEPT_LANGUAGE, CONTENT_LANGUAGE);
-    }
+    corsFilter.initialize();
 
-    @Test
-    public void doInitializeWithInvalidUriRegex() {
+    assertTrue(
+        "Did not find expected error message in log.",
+        this.writer
+            .toString()
+            .contains("Invalid regular expression pattern in cors.xhr.allowed.uris:"));
+  }
 
-        CorsFilter corsFilter = new CorsFilter();
+  @Test
+  public void doInitializeWithInvalidOriginRegex() {
 
-        List<String> allowedUris =
-                new ArrayList<String>(Arrays.asList(new String[] { "^/uaa/userinfo(", "^/uaa/logout.do$" }));
-        corsFilter.getXhrConfiguration().setAllowedUris(allowedUris);
+    CorsFilter corsFilter = new CorsFilter();
 
-        List<String> allowedOrigins = new ArrayList<String>(Arrays.asList(new String[] { "example.com$" }));
-        corsFilter.getXhrConfiguration().setAllowedOrigins(allowedOrigins);
+    List<String> allowedUris =
+        new ArrayList<>(Arrays.asList("^/uaa/userinfo$", "^/uaa/logout.do$"));
+    corsFilter.getXhrConfiguration().setAllowedUris(allowedUris);
 
-        corsFilter.initialize();
+    List<String> allowedOrigins = new ArrayList<>(Arrays.asList("example.com("));
+    corsFilter.getXhrConfiguration().setAllowedOrigins(allowedOrigins);
 
-        assertTrue("Did not find expected error message in log.",
-                this.writer.toString().contains("Invalid regular expression pattern in cors.xhr.allowed.uris:"));
-    }
+    corsFilter.initialize();
 
-    @Test
-    public void doInitializeWithInvalidOriginRegex() {
+    assertTrue(
+        "Did not find expected error message in log.",
+        this.writer
+            .toString()
+            .contains("Invalid regular expression pattern in cors.xhr.allowed.origins:"));
+  }
 
-        CorsFilter corsFilter = new CorsFilter();
+  private static CorsFilter createConfiguredCorsFilter() {
+    CorsFilter corsFilter = new CorsFilter();
 
-        List<String> allowedUris = new ArrayList<>(Arrays.asList("^/uaa/userinfo$", "^/uaa/logout.do$"));
-        corsFilter.getXhrConfiguration().setAllowedUris(allowedUris);
+    List<String> allowedUris =
+        new ArrayList<>(Arrays.asList("^/uaa/userinfo$", "^/uaa/logout\\.do$"));
+    corsFilter.getXhrConfiguration().setAllowedUris(allowedUris);
+    corsFilter.getDefaultConfiguration().setAllowedUris(allowedUris);
 
-        List<String> allowedOrigins = new ArrayList<>(Arrays.asList("example.com("));
-        corsFilter.getXhrConfiguration().setAllowedOrigins(allowedOrigins);
+    List<String> allowedOrigins = new ArrayList<String>(Arrays.asList("example.com$"));
+    corsFilter.getXhrConfiguration().setAllowedOrigins(allowedOrigins);
+    corsFilter.getDefaultConfiguration().setAllowedOrigins(allowedOrigins);
 
-        corsFilter.initialize();
+    corsFilter
+        .getXhrConfiguration()
+        .setAllowedHeaders(Arrays.asList("Accept", "Authorization", "X-Requested-With"));
+    corsFilter
+        .getDefaultConfiguration()
+        .setAllowedHeaders(Arrays.asList("Accept", "Authorization"));
 
-        assertTrue("Did not find expected error message in log.",
-                this.writer.toString().contains("Invalid regular expression pattern in cors.xhr.allowed.origins:"));
-    }
+    corsFilter.initialize();
+    return corsFilter;
+  }
 
-    private static CorsFilter createConfiguredCorsFilter() {
-        CorsFilter corsFilter = new CorsFilter();
+  private static void assertStandardCorsPreFlightResponse(
+      final MockHttpServletResponse response, String allowedMethods, String... allowedHeaders) {
+    assertEquals("*", response.getHeaderValue("Access-Control-Allow-Origin"));
+    assertEquals(allowedMethods, response.getHeaderValue("Access-Control-Allow-Methods"));
+    assertThat(
+        new CorsFilter()
+            .splitCommaDelimitedString(
+                (String) response.getHeaderValue("Access-Control-Allow-Headers")),
+        containsInAnyOrder(allowedHeaders));
+    assertEquals("1728000", response.getHeaderValue("Access-Control-Max-Age"));
+  }
 
-        List<String> allowedUris = new ArrayList<>(Arrays.asList("^/uaa/userinfo$", "^/uaa/logout\\.do$" ));
-        corsFilter.getXhrConfiguration().setAllowedUris(allowedUris);
-        corsFilter.getDefaultConfiguration().setAllowedUris(allowedUris);
+  private static void assertXhrCorsPreFlightResponse(final MockHttpServletResponse response) {
+    assertEquals("example.com", response.getHeaderValue("Access-Control-Allow-Origin"));
+    assertEquals("GET, POST, PUT, DELETE", response.getHeaderValue("Access-Control-Allow-Methods"));
+    assertEquals(
+        "Authorization, X-Requested-With", response.getHeaderValue("Access-Control-Allow-Headers"));
+    assertEquals("1728000", response.getHeaderValue("Access-Control-Max-Age"));
+  }
 
-        List<String> allowedOrigins = new ArrayList<String>(Arrays.asList("example.com$"));
-        corsFilter.getXhrConfiguration().setAllowedOrigins(allowedOrigins);
-        corsFilter.getDefaultConfiguration().setAllowedOrigins(allowedOrigins);
+  private static FilterChain newMockFilterChain() {
+    FilterChain filterChain =
+        new FilterChain() {
 
-        corsFilter.getXhrConfiguration().setAllowedHeaders(Arrays.asList("Accept", "Authorization","X-Requested-With"));
-        corsFilter.getDefaultConfiguration().setAllowedHeaders(Arrays.asList("Accept", "Authorization"));
-
-        corsFilter.initialize();
-        return corsFilter;
-    }
-
-    private static void assertStandardCorsPreFlightResponse(final MockHttpServletResponse response, String allowedMethods, String... allowedHeaders) {
-        assertEquals("*", response.getHeaderValue("Access-Control-Allow-Origin"));
-        assertEquals(allowedMethods, response.getHeaderValue("Access-Control-Allow-Methods"));
-        assertThat(new CorsFilter().splitCommaDelimitedString((String)response.getHeaderValue("Access-Control-Allow-Headers")), containsInAnyOrder(allowedHeaders));
-        assertEquals("1728000", response.getHeaderValue("Access-Control-Max-Age"));
-    }
-
-    private static void assertXhrCorsPreFlightResponse(final MockHttpServletResponse response) {
-        assertEquals("example.com", response.getHeaderValue("Access-Control-Allow-Origin"));
-        assertEquals("GET, POST, PUT, DELETE", response.getHeaderValue("Access-Control-Allow-Methods"));
-        assertEquals("Authorization, X-Requested-With", response.getHeaderValue("Access-Control-Allow-Headers"));
-        assertEquals("1728000", response.getHeaderValue("Access-Control-Max-Age"));
-    }
-
-    private static FilterChain newMockFilterChain() {
-        FilterChain filterChain = new FilterChain() {
-
-            @Override
-            public void doFilter(final ServletRequest request, final ServletResponse response)
-                    throws IOException,
-                    ServletException {
-                // Do nothing.
-            }
+          @Override
+          public void doFilter(final ServletRequest request, final ServletResponse response)
+              throws IOException, ServletException {
+            // Do nothing.
+          }
         };
-        return filterChain;
-    }
-
+    return filterChain;
+  }
 }

@@ -9,44 +9,43 @@ import org.junit.Test;
 
 public class UaaIdentityProviderConfigValidatorTest {
 
-    UaaIdentityProviderDefinition uaaIdentityProviderDef;
-    UaaIdentityProviderConfigValidator configValidator;
+  UaaIdentityProviderDefinition uaaIdentityProviderDef;
+  UaaIdentityProviderConfigValidator configValidator;
 
-    @Before
-    public void setUp() {
-        uaaIdentityProviderDef = new UaaIdentityProviderDefinition();
-        uaaIdentityProviderDef.setPasswordPolicy(new PasswordPolicy(8, 8, 1, 1, 8, 1, 3));
-        uaaIdentityProviderDef.setLockoutPolicy(new LockoutPolicy(1, 1, 1));
-        configValidator = new UaaIdentityProviderConfigValidator();
-    }
+  @Before
+  public void setUp() {
+    uaaIdentityProviderDef = new UaaIdentityProviderDefinition();
+    uaaIdentityProviderDef.setPasswordPolicy(new PasswordPolicy(8, 8, 1, 1, 8, 1, 3));
+    uaaIdentityProviderDef.setLockoutPolicy(new LockoutPolicy(1, 1, 1));
+    configValidator = new UaaIdentityProviderConfigValidator();
+  }
 
-    @Test
-    public void nullConfigIsAllowed() throws Exception {
-        configValidator.validate((AbstractIdentityProviderDefinition) null);
-    }
+  @Test
+  public void nullConfigIsAllowed() throws Exception {
+    configValidator.validate((AbstractIdentityProviderDefinition) null);
+  }
 
-    @Test
-    public void nullLockoutPolicy_isAllowed() throws Exception {
-        uaaIdentityProviderDef.setLockoutPolicy(null);
-        configValidator.validate(uaaIdentityProviderDef);
-    }
+  @Test
+  public void nullLockoutPolicy_isAllowed() throws Exception {
+    uaaIdentityProviderDef.setLockoutPolicy(null);
+    configValidator.validate(uaaIdentityProviderDef);
+  }
 
-    @Test
-    public void nullPasswordPolicy_isAllowed() throws Exception {
-        uaaIdentityProviderDef.setPasswordPolicy(null);
-        configValidator.validate(uaaIdentityProviderDef);
-    }
+  @Test
+  public void nullPasswordPolicy_isAllowed() throws Exception {
+    uaaIdentityProviderDef.setPasswordPolicy(null);
+    configValidator.validate(uaaIdentityProviderDef);
+  }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void passwordPolicyIsNotNullAndIncomplete() {
-        uaaIdentityProviderDef.setPasswordPolicy(new PasswordPolicy(8, 8, -1, 1, 8, 1, 3));
-        configValidator.validate(uaaIdentityProviderDef);
-    }
+  @Test(expected = IllegalArgumentException.class)
+  public void passwordPolicyIsNotNullAndIncomplete() {
+    uaaIdentityProviderDef.setPasswordPolicy(new PasswordPolicy(8, 8, -1, 1, 8, 1, 3));
+    configValidator.validate(uaaIdentityProviderDef);
+  }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void lockoutPolicyIsNotNullAndIncomplete() {
-        uaaIdentityProviderDef.setLockoutPolicy(new LockoutPolicy(-1, 1, 1));
-        configValidator.validate(uaaIdentityProviderDef);
-    }
-
+  @Test(expected = IllegalArgumentException.class)
+  public void lockoutPolicyIsNotNullAndIncomplete() {
+    uaaIdentityProviderDef.setLockoutPolicy(new LockoutPolicy(-1, 1, 1));
+    configValidator.validate(uaaIdentityProviderDef);
+  }
 }

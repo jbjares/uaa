@@ -19,64 +19,69 @@ import static org.cloudfoundry.identity.uaa.util.TokenValidation.buildAccessToke
 import static org.cloudfoundry.identity.uaa.util.TokenValidation.buildRefreshTokenValidator;
 
 public class TokenValidationService {
-    private RevocableTokenProvisioning revocableTokenProvisioning;
-    private TokenEndpointBuilder tokenEndpointBuilder;
-    private UaaUserDatabase userDatabase;
-    private ClientServicesExtension clientServicesExtension;
-    private KeyInfoService keyInfoService;
+  private RevocableTokenProvisioning revocableTokenProvisioning;
+  private TokenEndpointBuilder tokenEndpointBuilder;
+  private UaaUserDatabase userDatabase;
+  private ClientServicesExtension clientServicesExtension;
+  private KeyInfoService keyInfoService;
 
-    public TokenValidationService(RevocableTokenProvisioning revocableTokenProvisioning,
-                                  TokenEndpointBuilder tokenEndpointBuilder,
-                                  UaaUserDatabase userDatabase,
-                                  ClientServicesExtension clientServicesExtension,
-                                  KeyInfoService keyInfoService) {
-        this.revocableTokenProvisioning = revocableTokenProvisioning;
-        this.tokenEndpointBuilder = tokenEndpointBuilder;
-        this.userDatabase = userDatabase;
-        this.clientServicesExtension = clientServicesExtension;
-        this.keyInfoService = keyInfoService;
+  public TokenValidationService(
+      RevocableTokenProvisioning revocableTokenProvisioning,
+      TokenEndpointBuilder tokenEndpointBuilder,
+      UaaUserDatabase userDatabase,
+      ClientServicesExtension clientServicesExtension,
+      KeyInfoService keyInfoService) {
+    this.revocableTokenProvisioning = revocableTokenProvisioning;
+    this.tokenEndpointBuilder = tokenEndpointBuilder;
+    this.userDatabase = userDatabase;
+    this.clientServicesExtension = clientServicesExtension;
+    this.keyInfoService = keyInfoService;
+  }
+
+  public TokenValidation validateToken(String token, boolean isAccessToken) {
+    if (!UaaTokenUtils.isJwtToken(token)) {
+      RevocableToken revocableToken;
+      try {
+        revocableToken =
+            revocableTokenProvisioning.retrieve(token, IdentityZoneHolder.get().getId());
+      } catch (EmptyResultDataAccessException ex) {
+        throw new TokenRevokedException(
+            "The token expired, was revoked, or the token ID is incorrect.");
+      }
+      token = revocableToken.getValue();
     }
 
-    public TokenValidation validateToken(String token, boolean isAccessToken) {
-        if (!UaaTokenUtils.isJwtToken(token)) {
-            RevocableToken revocableToken;
-            try {
-                revocableToken = revocableTokenProvisioning.retrieve(token, IdentityZoneHolder.get().getId());
-            } catch (EmptyResultDataAccessException ex) {
-                throw new TokenRevokedException("The token expired, was revoked, or the token ID is incorrect.");
-            }
-            token = revocableToken.getValue();
-        }
+    TokenValidation tokenValidation =
+        isAccessToken
+            ? buildAccessTokenValidator(token, keyInfoService)
+            : buildRefreshTokenValidator(token, keyInfoService);
+    tokenValidation
+        .checkRevocableTokenStore(revocableTokenProvisioning)
+        .checkIssuer(tokenEndpointBuilder.getTokenEndpoint());
 
-        TokenValidation tokenValidation = isAccessToken ?
-                buildAccessTokenValidator(token, keyInfoService) : buildRefreshTokenValidator(token, keyInfoService);
-        tokenValidation
-                .checkRevocableTokenStore(revocableTokenProvisioning)
-                .checkIssuer(tokenEndpointBuilder.getTokenEndpoint());
+    ClientDetails client = tokenValidation.getClientDetails(clientServicesExtension);
+    UaaUser user = tokenValidation.getUserDetails(userDatabase);
+    tokenValidation.checkClientAndUser(client, user);
 
-        ClientDetails client = tokenValidation.getClientDetails(clientServicesExtension);
-        UaaUser user = tokenValidation.getUserDetails(userDatabase);
-        tokenValidation
-                .checkClientAndUser(client, user);
-
-        List<String> clientSecrets = new ArrayList<>();
-        List<String> revocationSignatureList = new ArrayList<>();
-        if (client.getClientSecret() != null) {
-            clientSecrets.addAll(Arrays.asList(client.getClientSecret().split(" ")));
-        } else {
-            revocationSignatureList.add(UaaTokenUtils.getRevocableTokenSignature(client, null, user));
-        }
-
-        for (String clientSecret : clientSecrets) {
-            revocationSignatureList.add(UaaTokenUtils.getRevocableTokenSignature(client, clientSecret, user));
-        }
-
-        tokenValidation = tokenValidation.checkRevocationSignature(revocationSignatureList);
-
-        return tokenValidation;
+    List<String> clientSecrets = new ArrayList<>();
+    List<String> revocationSignatureList = new ArrayList<>();
+    if (client.getClientSecret() != null) {
+      clientSecrets.addAll(Arrays.asList(client.getClientSecret().split(" ")));
+    } else {
+      revocationSignatureList.add(UaaTokenUtils.getRevocableTokenSignature(client, null, user));
     }
 
-    public void setUserDatabase(UaaUserDatabase userDatabase) {
-        this.userDatabase = userDatabase;
+    for (String clientSecret : clientSecrets) {
+      revocationSignatureList.add(
+          UaaTokenUtils.getRevocableTokenSignature(client, clientSecret, user));
     }
+
+    tokenValidation = tokenValidation.checkRevocationSignature(revocationSignatureList);
+
+    return tokenValidation;
+  }
+
+  public void setUserDatabase(UaaUserDatabase userDatabase) {
+    this.userDatabase = userDatabase;
+  }
 }

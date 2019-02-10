@@ -24,43 +24,46 @@ import static org.cloudfoundry.identity.uaa.web.UaaSavedRequestAwareAuthenticati
 import static org.cloudfoundry.identity.uaa.web.UaaSavedRequestAwareAuthenticationSuccessHandler.URI_OVERRIDE_ATTRIBUTE;
 import static org.junit.Assert.assertEquals;
 
-
 public class UaaSavedRequestAwareAuthenticationSuccessHandlerTests {
 
-    MockHttpServletRequest request;
-    UaaSavedRequestAwareAuthenticationSuccessHandler handler;
-    @Before
-    public void setUp() throws Exception {
-        request = new MockHttpServletRequest();
-        handler = new UaaSavedRequestAwareAuthenticationSuccessHandler();
-    }
+  MockHttpServletRequest request;
+  UaaSavedRequestAwareAuthenticationSuccessHandler handler;
 
-    @Test
-    public void allow_url_override() {
-        request.setAttribute(URI_OVERRIDE_ATTRIBUTE, "http://test.com");
-        assertEquals("http://test.com", handler.determineTargetUrl(request, new MockHttpServletResponse()));
-    }
+  @Before
+  public void setUp() throws Exception {
+    request = new MockHttpServletRequest();
+    handler = new UaaSavedRequestAwareAuthenticationSuccessHandler();
+  }
 
-    @Test
-    public void form_parameter_is_overridden() {
-        request.setParameter(FORM_REDIRECT_PARAMETER, "http://test.com");
-        request.setAttribute(URI_OVERRIDE_ATTRIBUTE, "http://override.test.com");
-        assertEquals("http://override.test.com", handler.determineTargetUrl(request, new MockHttpServletResponse()));
-    }
+  @Test
+  public void allow_url_override() {
+    request.setAttribute(URI_OVERRIDE_ATTRIBUTE, "http://test.com");
+    assertEquals(
+        "http://test.com", handler.determineTargetUrl(request, new MockHttpServletResponse()));
+  }
 
-    @Test
-    public void validFormRedirectIsReturned() {
-        String redirectUri = request.getScheme() + "://" + request.getServerName() + "/test";
+  @Test
+  public void form_parameter_is_overridden() {
+    request.setParameter(FORM_REDIRECT_PARAMETER, "http://test.com");
+    request.setAttribute(URI_OVERRIDE_ATTRIBUTE, "http://override.test.com");
+    assertEquals(
+        "http://override.test.com",
+        handler.determineTargetUrl(request, new MockHttpServletResponse()));
+  }
 
-        request.setParameter(FORM_REDIRECT_PARAMETER, redirectUri);
-        assertEquals(redirectUri, handler.determineTargetUrl(request, new MockHttpServletResponse()));
-    }
+  @Test
+  public void validFormRedirectIsReturned() {
+    String redirectUri = request.getScheme() + "://" + request.getServerName() + "/test";
 
-    @Test
-    public void invalidFormRedirectIsNotReturned() {
-        String redirectUri = "http://test.com/test";
+    request.setParameter(FORM_REDIRECT_PARAMETER, redirectUri);
+    assertEquals(redirectUri, handler.determineTargetUrl(request, new MockHttpServletResponse()));
+  }
 
-        request.setParameter(FORM_REDIRECT_PARAMETER, redirectUri);
-        assertEquals("/", handler.determineTargetUrl(request, new MockHttpServletResponse()));
-    }
+  @Test
+  public void invalidFormRedirectIsNotReturned() {
+    String redirectUri = "http://test.com/test";
+
+    request.setParameter(FORM_REDIRECT_PARAMETER, redirectUri);
+    assertEquals("/", handler.determineTargetUrl(request, new MockHttpServletResponse()));
+  }
 }

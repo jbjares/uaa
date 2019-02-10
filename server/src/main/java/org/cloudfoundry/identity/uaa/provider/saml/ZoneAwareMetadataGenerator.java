@@ -32,101 +32,110 @@ import java.util.Set;
 
 public class ZoneAwareMetadataGenerator extends MetadataGenerator {
 
-    @Override
-    public ExtendedMetadata generateExtendedMetadata() {
-        ExtendedMetadata metadata = super.generateExtendedMetadata();
-        metadata.setAlias(UaaUrlUtils.getSubdomain()+metadata.getAlias());
-        return metadata;
+  @Override
+  public ExtendedMetadata generateExtendedMetadata() {
+    ExtendedMetadata metadata = super.generateExtendedMetadata();
+    metadata.setAlias(UaaUrlUtils.getSubdomain() + metadata.getAlias());
+    return metadata;
+  }
+
+  @Override
+  public String getEntityId() {
+    if (!IdentityZoneHolder.isUaa()) {
+      String url = getZoneDefinition().getSamlConfig().getEntityID();
+      if (url != null) {
+        return url;
+      }
     }
 
-    @Override
-    public String getEntityId() {
-        if (!IdentityZoneHolder.isUaa()) {
-            String url = getZoneDefinition().getSamlConfig().getEntityID();
-            if (url != null) {
-                return url;
-            }
-        }
+    String entityId = super.getEntityId();
 
-        String entityId = super.getEntityId();
-
-        if (UaaUrlUtils.isUrl(entityId)) {
-            return UaaUrlUtils.addSubdomainToUrl(entityId);
-        } else {
-            return UaaUrlUtils.getSubdomain() + entityId;
-        }
+    if (UaaUrlUtils.isUrl(entityId)) {
+      return UaaUrlUtils.addSubdomainToUrl(entityId);
+    } else {
+      return UaaUrlUtils.getSubdomain() + entityId;
     }
+  }
 
-    @Override
-    public String getEntityBaseURL() {
-        return UaaUrlUtils.addSubdomainToUrl(super.getEntityBaseURL());
+  @Override
+  public String getEntityBaseURL() {
+    return UaaUrlUtils.addSubdomainToUrl(super.getEntityBaseURL());
+  }
+
+  @Override
+  protected String getEntityAlias() {
+    return UaaUrlUtils.getSubdomain() + super.getEntityAlias();
+  }
+
+  @Override
+  public boolean isRequestSigned() {
+    if (!IdentityZoneHolder.isUaa()) {
+      return getZoneDefinition().getSamlConfig().isRequestSigned();
     }
+    return super.isRequestSigned();
+  }
 
-    @Override
-    protected String getEntityAlias() {
-        return UaaUrlUtils.getSubdomain() + super.getEntityAlias();
+  @Override
+  public boolean isWantAssertionSigned() {
+    if (!IdentityZoneHolder.isUaa()) {
+      return getZoneDefinition().getSamlConfig().isWantAssertionSigned();
     }
+    return super.isWantAssertionSigned();
+  }
 
-    @Override
-    public boolean isRequestSigned() {
-        if (!IdentityZoneHolder.isUaa()) {
-            return getZoneDefinition().getSamlConfig().isRequestSigned();
-        }
-        return super.isRequestSigned();
-    }
+  protected IdentityZoneConfiguration getZoneDefinition() {
+    IdentityZone zone = IdentityZoneHolder.get();
+    IdentityZoneConfiguration definition = zone.getConfig();
+    return definition != null ? definition : new IdentityZoneConfiguration();
+  }
 
-    @Override
-    public boolean isWantAssertionSigned() {
-        if (!IdentityZoneHolder.isUaa()) {
-            return getZoneDefinition().getSamlConfig().isWantAssertionSigned();
-        }
-        return super.isWantAssertionSigned();
-    }
+  @Override
+  public EntityDescriptor generateMetadata() {
+    EntityDescriptor result = super.generateMetadata();
+    result.setID(SAMLUtil.getNCNameString(result.getEntityID()));
+    return result;
+  }
 
-    protected IdentityZoneConfiguration getZoneDefinition() {
-        IdentityZone zone = IdentityZoneHolder.get();
-        IdentityZoneConfiguration definition = zone.getConfig();
-        return definition!=null ? definition : new IdentityZoneConfiguration();
-    }
+  @Override
+  protected SPSSODescriptor buildSPSSODescriptor(
+      String entityBaseURL,
+      String entityAlias,
+      boolean requestSigned,
+      boolean wantAssertionSigned,
+      Collection<String> includedNameID) {
+    SPSSODescriptor result =
+        super.buildSPSSODescriptor(
+            entityBaseURL, entityAlias, requestSigned, wantAssertionSigned, includedNameID);
 
-    @Override
-    public EntityDescriptor generateMetadata() {
-        EntityDescriptor result = super.generateMetadata();
-        result.setID(SAMLUtil.getNCNameString(result.getEntityID()));
-        return result;
-    }
+    // metadata should not contain inactive keys
+    KeyManager samlSPKeyManager = IdentityZoneHolder.getSamlSPKeyManager();
+    if (samlSPKeyManager != null && samlSPKeyManager.getAvailableCredentials() != null) {
+      Set<String> allKeyAliases = new HashSet(samlSPKeyManager.getAvailableCredentials());
+      String activeKeyAlias = samlSPKeyManager.getDefaultCredentialName();
+      allKeyAliases.remove(activeKeyAlias);
+      for (String keyAlias : allKeyAliases) {
+        result
+            .getKeyDescriptors()
+            .add(getKeyDescriptor(UsageType.SIGNING, getServerKeyInfo(keyAlias)));
+      }
+    } // add inactive keys as signing verification keys
 
-    @Override
-    protected SPSSODescriptor buildSPSSODescriptor(String entityBaseURL, String entityAlias, boolean requestSigned, boolean wantAssertionSigned, Collection<String> includedNameID) {
-        SPSSODescriptor result = super.buildSPSSODescriptor(entityBaseURL, entityAlias, requestSigned, wantAssertionSigned, includedNameID);
+    int index = result.getAssertionConsumerServices().size();
+    result
+        .getAssertionConsumerServices()
+        .add(
+            getAssertionConsumerService(
+                getEntityBaseURL(),
+                getEntityAlias(),
+                false,
+                index,
+                "/oauth/token",
+                "urn:oasis:names:tc:SAML:2.0:bindings:URI"));
+    return result;
+  }
 
-        //metadata should not contain inactive keys
-        KeyManager samlSPKeyManager = IdentityZoneHolder.getSamlSPKeyManager();
-        if (samlSPKeyManager != null && samlSPKeyManager.getAvailableCredentials()!=null) {
-            Set<String> allKeyAliases = new HashSet(samlSPKeyManager.getAvailableCredentials());
-            String activeKeyAlias = samlSPKeyManager.getDefaultCredentialName();
-            allKeyAliases.remove(activeKeyAlias);
-            for (String keyAlias : allKeyAliases) {
-                result.getKeyDescriptors().add(getKeyDescriptor(UsageType.SIGNING, getServerKeyInfo(keyAlias)));
-            }
-        }//add inactive keys as signing verification keys
-
-        int index = result.getAssertionConsumerServices().size();
-        result.getAssertionConsumerServices()
-            .add(
-                getAssertionConsumerService(
-                    getEntityBaseURL(),
-                    getEntityAlias(),
-                    false,
-                    index,
-                    "/oauth/token",
-                    "urn:oasis:names:tc:SAML:2.0:bindings:URI"
-                ));
-        return result;
-    }
-
-    @Override
-    public Collection<String> getBindingsSSO() {
-        return Collections.singleton("post");
-    }
+  @Override
+  public Collection<String> getBindingsSSO() {
+    return Collections.singleton("post");
+  }
 }

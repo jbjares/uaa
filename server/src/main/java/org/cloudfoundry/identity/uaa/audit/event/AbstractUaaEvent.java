@@ -1,15 +1,15 @@
-/*******************************************************************************
- *     Cloud Foundry
- *     Copyright (c) [2009-2016] Pivotal Software, Inc. All Rights Reserved.
+/**
+ * ***************************************************************************** Cloud Foundry
+ * Copyright (c) [2009-2016] Pivotal Software, Inc. All Rights Reserved.
  *
- *     This product is licensed to you under the Apache License, Version 2.0 (the "License").
- *     You may not use this product except in compliance with the License.
+ * <p>This product is licensed to you under the Apache License, Version 2.0 (the "License"). You may
+ * not use this product except in compliance with the License.
  *
- *     This product includes a number of subcomponents with
- *     separate copyright notices and license terms. Your use of these
- *     subcomponents is subject to the terms and conditions of the
- *     subcomponent's license, as noted in the LICENSE file.
- *******************************************************************************/
+ * <p>This product includes a number of subcomponents with separate copyright notices and license
+ * terms. Your use of these subcomponents is subject to the terms and conditions of the
+ * subcomponent's license, as noted in the LICENSE file.
+ * *****************************************************************************
+ */
 package org.cloudfoundry.identity.uaa.audit.event;
 
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -43,167 +43,194 @@ import static org.springframework.util.StringUtils.hasText;
  *
  * @author Luke Taylor
  * @author Dave Syer
- *
  */
 public abstract class AbstractUaaEvent extends ApplicationEvent {
 
-    private static final long serialVersionUID = -7639844193401892160L;
-    private transient final IdentityZone identityZone = IdentityZoneHolder.get();
+  private static final long serialVersionUID = -7639844193401892160L;
+  private final transient IdentityZone identityZone = IdentityZoneHolder.get();
 
-    private Authentication authentication;
+  private Authentication authentication;
 
-    protected AbstractUaaEvent(Object source) {
-        super(source);
-        if (source instanceof Authentication) {
-            this.authentication = (Authentication)source;
+  protected AbstractUaaEvent(Object source) {
+    super(source);
+    if (source instanceof Authentication) {
+      this.authentication = (Authentication) source;
+    }
+  }
+
+  protected AbstractUaaEvent(Object source, Authentication authentication) {
+    super(source);
+    this.authentication = authentication;
+  }
+
+  public void process(UaaAuditService auditor) {
+    auditor.log(getAuditEvent(), getAuditEvent().getIdentityZoneId());
+  }
+
+  protected AuditEvent createAuditRecord(String principalId, AuditEventType type, String origin) {
+    return new AuditEvent(
+        type,
+        principalId,
+        origin,
+        null,
+        System.currentTimeMillis(),
+        identityZone.getId(),
+        null,
+        null);
+  }
+
+  protected AuditEvent createAuditRecord(
+      String principalId, AuditEventType type, String origin, String data) {
+    return new AuditEvent(
+        type,
+        principalId,
+        origin,
+        data,
+        System.currentTimeMillis(),
+        identityZone.getId(),
+        null,
+        null);
+  }
+
+  protected AuditEvent createAuditRecord(
+      String principalId,
+      AuditEventType type,
+      String origin,
+      String data,
+      String authenticationType,
+      String message) {
+    return new AuditEvent(
+        type,
+        principalId,
+        origin,
+        data,
+        System.currentTimeMillis(),
+        identityZone.getId(),
+        authenticationType,
+        message);
+  }
+
+  public Authentication getAuthentication() {
+    return authentication;
+  }
+
+  // Ideally we want to get to the point where details is never null, but this
+  // isn't currently possible
+  // due to some OAuth authentication scenarios which don't set it.
+  protected String getOrigin(Principal principal) {
+
+    if (principal instanceof Authentication) {
+
+      Authentication caller = (Authentication) principal;
+      StringBuilder builder = new StringBuilder();
+      if (caller instanceof OAuth2Authentication) {
+        OAuth2Authentication oAuth2Authentication = (OAuth2Authentication) caller;
+        builder.append("client=").append(oAuth2Authentication.getOAuth2Request().getClientId());
+        if (!oAuth2Authentication.isClientOnly()) {
+          builder.append(", ").append("user=").append(oAuth2Authentication.getName());
         }
+      } else {
+        builder.append("caller=").append(caller.getName());
+      }
+
+      if (caller.getDetails() != null) {
+        builder.append(", details=(");
+        try {
+          @SuppressWarnings("unchecked")
+          Map<String, Object> map =
+              JsonUtils.readValue(
+                  (String) caller.getDetails(), new TypeReference<Map<String, Object>>() {});
+          if (map.containsKey("remoteAddress")) {
+            builder.append("remoteAddress=").append(map.get("remoteAddress")).append(", ");
+          }
+          builder.append("type=").append(caller.getDetails().getClass().getSimpleName());
+        } catch (Exception e) {
+          // ignore
+          builder.append(caller.getDetails());
+        }
+        appendTokenDetails(caller, builder);
+        builder.append(")");
+      }
+      return builder.toString();
     }
 
-    protected AbstractUaaEvent(Object source, Authentication authentication) {
-        super(source);
-        this.authentication = authentication;
+    return principal == null ? null : principal.getName();
+  }
+
+  protected void appendTokenDetails(Authentication caller, StringBuilder builder) {
+    String tokenValue = null;
+    if (caller instanceof UaaOauth2Authentication) {
+      tokenValue = ((UaaOauth2Authentication) caller).getTokenValue();
+    } else if (caller.getDetails() instanceof OAuth2AuthenticationDetails) {
+      tokenValue = ((OAuth2AuthenticationDetails) authentication.getDetails()).getTokenValue();
     }
-
-    public void process(UaaAuditService auditor) {
-        auditor.log(getAuditEvent(), getAuditEvent().getIdentityZoneId());
+    if (hasText(tokenValue)) {
+      if (isJwtToken(tokenValue)) {
+        try {
+          Jwt token = JwtHelper.decode(tokenValue);
+          Map<String, Object> claims =
+              JsonUtils.readValue(token.getClaims(), new TypeReference<Map<String, Object>>() {});
+          String issuer = claims.get(ClaimConstants.ISS).toString();
+          String subject = claims.get(ClaimConstants.SUB).toString();
+          builder.append(", sub=").append(subject).append(", ").append("iss=").append(issuer);
+        } catch (Exception e) {
+          builder.append(", <token extraction failed>");
+        }
+      } else {
+        builder.append(", opaque-token=present");
+      }
     }
+  }
 
-    protected AuditEvent createAuditRecord(String principalId, AuditEventType type, String origin) {
-        return new AuditEvent(type, principalId, origin, null, System.currentTimeMillis(), identityZone.getId(), null, null);
-    }
+  public abstract AuditEvent getAuditEvent();
 
-    protected AuditEvent createAuditRecord(String principalId, AuditEventType type, String origin, String data) {
-        return new AuditEvent(type, principalId, origin, data, System.currentTimeMillis(), identityZone.getId(), null, null);
-    }
+  protected static Authentication getContextAuthentication() {
+    Authentication a = SecurityContextHolder.getContext().getAuthentication();
+    if (a == null) {
+      a =
+          new Authentication() {
+            private static final long serialVersionUID = 1748694836774597624L;
 
-    protected AuditEvent createAuditRecord(String principalId, AuditEventType type, String origin, String data, String authenticationType, String message) {
-        return new AuditEvent(type, principalId, origin, data, System.currentTimeMillis(), identityZone.getId(), authenticationType, message);
-    }
+            ArrayList<GrantedAuthority> authorities = new ArrayList<GrantedAuthority>();
 
-    public Authentication getAuthentication() {
-        return authentication;
-    }
-
-    // Ideally we want to get to the point where details is never null, but this
-    // isn't currently possible
-    // due to some OAuth authentication scenarios which don't set it.
-    protected String getOrigin(Principal principal) {
-
-        if (principal instanceof Authentication) {
-
-            Authentication caller = (Authentication) principal;
-            StringBuilder builder = new StringBuilder();
-            if (caller instanceof OAuth2Authentication) {
-                OAuth2Authentication oAuth2Authentication = (OAuth2Authentication) caller;
-                builder.append("client=").append(oAuth2Authentication.getOAuth2Request().getClientId());
-                if (!oAuth2Authentication.isClientOnly()) {
-                    builder.append(", ").append("user=").append(oAuth2Authentication.getName());
-                }
+            @Override
+            public Collection<? extends GrantedAuthority> getAuthorities() {
+              return authorities;
             }
-            else {
-                builder.append("caller=").append(caller.getName());
+
+            @Override
+            public Object getCredentials() {
+              return null;
             }
 
-
-            if (caller.getDetails() != null) {
-                builder.append(", details=(");
-                try {
-                    @SuppressWarnings("unchecked")
-                    Map<String, Object> map =
-                        JsonUtils.readValue((String)caller.getDetails(), new TypeReference<Map<String,Object>>(){});
-                    if (map.containsKey("remoteAddress")) {
-                        builder.append("remoteAddress=").append(map.get("remoteAddress")).append(", ");
-                    }
-                    builder.append("type=").append(caller.getDetails().getClass().getSimpleName());
-                } catch (Exception e) {
-                    // ignore
-                    builder.append(caller.getDetails());
-                }
-                appendTokenDetails(caller, builder);
-                builder.append(")");
+            @Override
+            public Object getDetails() {
+              return null;
             }
-            return builder.toString();
 
-        }
-
-        return principal == null ? null : principal.getName();
-
-    }
-
-    protected void appendTokenDetails(Authentication caller, StringBuilder builder) {
-        String tokenValue = null;
-        if (caller instanceof UaaOauth2Authentication) {
-            tokenValue = ((UaaOauth2Authentication)caller).getTokenValue();
-        } else if (caller.getDetails() instanceof OAuth2AuthenticationDetails) {
-            tokenValue = ((OAuth2AuthenticationDetails)authentication.getDetails()).getTokenValue();
-        }
-        if (hasText(tokenValue)) {
-            if (isJwtToken(tokenValue)) {
-                try {
-                    Jwt token = JwtHelper.decode(tokenValue);
-                    Map<String, Object> claims = JsonUtils.readValue(token.getClaims(), new TypeReference<Map<String, Object>>() {
-                    });
-                    String issuer = claims.get(ClaimConstants.ISS).toString();
-                    String subject = claims.get(ClaimConstants.SUB).toString();
-                    builder.append(", sub=").append(subject).append(", ").append("iss=").append(issuer);
-                } catch (Exception e) {
-                    builder.append(", <token extraction failed>");
-                }
-            } else {
-                builder.append(", opaque-token=present");
+            @Override
+            public Object getPrincipal() {
+              return "null";
             }
-        }
+
+            @Override
+            public boolean isAuthenticated() {
+              return false;
+            }
+
+            @Override
+            public void setAuthenticated(boolean isAuthenticated) throws IllegalArgumentException {}
+
+            @Override
+            public String getName() {
+              return "null";
+            }
+          };
     }
+    return a;
+  }
 
-    public abstract AuditEvent getAuditEvent();
-
-    protected static Authentication getContextAuthentication() {
-        Authentication a = SecurityContextHolder.getContext().getAuthentication();
-        if (a==null) {
-            a = new Authentication() {
-                private static final long serialVersionUID = 1748694836774597624L;
-
-                ArrayList<GrantedAuthority> authorities = new ArrayList<GrantedAuthority>();
-                @Override
-                public Collection<? extends GrantedAuthority> getAuthorities() {
-                    return authorities;
-                }
-
-                @Override
-                public Object getCredentials() {
-                    return null;
-                }
-
-                @Override
-                public Object getDetails() {
-                    return null;
-                }
-
-                @Override
-                public Object getPrincipal() {
-                    return "null";
-                }
-
-                @Override
-                public boolean isAuthenticated() {
-                    return false;
-                }
-
-                @Override
-                public void setAuthenticated(boolean isAuthenticated) throws IllegalArgumentException {
-                }
-
-                @Override
-                public String getName() {
-                    return "null";
-                }
-            };
-        }
-        return a;
-    }
-
-    public IdentityZone getIdentityZone() {
-        return identityZone;
-    }
-
+  public IdentityZone getIdentityZone() {
+    return identityZone;
+  }
 }

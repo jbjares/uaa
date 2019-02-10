@@ -16,5 +16,8 @@
 package org.cloudfoundry.identity.uaa.db;
 
 public enum Vendor {
-    mysql, postgresql, sqlserver, hsqldb;
+  mysql,
+  postgresql,
+  sqlserver,
+  hsqldb;
 }

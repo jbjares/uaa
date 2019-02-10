@@ -23,30 +23,31 @@ import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 
 import static org.junit.Assert.assertFalse;
+
 public class OldAuthzTableDropped extends JdbcTestBase {
 
-    private String tableName = "authz_approvals_old";
+  private String tableName = "authz_approvals_old";
 
-    @Override
-    public void setUp() throws Exception {
-        MockEnvironment environment = new MockEnvironment();
-        if (System.getProperty("spring.active.profiles")!=null) {
-            environment.setActiveProfiles(System.getProperty("spring.active.profiles"));
-        }
-        setUp(environment);
+  @Override
+  public void setUp() throws Exception {
+    MockEnvironment environment = new MockEnvironment();
+    if (System.getProperty("spring.active.profiles") != null) {
+      environment.setActiveProfiles(System.getProperty("spring.active.profiles"));
     }
+    setUp(environment);
+  }
 
-    @Test
-    public void validate_table() throws Exception {
-        try (Connection connection = dataSource.getConnection()) {
-            DatabaseMetaData meta = connection.getMetaData();
-            boolean foundTable = false;
-            ResultSet rs = meta.getTables(connection.getCatalog(), null, null, null);
-            while (rs.next() && !foundTable) {
-                foundTable = (tableName.equalsIgnoreCase(rs.getString("TABLE_NAME")));
-            }
-            rs.close();
-            assertFalse("Table " + tableName + " found!", foundTable);
-        }
+  @Test
+  public void validate_table() throws Exception {
+    try (Connection connection = dataSource.getConnection()) {
+      DatabaseMetaData meta = connection.getMetaData();
+      boolean foundTable = false;
+      ResultSet rs = meta.getTables(connection.getCatalog(), null, null, null);
+      while (rs.next() && !foundTable) {
+        foundTable = (tableName.equalsIgnoreCase(rs.getString("TABLE_NAME")));
+      }
+      rs.close();
+      assertFalse("Table " + tableName + " found!", foundTable);
     }
+  }
 }

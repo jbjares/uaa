@@ -32,65 +32,73 @@ import static java.util.Optional.ofNullable;
 
 public class InMemoryClientServicesExtentions extends ClientServicesExtension {
 
-    public ConcurrentMap<String, Map<String, BaseClientDetails>> services = new ConcurrentHashMap<>();
+  public ConcurrentMap<String, Map<String, BaseClientDetails>> services = new ConcurrentHashMap<>();
 
-    public void setClientDetailsStore(String zoneId, Map<String, BaseClientDetails> store) {
-        services.put(zoneId, store);
-    }
+  public void setClientDetailsStore(String zoneId, Map<String, BaseClientDetails> store) {
+    services.put(zoneId, store);
+  }
 
-    public Map<String, BaseClientDetails> getInMemoryService(String zoneId) {
-        Map<String, BaseClientDetails> clientDetailsStore = new HashMap<>();
-        services.putIfAbsent(zoneId, clientDetailsStore);
-        return services.get(zoneId);
-    }
+  public Map<String, BaseClientDetails> getInMemoryService(String zoneId) {
+    Map<String, BaseClientDetails> clientDetailsStore = new HashMap<>();
+    services.putIfAbsent(zoneId, clientDetailsStore);
+    return services.get(zoneId);
+  }
 
-    public void clear() {
-        services.clear();
-    }
+  public void clear() {
+    services.clear();
+  }
 
-    @Override
-    public void addClientSecret(String clientId, String newSecret, String zoneId) throws NoSuchClientException {
-        throw new UnsupportedOperationException();
-    }
+  @Override
+  public void addClientSecret(String clientId, String newSecret, String zoneId)
+      throws NoSuchClientException {
+    throw new UnsupportedOperationException();
+  }
 
-    @Override
-    public void deleteClientSecret(String clientId, String zoneId) throws NoSuchClientException {
-        throw new UnsupportedOperationException();
-    }
+  @Override
+  public void deleteClientSecret(String clientId, String zoneId) throws NoSuchClientException {
+    throw new UnsupportedOperationException();
+  }
 
-    @Override
-    public void addClientDetails(ClientDetails clientDetails, String zoneId) throws ClientAlreadyExistsException {
-        getInMemoryService(zoneId).put(clientDetails.getClientId(), (BaseClientDetails)clientDetails);
-    }
+  @Override
+  public void addClientDetails(ClientDetails clientDetails, String zoneId)
+      throws ClientAlreadyExistsException {
+    getInMemoryService(zoneId).put(clientDetails.getClientId(), (BaseClientDetails) clientDetails);
+  }
 
-    @Override
-    public void updateClientDetails(ClientDetails clientDetails, String zoneId) throws NoSuchClientException {
-        addClientDetails(clientDetails, zoneId);
-    }
+  @Override
+  public void updateClientDetails(ClientDetails clientDetails, String zoneId)
+      throws NoSuchClientException {
+    addClientDetails(clientDetails, zoneId);
+  }
 
-    @Override
-    public void updateClientSecret(String clientId, String secret, String zoneId) throws NoSuchClientException {
-        ofNullable((BaseClientDetails)loadClientByClientId(clientId, zoneId)).ifPresent(client ->
-            client.setClientSecret(secret)
-        );
-    }
+  @Override
+  public void updateClientSecret(String clientId, String secret, String zoneId)
+      throws NoSuchClientException {
+    ofNullable((BaseClientDetails) loadClientByClientId(clientId, zoneId))
+        .ifPresent(client -> client.setClientSecret(secret));
+  }
 
-    @Override
-    public void removeClientDetails(String clientId, String zoneId) throws NoSuchClientException {
-        getInMemoryService(zoneId).remove(clientId);
-    }
+  @Override
+  public void removeClientDetails(String clientId, String zoneId) throws NoSuchClientException {
+    getInMemoryService(zoneId).remove(clientId);
+  }
 
-    @Override
-    public List<ClientDetails> listClientDetails(String zoneId) {
-        return getInMemoryService(zoneId).entrySet().stream().map(e -> e.getValue()).collect(Collectors.toList());
-    }
+  @Override
+  public List<ClientDetails> listClientDetails(String zoneId) {
+    return getInMemoryService(zoneId)
+        .entrySet()
+        .stream()
+        .map(e -> e.getValue())
+        .collect(Collectors.toList());
+  }
 
-    @Override
-    public ClientDetails loadClientByClientId(String clientId, String zoneId) throws ClientRegistrationException {
-        BaseClientDetails result = getInMemoryService(zoneId).get(clientId);
-        if (result==null) {
-            throw new NoSuchClientException("No client with requested id: " + clientId);
-        }
-        return result;
+  @Override
+  public ClientDetails loadClientByClientId(String clientId, String zoneId)
+      throws ClientRegistrationException {
+    BaseClientDetails result = getInMemoryService(zoneId).get(clientId);
+    if (result == null) {
+      throw new NoSuchClientException("No client with requested id: " + clientId);
     }
+    return result;
+  }
 }

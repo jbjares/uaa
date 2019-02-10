@@ -23,18 +23,19 @@ import java.util.HashSet;
 
 public class LdapGroupToScopesMapper implements GrantedAuthoritiesMapper {
 
-    public ExternalGroupMappingAuthorizationManager getGroupMapper() {
-        return groupMapper;
-    }
+  public ExternalGroupMappingAuthorizationManager getGroupMapper() {
+    return groupMapper;
+  }
 
-    public void setGroupMapper(ExternalGroupMappingAuthorizationManager groupMapper) {
-        this.groupMapper = groupMapper;
-    }
+  public void setGroupMapper(ExternalGroupMappingAuthorizationManager groupMapper) {
+    this.groupMapper = groupMapper;
+  }
 
-    private ExternalGroupMappingAuthorizationManager groupMapper;
+  private ExternalGroupMappingAuthorizationManager groupMapper;
 
-    @Override
-    public Collection<? extends GrantedAuthority> mapAuthorities(Collection<? extends GrantedAuthority> authorities) {
-        return getGroupMapper().findScopesFromAuthorities(new HashSet<>(authorities));
-    }
+  @Override
+  public Collection<? extends GrantedAuthority> mapAuthorities(
+      Collection<? extends GrantedAuthority> authorities) {
+    return getGroupMapper().findScopesFromAuthorities(new HashSet<>(authorities));
+  }
 }

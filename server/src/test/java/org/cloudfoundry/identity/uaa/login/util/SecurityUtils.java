@@ -34,34 +34,55 @@ import static org.junit.Assert.assertTrue;
 
 public final class SecurityUtils {
 
-    private SecurityUtils() {}
+  private SecurityUtils() {}
 
-    public static SecurityContext defaultSecurityContext(Authentication authentication) {
-        SecurityContext securityContext = new SecurityContextImpl();
-        securityContext.setAuthentication(authentication);
-        return securityContext;
-    }
+  public static SecurityContext defaultSecurityContext(Authentication authentication) {
+    SecurityContext securityContext = new SecurityContextImpl();
+    securityContext.setAuthentication(authentication);
+    return securityContext;
+  }
 
-    public static Authentication fullyAuthenticatedUser(String id, String username, String email, GrantedAuthority... authorities) {
-        UaaPrincipal p = new UaaPrincipal(id, username, email, OriginKeys.UAA,"", IdentityZoneHolder.get().getId());
-        LinkedList<GrantedAuthority> grantedAuthorities = new LinkedList<>();
-        Collections.addAll(grantedAuthorities, authorities);
-        UaaAuthentication auth = new UaaAuthentication(p, "", grantedAuthorities, new UaaAuthenticationDetails(new MockHttpServletRequest()),true, System.currentTimeMillis());
-        assertTrue(auth.isAuthenticated());
-        return auth;
-    }
+  public static Authentication fullyAuthenticatedUser(
+      String id, String username, String email, GrantedAuthority... authorities) {
+    UaaPrincipal p =
+        new UaaPrincipal(id, username, email, OriginKeys.UAA, "", IdentityZoneHolder.get().getId());
+    LinkedList<GrantedAuthority> grantedAuthorities = new LinkedList<>();
+    Collections.addAll(grantedAuthorities, authorities);
+    UaaAuthentication auth =
+        new UaaAuthentication(
+            p,
+            "",
+            grantedAuthorities,
+            new UaaAuthenticationDetails(new MockHttpServletRequest()),
+            true,
+            System.currentTimeMillis());
+    assertTrue(auth.isAuthenticated());
+    return auth;
+  }
 
-   public static Authentication oauthAuthenticatedClient(String clientId, Set<String> scopes, Set<GrantedAuthority> authorities) {
-        OAuth2Authentication auth = new OAuth2Authentication(new OAuth2Request(null, clientId, authorities, true, scopes, null, null, null, null), null);
-        assertTrue(auth.isAuthenticated());
-        return auth;
-   }
+  public static Authentication oauthAuthenticatedClient(
+      String clientId, Set<String> scopes, Set<GrantedAuthority> authorities) {
+    OAuth2Authentication auth =
+        new OAuth2Authentication(
+            new OAuth2Request(null, clientId, authorities, true, scopes, null, null, null, null),
+            null);
+    assertTrue(auth.isAuthenticated());
+    return auth;
+  }
 
-    public static Authentication oauthAuthenticatedUser(
-        String clientId, Set<String> scopes, Set<GrantedAuthority> authorities,
-        String id, String username, String email, GrantedAuthority... userAuthorities) {
-        OAuth2Authentication auth = new OAuth2Authentication(new OAuth2Request(null, clientId, authorities, true, scopes, null, null, null, null), fullyAuthenticatedUser(id, username, email, userAuthorities));
-        assertTrue(auth.isAuthenticated());
-        return auth;
-    }
+  public static Authentication oauthAuthenticatedUser(
+      String clientId,
+      Set<String> scopes,
+      Set<GrantedAuthority> authorities,
+      String id,
+      String username,
+      String email,
+      GrantedAuthority... userAuthorities) {
+    OAuth2Authentication auth =
+        new OAuth2Authentication(
+            new OAuth2Request(null, clientId, authorities, true, scopes, null, null, null, null),
+            fullyAuthenticatedUser(id, username, email, userAuthorities));
+    assertTrue(auth.isAuthenticated());
+    return auth;
+  }
 }

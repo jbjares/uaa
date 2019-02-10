@@ -1,18 +1,12 @@
 package org.cloudfoundry.identity.uaa.test;
 
 import io.honeycomb.libhoney.EventFactory;
-import io.honeycomb.libhoney.HoneyClient;
-import io.honeycomb.libhoney.LibHoney;
 import org.apache.tomcat.jdbc.pool.ConnectionPool;
 import org.apache.tomcat.jdbc.pool.JdbcInterceptor;
 import org.apache.tomcat.jdbc.pool.PooledConnection;
 
 import java.lang.reflect.Method;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.util.Arrays;
-import java.util.Map;
-import java.util.UUID;
 
 public class HoneycombJdbcInterceptor extends JdbcInterceptor {
     public static String testRunning;

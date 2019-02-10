@@ -28,19 +28,20 @@ import static org.mockito.Mockito.mock;
 
 public class UserAuthenticationSuccessEventTests {
 
-    @Test
-    public void get_origin_from_request() throws Exception {
-        MockHttpSession session = new MockHttpSession(null, "the-id");
-        MockHttpServletRequest request = new MockHttpServletRequest("GET","/oauth/authorize");
-        request.setSession(session);
-        request.setRemoteAddr("127.10.10.10");
-        UaaAuthenticationDetails details = new UaaAuthenticationDetails(request, "client-id");
+  @Test
+  public void get_origin_from_request() throws Exception {
+    MockHttpSession session = new MockHttpSession(null, "the-id");
+    MockHttpServletRequest request = new MockHttpServletRequest("GET", "/oauth/authorize");
+    request.setSession(session);
+    request.setRemoteAddr("127.10.10.10");
+    UaaAuthenticationDetails details = new UaaAuthenticationDetails(request, "client-id");
 
-        UserAuthenticationSuccessEvent event = new UserAuthenticationSuccessEvent(mock(UaaUser.class), mock(Authentication.class));
-        String origin = event.getOrigin(details);
+    UserAuthenticationSuccessEvent event =
+        new UserAuthenticationSuccessEvent(mock(UaaUser.class), mock(Authentication.class));
+    String origin = event.getOrigin(details);
 
-        assertThat(origin, containsString("remoteAddress=127.10.10.10"));
-        assertThat(origin, containsString("clientId=client-id"));
-        assertThat(origin, containsString("sessionId=<SESSION>"));
-    }
+    assertThat(origin, containsString("remoteAddress=127.10.10.10"));
+    assertThat(origin, containsString("clientId=client-id"));
+    assertThat(origin, containsString("sessionId=<SESSION>"));
+  }
 }

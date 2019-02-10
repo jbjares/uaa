@@ -1,28 +1,21 @@
-/*******************************************************************************
- * Cloud Foundry
+/**
+ * ***************************************************************************** Cloud Foundry
  * Copyright (c) [2009-2015] Pivotal Software, Inc. All Rights Reserved.
- * <p>
- * This product is licensed to you under the Apache License, Version 2.0 (the "License").
- * You may not use this product except in compliance with the License.
- * <p>
- * This product includes a number of subcomponents with
- * separate copyright notices and license terms. Your use of these
- * subcomponents is subject to the terms and conditions of the
+ *
+ * <p>This product is licensed to you under the Apache License, Version 2.0 (the "License"). You may
+ * not use this product except in compliance with the License.
+ *
+ * <p>This product includes a number of subcomponents with separate copyright notices and license
+ * terms. Your use of these subcomponents is subject to the terms and conditions of the
  * subcomponent's license, as noted in the LICENSE file.
- *******************************************************************************/
+ * *****************************************************************************
+ */
 package org.cloudfoundry.identity.uaa.impl.config;
 
 import org.cloudfoundry.identity.uaa.login.Prompt;
 import org.cloudfoundry.identity.uaa.saml.SamlKey;
 import org.cloudfoundry.identity.uaa.util.JsonUtils;
-import org.cloudfoundry.identity.uaa.zone.BrandingInformation;
-import org.cloudfoundry.identity.uaa.zone.ClientSecretPolicy;
-import org.cloudfoundry.identity.uaa.zone.IdentityZone;
-import org.cloudfoundry.identity.uaa.zone.IdentityZoneConfiguration;
-import org.cloudfoundry.identity.uaa.zone.IdentityZoneProvisioning;
-import org.cloudfoundry.identity.uaa.zone.IdentityZoneValidator;
-import org.cloudfoundry.identity.uaa.zone.InvalidIdentityZoneDetailsException;
-import org.cloudfoundry.identity.uaa.zone.TokenPolicy;
+import org.cloudfoundry.identity.uaa.zone.*;
 import org.springframework.beans.factory.InitializingBean;
 
 import java.util.Collection;
@@ -37,227 +30,230 @@ import static org.springframework.util.StringUtils.hasText;
 
 public class IdentityZoneConfigurationBootstrap implements InitializingBean {
 
-    private ClientSecretPolicy clientSecretPolicy;
-    private TokenPolicy tokenPolicy;
-    private IdentityZoneProvisioning provisioning;
-    private boolean selfServiceLinksEnabled = true;
-    private String homeRedirect = null;
-    private Map<String,Object> selfServiceLinks;
-    private boolean mfaEnabled;
-    private String mfaProviderName;
-    private List<String> logoutRedirectWhitelist;
-    private String logoutRedirectParameterName;
-    private String logoutDefaultRedirectUrl;
-    private boolean logoutDisableRedirectParameter = true;
-    private List<Prompt> prompts;
-    private String defaultIdentityProvider;
+  private ClientSecretPolicy clientSecretPolicy;
+  private TokenPolicy tokenPolicy;
+  private IdentityZoneProvisioning provisioning;
+  private boolean selfServiceLinksEnabled = true;
+  private String homeRedirect = null;
+  private Map<String, Object> selfServiceLinks;
+  private boolean mfaEnabled;
+  private String mfaProviderName;
+  private List<String> logoutRedirectWhitelist;
+  private String logoutRedirectParameterName;
+  private String logoutDefaultRedirectUrl;
+  private boolean logoutDisableRedirectParameter = true;
+  private List<Prompt> prompts;
+  private String defaultIdentityProvider;
 
-    private String samlSpPrivateKey;
-    private String samlSpPrivateKeyPassphrase;
-    private String samlSpCertificate;
-    private boolean disableSamlInResponseToCheck = false;
+  private String samlSpPrivateKey;
+  private String samlSpPrivateKeyPassphrase;
+  private String samlSpCertificate;
+  private boolean disableSamlInResponseToCheck = false;
 
-    private Map<String, Map<String, String>> samlKeys;
-    private String activeKeyId;
+  private Map<String, Map<String, String>> samlKeys;
+  private String activeKeyId;
 
-    private boolean idpDiscoveryEnabled = false;
+  private boolean idpDiscoveryEnabled = false;
 
-    private boolean accountChooserEnabled;
+  private boolean accountChooserEnabled;
 
-    private Collection<String> defaultUserGroups;
+  private Collection<String> defaultUserGroups;
 
-    private IdentityZoneValidator validator = (config, mode) -> config;
-    private Map<String, Object> branding;
+  private IdentityZoneValidator validator = (config, mode) -> config;
+  private Map<String, Object> branding;
 
-    public void setValidator(IdentityZoneValidator validator) {
-        this.validator = validator;
+  public void setValidator(IdentityZoneValidator validator) {
+    this.validator = validator;
+  }
+
+  public IdentityZoneConfigurationBootstrap(IdentityZoneProvisioning provisioning) {
+    this.provisioning = provisioning;
+  }
+
+  @Override
+  public void afterPropertiesSet() throws InvalidIdentityZoneDetailsException {
+    IdentityZone identityZone = provisioning.retrieve(IdentityZone.getUaa().getId());
+    IdentityZoneConfiguration definition = new IdentityZoneConfiguration(tokenPolicy);
+    definition.setClientSecretPolicy(clientSecretPolicy);
+    definition.getLinks().getSelfService().setSelfServiceLinksEnabled(selfServiceLinksEnabled);
+    definition.getLinks().setHomeRedirect(homeRedirect);
+    definition.getSamlConfig().setCertificate(samlSpCertificate);
+    definition.getSamlConfig().setPrivateKey(samlSpPrivateKey);
+    definition.getSamlConfig().setPrivateKeyPassword(samlSpPrivateKeyPassphrase);
+    definition.getSamlConfig().setDisableInResponseToCheck(disableSamlInResponseToCheck);
+    definition.setIdpDiscoveryEnabled(idpDiscoveryEnabled);
+    definition.setAccountChooserEnabled(accountChooserEnabled);
+    definition.getMfaConfig().setEnabled(mfaEnabled);
+    definition.getMfaConfig().setProviderName(mfaProviderName);
+    definition.setDefaultIdentityProvider(defaultIdentityProvider);
+
+    samlKeys = ofNullable(samlKeys).orElse(EMPTY_MAP);
+    for (Map.Entry<String, Map<String, String>> entry : samlKeys.entrySet()) {
+      SamlKey samlKey =
+          new SamlKey(
+              entry.getValue().get("key"),
+              entry.getValue().get("passphrase"),
+              entry.getValue().get("certificate"));
+      definition.getSamlConfig().addKey(entry.getKey(), samlKey);
+    }
+    definition.getSamlConfig().setActiveKeyId(this.activeKeyId);
+
+    if (selfServiceLinks != null) {
+      String signup = (String) selfServiceLinks.get("signup");
+      String passwd = (String) selfServiceLinks.get("passwd");
+      if (hasText(signup)) {
+        definition.getLinks().getSelfService().setSignup(signup);
+      }
+      if (hasText(passwd)) {
+        definition.getLinks().getSelfService().setPasswd(passwd);
+      }
+    }
+    if (nonNull(logoutRedirectWhitelist)) {
+      definition.getLinks().getLogout().setWhitelist(logoutRedirectWhitelist);
+    }
+    if (hasText(logoutRedirectParameterName)) {
+      definition.getLinks().getLogout().setRedirectParameterName(logoutRedirectParameterName);
+    }
+    if (hasText(logoutDefaultRedirectUrl)) {
+      definition.getLinks().getLogout().setRedirectUrl(logoutDefaultRedirectUrl);
+    }
+    definition.getLinks().getLogout().setDisableRedirectParameter(logoutDisableRedirectParameter);
+    if (nonNull(prompts)) {
+      definition.setPrompts(prompts);
     }
 
-    public IdentityZoneConfigurationBootstrap(IdentityZoneProvisioning provisioning) {
-        this.provisioning = provisioning;
+    BrandingInformation brandingInfo = JsonUtils.convertValue(branding, BrandingInformation.class);
+    definition.setBranding(brandingInfo);
+
+    if (defaultUserGroups != null) {
+      definition.getUserConfig().setDefaultGroups(new LinkedList<>(defaultUserGroups));
     }
 
-    @Override
-    public void afterPropertiesSet() throws InvalidIdentityZoneDetailsException {
-        IdentityZone identityZone = provisioning.retrieve(IdentityZone.getUaa().getId());
-        IdentityZoneConfiguration definition = new IdentityZoneConfiguration(tokenPolicy);
-        definition.setClientSecretPolicy(clientSecretPolicy);
-        definition.getLinks().getSelfService().setSelfServiceLinksEnabled(selfServiceLinksEnabled);
-        definition.getLinks().setHomeRedirect(homeRedirect);
-        definition.getSamlConfig().setCertificate(samlSpCertificate);
-        definition.getSamlConfig().setPrivateKey(samlSpPrivateKey);
-        definition.getSamlConfig().setPrivateKeyPassword(samlSpPrivateKeyPassphrase);
-        definition.getSamlConfig().setDisableInResponseToCheck(disableSamlInResponseToCheck);
-        definition.setIdpDiscoveryEnabled(idpDiscoveryEnabled);
-        definition.setAccountChooserEnabled(accountChooserEnabled);
-        definition.getMfaConfig().setEnabled(mfaEnabled);
-        definition.getMfaConfig().setProviderName(mfaProviderName);
-        definition.setDefaultIdentityProvider(defaultIdentityProvider);
+    identityZone.setConfig(definition);
 
-        samlKeys = ofNullable(samlKeys).orElse(EMPTY_MAP);
-        for (Map.Entry<String, Map<String,String>> entry : samlKeys.entrySet()) {
-            SamlKey samlKey = new SamlKey(entry.getValue().get("key"), entry.getValue().get("passphrase"), entry.getValue().get("certificate"));
-            definition.getSamlConfig().addKey(entry.getKey(), samlKey);
-        }
-        definition.getSamlConfig().setActiveKeyId(this.activeKeyId);
+    identityZone = validator.validate(identityZone, IdentityZoneValidator.Mode.MODIFY);
+    provisioning.update(identityZone);
+  }
 
-        if (selfServiceLinks!=null) {
-            String signup = (String)selfServiceLinks.get("signup");
-            String passwd = (String)selfServiceLinks.get("passwd");
-            if (hasText(signup)) {
-                definition.getLinks().getSelfService().setSignup(signup);
-            }
-            if (hasText(passwd)) {
-                definition.getLinks().getSelfService().setPasswd(passwd);
-            }
-        }
-        if (nonNull(logoutRedirectWhitelist)) {
-            definition.getLinks().getLogout().setWhitelist(logoutRedirectWhitelist);
-        }
-        if (hasText(logoutRedirectParameterName)) {
-            definition.getLinks().getLogout().setRedirectParameterName(logoutRedirectParameterName);
-        }
-        if (hasText(logoutDefaultRedirectUrl)) {
-            definition.getLinks().getLogout().setRedirectUrl(logoutDefaultRedirectUrl);
-        }
-        definition.getLinks().getLogout().setDisableRedirectParameter(logoutDisableRedirectParameter);
-        if (nonNull(prompts)) {
-            definition.setPrompts(prompts);
-        }
+  public void setClientSecretPolicy(ClientSecretPolicy clientSecretPolicy) {
+    this.clientSecretPolicy = clientSecretPolicy;
+  }
 
-        BrandingInformation brandingInfo = JsonUtils.convertValue(branding, BrandingInformation.class);
-        definition.setBranding(brandingInfo);
+  public void setMfaEnabled(boolean mfaEnabled) {
+    this.mfaEnabled = mfaEnabled;
+  }
 
-        if (defaultUserGroups!=null) {
-            definition.getUserConfig().setDefaultGroups(new LinkedList<>(defaultUserGroups));
-        }
+  public void setMfaProviderName(String mfaProviderName) {
+    this.mfaProviderName = mfaProviderName;
+  }
 
+  public String getMfaProviderName() {
+    return mfaProviderName;
+  }
 
-        identityZone.setConfig(definition);
+  public boolean isMfaEnabled() {
+    return mfaEnabled;
+  }
 
-        identityZone = validator.validate(identityZone, IdentityZoneValidator.Mode.MODIFY);
-        provisioning.update(identityZone);
-    }
+  public IdentityZoneConfigurationBootstrap setSamlKeys(Map<String, Map<String, String>> samlKeys) {
+    this.samlKeys = samlKeys;
+    return this;
+  }
 
-    public void setClientSecretPolicy(ClientSecretPolicy clientSecretPolicy) {
-        this.clientSecretPolicy = clientSecretPolicy;
-    }
+  public IdentityZoneConfigurationBootstrap setActiveKeyId(String activeKeyId) {
+    this.activeKeyId = activeKeyId;
+    return this;
+  }
 
-    public void setMfaEnabled(boolean mfaEnabled) {
-        this.mfaEnabled = mfaEnabled;
-    }
+  public void setTokenPolicy(TokenPolicy tokenPolicy) {
+    this.tokenPolicy = tokenPolicy;
+  }
 
-    public void setMfaProviderName(String mfaProviderName) {
-        this.mfaProviderName = mfaProviderName;
-    }
+  public void setSelfServiceLinksEnabled(boolean selfServiceLinksEnabled) {
+    this.selfServiceLinksEnabled = selfServiceLinksEnabled;
+  }
 
-    public String getMfaProviderName() {
-        return mfaProviderName;
-    }
+  public void setHomeRedirect(String homeRedirect) {
+    this.homeRedirect = homeRedirect;
+  }
 
-    public boolean isMfaEnabled()  {
-        return mfaEnabled;
-    }
+  public String getHomeRedirect() {
+    return homeRedirect;
+  }
 
-    public IdentityZoneConfigurationBootstrap setSamlKeys(Map<String, Map<String, String>> samlKeys) {
-        this.samlKeys = samlKeys;
-        return this;
-    }
+  public void setSelfServiceLinks(Map<String, Object> links) {
+    this.selfServiceLinks = links;
+  }
 
-    public IdentityZoneConfigurationBootstrap setActiveKeyId(String activeKeyId) {
-        this.activeKeyId = activeKeyId;
-        return this;
-    }
+  public void setLogoutDefaultRedirectUrl(String logoutDefaultRedirectUrl) {
+    this.logoutDefaultRedirectUrl = logoutDefaultRedirectUrl;
+  }
 
-    public void setTokenPolicy(TokenPolicy tokenPolicy) {
-        this.tokenPolicy = tokenPolicy;
-    }
+  public void setLogoutDisableRedirectParameter(boolean logoutDisableRedirectParameter) {
+    this.logoutDisableRedirectParameter = logoutDisableRedirectParameter;
+  }
 
-    public void setSelfServiceLinksEnabled(boolean selfServiceLinksEnabled) {
-        this.selfServiceLinksEnabled = selfServiceLinksEnabled;
-    }
+  public void setLogoutRedirectParameterName(String logoutRedirectParameterName) {
+    this.logoutRedirectParameterName = logoutRedirectParameterName;
+  }
 
-    public void setHomeRedirect(String homeRedirect) {
-        this.homeRedirect = homeRedirect;
-    }
+  public void setLogoutRedirectWhitelist(List<String> logoutRedirectWhitelist) {
+    this.logoutRedirectWhitelist = logoutRedirectWhitelist;
+  }
 
-    public String getHomeRedirect() {
-        return homeRedirect;
-    }
+  public void setPrompts(List<Prompt> prompts) {
+    this.prompts = prompts;
+  }
 
-    public void setSelfServiceLinks(Map<String, Object> links) {
-        this.selfServiceLinks = links;
-    }
+  public void setDefaultIdentityProvider(String defaultIdentityProvider) {
+    this.defaultIdentityProvider = defaultIdentityProvider;
+  }
 
-    public void setLogoutDefaultRedirectUrl(String logoutDefaultRedirectUrl) {
-        this.logoutDefaultRedirectUrl = logoutDefaultRedirectUrl;
-    }
+  public void setSamlSpCertificate(String samlSpCertificate) {
+    this.samlSpCertificate = samlSpCertificate;
+  }
 
-    public void setLogoutDisableRedirectParameter(boolean logoutDisableRedirectParameter) {
-        this.logoutDisableRedirectParameter = logoutDisableRedirectParameter;
-    }
+  public void setSamlSpPrivateKey(String samlSpPrivateKey) {
+    this.samlSpPrivateKey = samlSpPrivateKey;
+  }
 
-    public void setLogoutRedirectParameterName(String logoutRedirectParameterName) {
-        this.logoutRedirectParameterName = logoutRedirectParameterName;
-    }
+  public void setSamlSpPrivateKeyPassphrase(String samlSpPrivateKeyPassphrase) {
+    this.samlSpPrivateKeyPassphrase = samlSpPrivateKeyPassphrase;
+  }
 
-    public void setLogoutRedirectWhitelist(List<String> logoutRedirectWhitelist) {
-        this.logoutRedirectWhitelist = logoutRedirectWhitelist;
-    }
+  public boolean isIdpDiscoveryEnabled() {
+    return idpDiscoveryEnabled;
+  }
 
-    public void setPrompts(List<Prompt> prompts) {
-        this.prompts = prompts;
-    }
+  public void setIdpDiscoveryEnabled(boolean idpDiscoveryEnabled) {
+    this.idpDiscoveryEnabled = idpDiscoveryEnabled;
+  }
 
-    public void setDefaultIdentityProvider(String defaultIdentityProvider) {
-        this.defaultIdentityProvider = defaultIdentityProvider;
-    }
+  public boolean isAccountChooserEnabled() {
+    return accountChooserEnabled;
+  }
 
-    public void setSamlSpCertificate(String samlSpCertificate) {
-        this.samlSpCertificate = samlSpCertificate;
-    }
+  public void setAccountChooserEnabled(boolean accountChooserEnabled) {
+    this.accountChooserEnabled = accountChooserEnabled;
+  }
 
-    public void setSamlSpPrivateKey(String samlSpPrivateKey) {
-        this.samlSpPrivateKey = samlSpPrivateKey;
-    }
+  public void setBranding(Map<String, Object> branding) {
+    this.branding = branding;
+  }
 
-    public void setSamlSpPrivateKeyPassphrase(String samlSpPrivateKeyPassphrase) {
-        this.samlSpPrivateKeyPassphrase = samlSpPrivateKeyPassphrase;
-    }
+  public Map<String, Object> getBranding() {
+    return branding;
+  }
 
-    public boolean isIdpDiscoveryEnabled() {
-        return idpDiscoveryEnabled;
-    }
+  public void setDefaultUserGroups(Collection<String> defaultUserGroups) {
+    this.defaultUserGroups = defaultUserGroups;
+  }
 
-    public void setIdpDiscoveryEnabled(boolean idpDiscoveryEnabled) {
-        this.idpDiscoveryEnabled = idpDiscoveryEnabled;
-    }
+  public boolean isDisableSamlInResponseToCheck() {
+    return disableSamlInResponseToCheck;
+  }
 
-    public boolean isAccountChooserEnabled() {
-        return accountChooserEnabled;
-    }
-
-    public void setAccountChooserEnabled(boolean accountChooserEnabled) {
-        this.accountChooserEnabled = accountChooserEnabled;
-    }
-
-    public void setBranding(Map<String, Object> branding) {
-        this.branding = branding;
-    }
-
-    public Map<String, Object> getBranding() {
-        return branding;
-    }
-
-    public void setDefaultUserGroups(Collection<String> defaultUserGroups) {
-        this.defaultUserGroups = defaultUserGroups;
-    }
-
-    public boolean isDisableSamlInResponseToCheck() {
-        return disableSamlInResponseToCheck;
-    }
-
-    public void setDisableSamlInResponseToCheck(boolean disableSamlInResponseToCheck) {
-        this.disableSamlInResponseToCheck = disableSamlInResponseToCheck;
-    }
+  public void setDisableSamlInResponseToCheck(boolean disableSamlInResponseToCheck) {
+    this.disableSamlInResponseToCheck = disableSamlInResponseToCheck;
+  }
 }

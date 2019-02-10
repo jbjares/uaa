@@ -19,140 +19,140 @@ import static org.mockito.Mockito.when;
 
 public class LoginSAMLAuthenticationFailureHandlerTest {
 
-    @Test
-    public void testErrorRedirect() throws IOException, ServletException {
-        LoginSAMLAuthenticationFailureHandler handler = new LoginSAMLAuthenticationFailureHandler();
+  @Test
+  public void testErrorRedirect() throws IOException, ServletException {
+    LoginSAMLAuthenticationFailureHandler handler = new LoginSAMLAuthenticationFailureHandler();
 
-        DefaultSavedRequest savedRequest = mock(DefaultSavedRequest.class);
-        Map<String, String[]> parameterMap = new HashMap<String, String[]>();
-        parameterMap.put("redirect_uri", new String[] { "https://example.com" });
-        when(savedRequest.getParameterMap()).thenReturn(parameterMap);
+    DefaultSavedRequest savedRequest = mock(DefaultSavedRequest.class);
+    Map<String, String[]> parameterMap = new HashMap<String, String[]>();
+    parameterMap.put("redirect_uri", new String[] {"https://example.com"});
+    when(savedRequest.getParameterMap()).thenReturn(parameterMap);
 
-        MockHttpSession session = new MockHttpSession();
-        session.setAttribute(SAVED_REQUEST_SESSION_ATTRIBUTE, savedRequest);
-        MockHttpServletRequest request = new MockHttpServletRequest();
-        request.setSession(session);
-        MockHttpServletResponse response = new MockHttpServletResponse();
+    MockHttpSession session = new MockHttpSession();
+    session.setAttribute(SAVED_REQUEST_SESSION_ATTRIBUTE, savedRequest);
+    MockHttpServletRequest request = new MockHttpServletRequest();
+    request.setSession(session);
+    MockHttpServletResponse response = new MockHttpServletResponse();
 
-        LoginSAMLException exception = new LoginSAMLException("Denied!");
-        handler.onAuthenticationFailure(request, response, exception);
+    LoginSAMLException exception = new LoginSAMLException("Denied!");
+    handler.onAuthenticationFailure(request, response, exception);
 
-        String actual = response.getRedirectedUrl();
-        assertEquals("https://example.com/?error=access_denied&error_description=Denied%21", actual);
-        int status = response.getStatus();
-        assertEquals(302, status);
-    }
+    String actual = response.getRedirectedUrl();
+    assertEquals("https://example.com/?error=access_denied&error_description=Denied%21", actual);
+    int status = response.getStatus();
+    assertEquals(302, status);
+  }
 
-    @Test
-    public void testErrorRedirectWithExistingQueryParameters() throws IOException, ServletException {
-        LoginSAMLAuthenticationFailureHandler handler = new LoginSAMLAuthenticationFailureHandler();
+  @Test
+  public void testErrorRedirectWithExistingQueryParameters() throws IOException, ServletException {
+    LoginSAMLAuthenticationFailureHandler handler = new LoginSAMLAuthenticationFailureHandler();
 
-        DefaultSavedRequest savedRequest = mock(DefaultSavedRequest.class);
-        Map<String, String[]> parameterMap = new HashMap<String, String[]>();
-        parameterMap.put("redirect_uri", new String[] { "https://example.com?go=bears" });
-        when(savedRequest.getParameterMap()).thenReturn(parameterMap);
+    DefaultSavedRequest savedRequest = mock(DefaultSavedRequest.class);
+    Map<String, String[]> parameterMap = new HashMap<String, String[]>();
+    parameterMap.put("redirect_uri", new String[] {"https://example.com?go=bears"});
+    when(savedRequest.getParameterMap()).thenReturn(parameterMap);
 
-        MockHttpSession session = new MockHttpSession();
-        session.setAttribute(SAVED_REQUEST_SESSION_ATTRIBUTE, savedRequest);
-        MockHttpServletRequest request = new MockHttpServletRequest();
-        request.setSession(session);
-        MockHttpServletResponse response = new MockHttpServletResponse();
+    MockHttpSession session = new MockHttpSession();
+    session.setAttribute(SAVED_REQUEST_SESSION_ATTRIBUTE, savedRequest);
+    MockHttpServletRequest request = new MockHttpServletRequest();
+    request.setSession(session);
+    MockHttpServletResponse response = new MockHttpServletResponse();
 
-        LoginSAMLException exception = new LoginSAMLException("Denied!");
-        handler.onAuthenticationFailure(request, response, exception);
+    LoginSAMLException exception = new LoginSAMLException("Denied!");
+    handler.onAuthenticationFailure(request, response, exception);
 
-        String actual = response.getRedirectedUrl();
-        assertEquals("https://example.com/?go=bears&error=access_denied&error_description=Denied%21", actual);
-        int status = response.getStatus();
-        assertEquals(302, status);
-    }
+    String actual = response.getRedirectedUrl();
+    assertEquals(
+        "https://example.com/?go=bears&error=access_denied&error_description=Denied%21", actual);
+    int status = response.getStatus();
+    assertEquals(302, status);
+  }
 
-    @Test
-    public void testSomeOtherErrorCondition() throws IOException, ServletException {
-        LoginSAMLAuthenticationFailureHandler handler = new LoginSAMLAuthenticationFailureHandler();
+  @Test
+  public void testSomeOtherErrorCondition() throws IOException, ServletException {
+    LoginSAMLAuthenticationFailureHandler handler = new LoginSAMLAuthenticationFailureHandler();
 
-        DefaultSavedRequest savedRequest = mock(DefaultSavedRequest.class);
-        Map<String, String[]> parameterMap = new HashMap<String, String[]>();
-        parameterMap.put("redirect_uri", new String[] { "https://example.com?go=bears" });
-        when(savedRequest.getParameterMap()).thenReturn(parameterMap);
+    DefaultSavedRequest savedRequest = mock(DefaultSavedRequest.class);
+    Map<String, String[]> parameterMap = new HashMap<String, String[]>();
+    parameterMap.put("redirect_uri", new String[] {"https://example.com?go=bears"});
+    when(savedRequest.getParameterMap()).thenReturn(parameterMap);
 
-        MockHttpSession session = new MockHttpSession();
-        session.setAttribute(SAVED_REQUEST_SESSION_ATTRIBUTE, savedRequest);
-        MockHttpServletRequest request = new MockHttpServletRequest();
-        request.setSession(session);
-        MockHttpServletResponse response = new MockHttpServletResponse();
+    MockHttpSession session = new MockHttpSession();
+    session.setAttribute(SAVED_REQUEST_SESSION_ATTRIBUTE, savedRequest);
+    MockHttpServletRequest request = new MockHttpServletRequest();
+    request.setSession(session);
+    MockHttpServletResponse response = new MockHttpServletResponse();
 
-        AuthenticationException exception = new AuthenticationException("Authentication Exception") {
-            /**
-             *
-             */
-            private static final long serialVersionUID = 1L;
+    AuthenticationException exception =
+        new AuthenticationException("Authentication Exception") {
+          /** */
+          private static final long serialVersionUID = 1L;
         };
-        handler.onAuthenticationFailure(request, response, exception);
-        String actual = response.getRedirectedUrl();
-        assertEquals(null, actual);
-        int status = response.getStatus();
-        assertEquals(401, status);
-    }
+    handler.onAuthenticationFailure(request, response, exception);
+    String actual = response.getRedirectedUrl();
+    assertEquals(null, actual);
+    int status = response.getStatus();
+    assertEquals(401, status);
+  }
 
-    @Test
-    public void testNoSession() throws IOException, ServletException {
-        LoginSAMLAuthenticationFailureHandler handler = new LoginSAMLAuthenticationFailureHandler();
+  @Test
+  public void testNoSession() throws IOException, ServletException {
+    LoginSAMLAuthenticationFailureHandler handler = new LoginSAMLAuthenticationFailureHandler();
 
-        MockHttpServletRequest request = new MockHttpServletRequest();
-        MockHttpServletResponse response = new MockHttpServletResponse();
+    MockHttpServletRequest request = new MockHttpServletRequest();
+    MockHttpServletResponse response = new MockHttpServletResponse();
 
-        LoginSAMLException exception = new LoginSAMLException("Denied!");
-        handler.onAuthenticationFailure(request, response, exception);
+    LoginSAMLException exception = new LoginSAMLException("Denied!");
+    handler.onAuthenticationFailure(request, response, exception);
 
-        String actual = response.getRedirectedUrl();
-        assertEquals(null, actual);
-        int status = response.getStatus();
-        assertEquals(401, status);
-    }
+    String actual = response.getRedirectedUrl();
+    assertEquals(null, actual);
+    int status = response.getStatus();
+    assertEquals(401, status);
+  }
 
-    @Test
-    public void testNoSavedRequest() throws IOException, ServletException {
-        LoginSAMLAuthenticationFailureHandler handler = new LoginSAMLAuthenticationFailureHandler();
+  @Test
+  public void testNoSavedRequest() throws IOException, ServletException {
+    LoginSAMLAuthenticationFailureHandler handler = new LoginSAMLAuthenticationFailureHandler();
 
-        DefaultSavedRequest savedRequest = mock(DefaultSavedRequest.class);
-        Map<String, String[]> parameterMap = new HashMap<String, String[]>();
-        parameterMap.put("redirect_uri", new String[] { "https://example.com" });
-        when(savedRequest.getParameterMap()).thenReturn(parameterMap);
+    DefaultSavedRequest savedRequest = mock(DefaultSavedRequest.class);
+    Map<String, String[]> parameterMap = new HashMap<String, String[]>();
+    parameterMap.put("redirect_uri", new String[] {"https://example.com"});
+    when(savedRequest.getParameterMap()).thenReturn(parameterMap);
 
-        MockHttpSession session = new MockHttpSession();
-        MockHttpServletRequest request = new MockHttpServletRequest();
-        request.setSession(session);
-        MockHttpServletResponse response = new MockHttpServletResponse();
+    MockHttpSession session = new MockHttpSession();
+    MockHttpServletRequest request = new MockHttpServletRequest();
+    request.setSession(session);
+    MockHttpServletResponse response = new MockHttpServletResponse();
 
-        LoginSAMLException exception = new LoginSAMLException("Denied!");
-        handler.onAuthenticationFailure(request, response, exception);
+    LoginSAMLException exception = new LoginSAMLException("Denied!");
+    handler.onAuthenticationFailure(request, response, exception);
 
-        String actual = response.getRedirectedUrl();
-        assertEquals(null, actual);
-        int status = response.getStatus();
-        assertEquals(401, status);
-    }
+    String actual = response.getRedirectedUrl();
+    assertEquals(null, actual);
+    int status = response.getStatus();
+    assertEquals(401, status);
+  }
 
-    @Test
-    public void testNoRedirectURI() throws IOException, ServletException {
-        LoginSAMLAuthenticationFailureHandler handler = new LoginSAMLAuthenticationFailureHandler();
+  @Test
+  public void testNoRedirectURI() throws IOException, ServletException {
+    LoginSAMLAuthenticationFailureHandler handler = new LoginSAMLAuthenticationFailureHandler();
 
-        DefaultSavedRequest savedRequest = mock(DefaultSavedRequest.class);
-        Map<String, String[]> parameterMap = new HashMap<String, String[]>();
-        when(savedRequest.getParameterMap()).thenReturn(parameterMap);
+    DefaultSavedRequest savedRequest = mock(DefaultSavedRequest.class);
+    Map<String, String[]> parameterMap = new HashMap<String, String[]>();
+    when(savedRequest.getParameterMap()).thenReturn(parameterMap);
 
-        MockHttpSession session = new MockHttpSession();
-        session.setAttribute(SAVED_REQUEST_SESSION_ATTRIBUTE, savedRequest);
-        MockHttpServletRequest request = new MockHttpServletRequest();
-        request.setSession(session);
-        MockHttpServletResponse response = new MockHttpServletResponse();
+    MockHttpSession session = new MockHttpSession();
+    session.setAttribute(SAVED_REQUEST_SESSION_ATTRIBUTE, savedRequest);
+    MockHttpServletRequest request = new MockHttpServletRequest();
+    request.setSession(session);
+    MockHttpServletResponse response = new MockHttpServletResponse();
 
-        LoginSAMLException exception = new LoginSAMLException("Denied!");
-        handler.onAuthenticationFailure(request, response, exception);
-        String actual = response.getRedirectedUrl();
-        assertEquals(null, actual);
-        int status = response.getStatus();
-        assertEquals(401, status);
-    }
+    LoginSAMLException exception = new LoginSAMLException("Denied!");
+    handler.onAuthenticationFailure(request, response, exception);
+    String actual = response.getRedirectedUrl();
+    assertEquals(null, actual);
+    int status = response.getStatus();
+    assertEquals(401, status);
+  }
 }

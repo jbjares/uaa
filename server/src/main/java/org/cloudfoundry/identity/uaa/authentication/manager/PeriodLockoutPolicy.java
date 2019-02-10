@@ -1,15 +1,15 @@
-/*******************************************************************************
- *     Cloud Foundry
- *     Copyright (c) [2009-2016] Pivotal Software, Inc. All Rights Reserved.
+/**
+ * ***************************************************************************** Cloud Foundry
+ * Copyright (c) [2009-2016] Pivotal Software, Inc. All Rights Reserved.
  *
- *     This product is licensed to you under the Apache License, Version 2.0 (the "License").
- *     You may not use this product except in compliance with the License.
+ * <p>This product is licensed to you under the Apache License, Version 2.0 (the "License"). You may
+ * not use this product except in compliance with the License.
  *
- *     This product includes a number of subcomponents with
- *     separate copyright notices and license terms. Your use of these
- *     subcomponents is subject to the terms and conditions of the
- *     subcomponent's license, as noted in the LICENSE file.
- *******************************************************************************/
+ * <p>This product includes a number of subcomponents with separate copyright notices and license
+ * terms. Your use of these subcomponents is subject to the terms and conditions of the
+ * subcomponent's license, as noted in the LICENSE file.
+ * *****************************************************************************
+ */
 package org.cloudfoundry.identity.uaa.authentication.manager;
 
 import org.apache.commons.logging.Log;
@@ -21,40 +21,47 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 
 /**
- * Locks an account out for a configured period based on the number of failed
- * logins since a specific time in the past.
- * <p>
- * Queries the audit service to obtain the relevant data for the user.
+ * Locks an account out for a configured period based on the number of failed logins since a
+ * specific time in the past.
+ *
+ * <p>Queries the audit service to obtain the relevant data for the user.
  *
  * @author Luke Taylor
  */
 public class PeriodLockoutPolicy implements AccountLoginPolicy {
 
-    private final Log logger = LogFactory.getLog(getClass());
+  private final Log logger = LogFactory.getLog(getClass());
 
-    private final LoginPolicy loginPolicy;
-    private final LoginPolicy mfaPolicy;
+  private final LoginPolicy loginPolicy;
+  private final LoginPolicy mfaPolicy;
 
+  public PeriodLockoutPolicy(LoginPolicy loginPolicy, LoginPolicy mfaPolicy) {
+    this.loginPolicy = loginPolicy;
+    this.mfaPolicy = mfaPolicy;
+  }
 
-    public PeriodLockoutPolicy(LoginPolicy loginPolicy, LoginPolicy mfaPolicy) {
-        this.loginPolicy = loginPolicy;
-        this.mfaPolicy = mfaPolicy;
+  public LockoutPolicy getDefaultLockoutPolicy() {
+    return this.loginPolicy.getLockoutPolicyRetriever().getDefaultLockoutPolicy();
+  }
+
+  @Override
+  public boolean isAllowed(UaaUser user, Authentication a) throws AuthenticationException {
+    Result loginResult = loginPolicy.isAllowed(user.getId());
+    Result mfaResult = mfaPolicy.isAllowed(user.getId());
+    if (loginResult.isAllowed() && mfaResult.isAllowed()) {
+      return true;
     }
-
-    public LockoutPolicy getDefaultLockoutPolicy() {
-        return this.loginPolicy.getLockoutPolicyRetriever().getDefaultLockoutPolicy();
-    }
-
-    @Override
-    public boolean isAllowed(UaaUser user, Authentication a) throws AuthenticationException {
-        Result loginResult = loginPolicy.isAllowed(user.getId());
-        Result mfaResult = mfaPolicy.isAllowed(user.getId());
-        if (loginResult.isAllowed() && mfaResult.isAllowed()) {
-            return true;
-        }
-        logger.warn("User " + user.getUsername() + " and id " + user.getId() + " has "
-          + loginResult.getFailureCount() + " failed user logins within the last checking period."
-          + " and " + mfaResult.getFailureCount() + " failed  mfa attempts within the last checking period.");
-        return false;
-    }
+    logger.warn(
+        "User "
+            + user.getUsername()
+            + " and id "
+            + user.getId()
+            + " has "
+            + loginResult.getFailureCount()
+            + " failed user logins within the last checking period."
+            + " and "
+            + mfaResult.getFailureCount()
+            + " failed  mfa attempts within the last checking period.");
+    return false;
+  }
 }

@@ -21,73 +21,76 @@ import static org.mockito.Mockito.when;
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(IdentityZoneHolder.class)
 public class ClientRefreshTokenValidityTest {
-    ClientRefreshTokenValidity clientRefreshTokenValidity;
-    ClientDetails clientDetails;
-    ClientServicesExtension clientServicesExtension;
-    private IdentityZone defaultZone;
+  ClientRefreshTokenValidity clientRefreshTokenValidity;
+  ClientDetails clientDetails;
+  ClientServicesExtension clientServicesExtension;
+  private IdentityZone defaultZone;
 
-    @Before
-    public void setUp() {
-        clientServicesExtension = mock(ClientServicesExtension.class);
+  @Before
+  public void setUp() {
+    clientServicesExtension = mock(ClientServicesExtension.class);
 
-        clientDetails = mock(ClientDetails.class);
-        when(clientDetails.getRefreshTokenValiditySeconds()).thenReturn(42);
+    clientDetails = mock(ClientDetails.class);
+    when(clientDetails.getRefreshTokenValiditySeconds()).thenReturn(42);
 
-        defaultZone = IdentityZone.getUaa();
-        PowerMockito.mockStatic(IdentityZoneHolder.class);
-        when(IdentityZoneHolder.get()).thenReturn(defaultZone);
+    defaultZone = IdentityZone.getUaa();
+    PowerMockito.mockStatic(IdentityZoneHolder.class);
+    when(IdentityZoneHolder.get()).thenReturn(defaultZone);
 
-        when(clientServicesExtension.loadClientByClientId("clientId", "uaa")).thenReturn(clientDetails);
-        clientRefreshTokenValidity = new ClientRefreshTokenValidity(clientServicesExtension);
-    }
+    when(clientServicesExtension.loadClientByClientId("clientId", "uaa")).thenReturn(clientDetails);
+    clientRefreshTokenValidity = new ClientRefreshTokenValidity(clientServicesExtension);
+  }
 
-    @Test
-    public void testRefreshClientValidity_whenClientPresent() {
-        assertThat(clientRefreshTokenValidity.getValiditySeconds("clientId"), is(42));
-    }
+  @Test
+  public void testRefreshClientValidity_whenClientPresent() {
+    assertThat(clientRefreshTokenValidity.getValiditySeconds("clientId"), is(42));
+  }
 
-    @Test
-    public void testRefreshClientValidity_whenClientPresentInADifferentZone() {
-        IdentityZone notUaa = new IdentityZone();
-        notUaa.setId("uaa_not");
-        clientDetails = mock(ClientDetails.class);
-        when(IdentityZoneHolder.get()).thenReturn(notUaa);
-        when(clientDetails.getRefreshTokenValiditySeconds()).thenReturn(24);
-        when(clientServicesExtension.loadClientByClientId("clientId", "uaa_not")).thenReturn(clientDetails);
+  @Test
+  public void testRefreshClientValidity_whenClientPresentInADifferentZone() {
+    IdentityZone notUaa = new IdentityZone();
+    notUaa.setId("uaa_not");
+    clientDetails = mock(ClientDetails.class);
+    when(IdentityZoneHolder.get()).thenReturn(notUaa);
+    when(clientDetails.getRefreshTokenValiditySeconds()).thenReturn(24);
+    when(clientServicesExtension.loadClientByClientId("clientId", "uaa_not"))
+        .thenReturn(clientDetails);
 
-        Integer validitySeconds = clientRefreshTokenValidity.getValiditySeconds("clientId");
+    Integer validitySeconds = clientRefreshTokenValidity.getValiditySeconds("clientId");
 
-        assertThat(validitySeconds, is(24));
-    }
+    assertThat(validitySeconds, is(24));
+  }
 
-    @Test
-    public void testRefreshClientValidity_whenClientPresent_doesNotHaveARefreshTokenValiditySet() {
-        when(clientDetails.getRefreshTokenValiditySeconds()).thenReturn(null);
-        assertThat(clientRefreshTokenValidity.getValiditySeconds("clientId"), is(nullValue()));
-    }
+  @Test
+  public void testRefreshClientValidity_whenClientPresent_doesNotHaveARefreshTokenValiditySet() {
+    when(clientDetails.getRefreshTokenValiditySeconds()).thenReturn(null);
+    assertThat(clientRefreshTokenValidity.getValiditySeconds("clientId"), is(nullValue()));
+  }
 
-    @Test
-    public void testRefreshClientValidity_whenNoClientPresent_ReturnsNull() {
-        when(clientServicesExtension.loadClientByClientId("notExistingClientId", "uaa")).thenThrow(ClientRegistrationException.class);
-        assertThat(clientRefreshTokenValidity.getValiditySeconds("notExistingClientId"), is(nullValue()));
-    }
+  @Test
+  public void testRefreshClientValidity_whenNoClientPresent_ReturnsNull() {
+    when(clientServicesExtension.loadClientByClientId("notExistingClientId", "uaa"))
+        .thenThrow(ClientRegistrationException.class);
+    assertThat(
+        clientRefreshTokenValidity.getValiditySeconds("notExistingClientId"), is(nullValue()));
+  }
 
-    @Test(expected = RuntimeException.class)
-    public void testRefreshClientValidity_whenClientPresent_ButUnableToRetrieveTheClient() {
-        when(clientServicesExtension.loadClientByClientId("clientId", "uaa")).thenThrow(RuntimeException.class);
-        clientRefreshTokenValidity.getValiditySeconds("clientId");
-    }
+  @Test(expected = RuntimeException.class)
+  public void testRefreshClientValidity_whenClientPresent_ButUnableToRetrieveTheClient() {
+    when(clientServicesExtension.loadClientByClientId("clientId", "uaa"))
+        .thenThrow(RuntimeException.class);
+    clientRefreshTokenValidity.getValiditySeconds("clientId");
+  }
 
+  @Test
+  public void testZoneValidityReturnsAccessTokenValidity() {
+    assertThat(clientRefreshTokenValidity.getZoneValiditySeconds(), is(-1));
+  }
 
-    @Test
-    public void testZoneValidityReturnsAccessTokenValidity() {
-        assertThat(clientRefreshTokenValidity.getZoneValiditySeconds(), is(-1));
-    }
+  @Test
+  public void testZoneValidityReturnsCorrectAccessTokenValidity() {
+    defaultZone.getConfig().getTokenPolicy().setRefreshTokenValidity(1);
 
-    @Test
-    public void testZoneValidityReturnsCorrectAccessTokenValidity() {
-        defaultZone.getConfig().getTokenPolicy().setRefreshTokenValidity(1);
-
-        assertThat(clientRefreshTokenValidity.getZoneValiditySeconds(), is(1));
-    }
+    assertThat(clientRefreshTokenValidity.getZoneValiditySeconds(), is(1));
+  }
 }

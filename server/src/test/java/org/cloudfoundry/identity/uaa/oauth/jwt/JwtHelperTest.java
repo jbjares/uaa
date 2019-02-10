@@ -10,25 +10,25 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 
 public class JwtHelperTest {
-    private KeyInfo keyInfo;
+  private KeyInfo keyInfo;
 
-    @Before
-    public void setUp() {
-        keyInfo = KeyInfoBuilder.build("testKid", "symmetricKey", "http://localhost/uaa");
-    }
+  @Before
+  public void setUp() {
+    keyInfo = KeyInfoBuilder.build("testKid", "symmetricKey", "http://localhost/uaa");
+  }
 
-    @Test
-    public void testKidInHeader() {
-        Jwt jwt = JwtHelper.encode("testJwtContent", keyInfo);
-        assertEquals("testKid", jwt.getHeader().getKid());
+  @Test
+  public void testKidInHeader() {
+    Jwt jwt = JwtHelper.encode("testJwtContent", keyInfo);
+    assertEquals("testKid", jwt.getHeader().getKid());
 
-        jwt = JwtHelper.decode(jwt.getEncoded());
-        assertEquals("testKid", jwt.getHeader().getKid());
-    }
+    jwt = JwtHelper.decode(jwt.getEncoded());
+    assertEquals("testKid", jwt.getHeader().getKid());
+  }
 
-    @Test
-    public void jwtHeaderShouldContainJkuInTheHeader() {
-        Jwt jwt = JwtHelper.encode("testJwtContent", keyInfo);
-        assertThat(jwt.getHeader().getJku(), is("https://localhost/uaa/token_keys"));
-    }
+  @Test
+  public void jwtHeaderShouldContainJkuInTheHeader() {
+    Jwt jwt = JwtHelper.encode("testJwtContent", keyInfo);
+    assertThat(jwt.getHeader().getJku(), is("https://localhost/uaa/token_keys"));
+  }
 }

@@ -19,49 +19,45 @@ import org.junit.Test;
 
 import static java.util.Collections.emptyList;
 import static org.cloudfoundry.identity.uaa.authentication.SystemAuthentication.PRINCIPAL;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 public class SystemAuthenticationTest {
 
-    private SystemAuthentication auth = SystemAuthentication.SYSTEM_AUTHENTICATION;
+  private SystemAuthentication auth = SystemAuthentication.SYSTEM_AUTHENTICATION;
 
-    @Test
-    public void getAuthorities() throws Exception {
-        assertSame(emptyList(), auth.getAuthorities());
-    }
+  @Test
+  public void getAuthorities() throws Exception {
+    assertSame(emptyList(), auth.getAuthorities());
+  }
 
-    @Test
-    public void getCredentials() throws Exception {
-        assertNull(auth.getCredentials());
-    }
+  @Test
+  public void getCredentials() throws Exception {
+    assertNull(auth.getCredentials());
+  }
 
-    @Test
-    public void getDetails() throws Exception {
-        assertEquals(PRINCIPAL, auth.getDetails());
-    }
+  @Test
+  public void getDetails() throws Exception {
+    assertEquals(PRINCIPAL, auth.getDetails());
+  }
 
-    @Test
-    public void getPrincipal() throws Exception {
-        assertEquals(PRINCIPAL, auth.getPrincipal());
-    }
+  @Test
+  public void getPrincipal() throws Exception {
+    assertEquals(PRINCIPAL, auth.getPrincipal());
+  }
 
-    @Test
-    public void isAuthenticated() throws Exception {
-        assertTrue(auth.isAuthenticated());
-    }
+  @Test
+  public void isAuthenticated() throws Exception {
+    assertTrue(auth.isAuthenticated());
+  }
 
-    @Test
-    public void setAuthenticated() throws Exception {
-        auth.setAuthenticated(false);
-        isAuthenticated();
-    }
+  @Test
+  public void setAuthenticated() throws Exception {
+    auth.setAuthenticated(false);
+    isAuthenticated();
+  }
 
-    @Test
-    public void getName() throws Exception {
-        assertEquals(PRINCIPAL, auth.getName());
-    }
-
+  @Test
+  public void getName() throws Exception {
+    assertEquals(PRINCIPAL, auth.getName());
+  }
 }

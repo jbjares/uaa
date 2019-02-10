@@ -25,44 +25,39 @@ import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 
-
 public class IdentityZoneModifiedEventTest {
 
-    private IdentityZone zone;
+  private IdentityZone zone;
 
-    @Before
-    public void setup() {
-        zone = new IdentityZone();
-        zone.setId("id");
-        zone.setSubdomain("subdomain");
-        zone.setName("Test Zone");
-        zone.setDescription("Test Zone Description");
-        zone.setConfig(new IdentityZoneConfiguration());
-        zone.getConfig().getSamlConfig().setPrivateKey("key");
-        zone.getConfig().getSamlConfig().setPrivateKeyPassword("password");
-        zone.getConfig().getSamlConfig().setCertificate("certificate");
-        Map<String, String> keys = new HashMap<>();
-        keys.put("kid", "key");
-        zone.getConfig().getTokenPolicy().setKeys(keys);
+  @Before
+  public void setup() {
+    zone = new IdentityZone();
+    zone.setId("id");
+    zone.setSubdomain("subdomain");
+    zone.setName("Test Zone");
+    zone.setDescription("Test Zone Description");
+    zone.setConfig(new IdentityZoneConfiguration());
+    zone.getConfig().getSamlConfig().setPrivateKey("key");
+    zone.getConfig().getSamlConfig().setPrivateKeyPassword("password");
+    zone.getConfig().getSamlConfig().setCertificate("certificate");
+    Map<String, String> keys = new HashMap<>();
+    keys.put("kid", "key");
+    zone.getConfig().getTokenPolicy().setKeys(keys);
+  }
 
-    }
+  @Test
+  public void identityZoneCreated() throws Exception {
+    evaluteZoneAuditData(IdentityZoneModifiedEvent.identityZoneCreated(zone));
+  }
 
-    @Test
-    public void identityZoneCreated() throws Exception {
-        evaluteZoneAuditData(IdentityZoneModifiedEvent.identityZoneCreated(zone));
-    }
+  @Test
+  public void identityZoneModified() throws Exception {
+    evaluteZoneAuditData(IdentityZoneModifiedEvent.identityZoneModified(zone));
+  }
 
-    @Test
-    public void identityZoneModified() throws Exception {
-        evaluteZoneAuditData(IdentityZoneModifiedEvent.identityZoneModified(zone));
-    }
-
-    public void evaluteZoneAuditData(IdentityZoneModifiedEvent event) {
-        String s = event.getAuditEvent().getData();
-        assertEquals(String.format(IdentityZoneModifiedEvent.dataFormat,
-                                   zone.getId(),
-                                   zone.getSubdomain()),
-                     s);
-    }
-
+  public void evaluteZoneAuditData(IdentityZoneModifiedEvent event) {
+    String s = event.getAuditEvent().getData();
+    assertEquals(
+        String.format(IdentityZoneModifiedEvent.dataFormat, zone.getId(), zone.getSubdomain()), s);
+  }
 }

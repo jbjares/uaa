@@ -23,39 +23,33 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.util.Arrays;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
+import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
 
 public class SamlMessageStorageTest {
 
-    private SamlMessageStorage storage;
-    private Map<String, XMLObject> messages;
+  private SamlMessageStorage storage;
+  private Map<String, XMLObject> messages;
 
-    @Before
-    public void setUp() throws Exception {
-        storage = new SamlMessageStorage();
-        messages = (Map<String, XMLObject>) ReflectionTestUtils.getField(storage, "messages");
+  @Before
+  public void setUp() throws Exception {
+    storage = new SamlMessageStorage();
+    messages = (Map<String, XMLObject>) ReflectionTestUtils.getField(storage, "messages");
+  }
+
+  @Test
+  public void store_and_retrieve_message() throws Exception {
+    XMLObject message = mock(XMLObject.class);
+    assertEquals(0, messages.size());
+    storage.storeMessage("id", message);
+    storage.storeMessage("id1", message);
+    assertEquals(2, messages.size());
+    for (String id : Arrays.asList("id", "id1")) {
+      XMLObject xmlObject = storage.retrieveMessage(id);
+      assertNotNull(xmlObject);
+      assertSame(message, xmlObject);
+      assertNull(storage.retrieveMessage(id));
     }
-
-    @Test
-    public void store_and_retrieve_message() throws Exception {
-        XMLObject message = mock(XMLObject.class);
-        assertEquals(0, messages.size());
-        storage.storeMessage("id", message);
-        storage.storeMessage("id1", message);
-        assertEquals(2, messages.size());
-        for (String id : Arrays.asList("id","id1")) {
-            XMLObject xmlObject = storage.retrieveMessage(id);
-            assertNotNull(xmlObject);
-            assertSame(message, xmlObject);
-            assertNull(storage.retrieveMessage(id));
-        }
-        assertEquals(0, messages.size());
-    }
-
-
-
+    assertEquals(0, messages.size());
+  }
 }

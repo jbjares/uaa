@@ -31,35 +31,40 @@ import static java.util.Optional.ofNullable;
 
 public class AntPathRedirectResolver extends DefaultRedirectResolver {
 
-    @Override
-    protected boolean redirectMatches(String requestedRedirect, String redirectUri) {
-        AntPathMatcher matcher = new AntPathMatcher("/");
+  @Override
+  protected boolean redirectMatches(String requestedRedirect, String redirectUri) {
+    AntPathMatcher matcher = new AntPathMatcher("/");
 
-        if (redirectUri!=null &&
-            redirectUri.contains("*") &&
-            matcher.match(redirectUri, requestedRedirect)) {
-            return true;
-        } else {
-            return super.redirectMatches(requestedRedirect, redirectUri);
-        }
+    if (redirectUri != null
+        && redirectUri.contains("*")
+        && matcher.match(redirectUri, requestedRedirect)) {
+      return true;
+    } else {
+      return super.redirectMatches(requestedRedirect, redirectUri);
+    }
+  }
+
+  @Override
+  public String resolveRedirect(String requestedRedirect, ClientDetails client)
+      throws OAuth2Exception {
+    Set<String> registeredRedirectUris =
+        ofNullable(client.getRegisteredRedirectUri()).orElse(emptySet());
+
+    if (registeredRedirectUris.isEmpty()) {
+      throw new RedirectMismatchException("Client registration is missing redirect_uri");
     }
 
-    @Override
-    public String resolveRedirect(String requestedRedirect, ClientDetails client) throws OAuth2Exception {
-        Set<String> registeredRedirectUris = ofNullable(client.getRegisteredRedirectUri()).orElse(emptySet());
+    List<String> invalidUrls =
+        registeredRedirectUris
+            .stream()
+            .filter(url -> !UaaUrlUtils.isValidRegisteredRedirectUrl(url))
+            .collect(Collectors.toList());
 
-        if (registeredRedirectUris.isEmpty()) {
-            throw new RedirectMismatchException("Client registration is missing redirect_uri");
-        }
-
-        List<String> invalidUrls = registeredRedirectUris.stream()
-                .filter(url -> !UaaUrlUtils.isValidRegisteredRedirectUrl(url))
-                .collect(Collectors.toList());
-
-        if (!invalidUrls.isEmpty()) {
-                throw new RedirectMismatchException("Client registration contains invalid redirect_uri: " + invalidUrls);
-        }
-
-        return super.resolveRedirect(requestedRedirect, client);
+    if (!invalidUrls.isEmpty()) {
+      throw new RedirectMismatchException(
+          "Client registration contains invalid redirect_uri: " + invalidUrls);
     }
+
+    return super.resolveRedirect(requestedRedirect, client);
+  }
 }

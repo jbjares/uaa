@@ -22,25 +22,30 @@ import org.springframework.security.core.Authentication;
 
 public class ResetPasswordRequestEvent extends AbstractUaaEvent {
 
-    private String code;
-    private String email;
+  private String code;
+  private String email;
 
-    public ResetPasswordRequestEvent(String username, String email, String code, Authentication authentication) {
-        super(username, authentication);
-        this.code = code;
-        this.email = email;
-    }
+  public ResetPasswordRequestEvent(
+      String username, String email, String code, Authentication authentication) {
+    super(username, authentication);
+    this.code = code;
+    this.email = email;
+  }
 
-    @Override
-    public AuditEvent getAuditEvent() {
-        return createAuditRecord(getSource().toString(), AuditEventType.PasswordResetRequest, getOrigin(getAuthentication()), email);
-    }
+  @Override
+  public AuditEvent getAuditEvent() {
+    return createAuditRecord(
+        getSource().toString(),
+        AuditEventType.PasswordResetRequest,
+        getOrigin(getAuthentication()),
+        email);
+  }
 
-    public String getCode() {
-        return code;
-    }
+  public String getCode() {
+    return code;
+  }
 
-    public String getEmail() {
-        return email;
-    }
+  public String getEmail() {
+    return email;
+  }
 }

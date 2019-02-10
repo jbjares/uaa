@@ -23,162 +23,175 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 public class ApprovalServiceTest {
-    private static final String CLIENT_ID = "cid";
-    private static final String USER_ID = "user";
+  private static final String CLIENT_ID = "cid";
+  private static final String USER_ID = "user";
 
-    private ApprovalService approvalService;
-    private TimeService timeService;
-    private ApprovalStore approvalStore;
-    private BaseClientDetails clientDetails;
+  private ApprovalService approvalService;
+  private TimeService timeService;
+  private ApprovalStore approvalStore;
+  private BaseClientDetails clientDetails;
 
-    @Rule
-    public ExpectedException expectedException = ExpectedException.none();
+  @Rule public ExpectedException expectedException = ExpectedException.none();
 
-    @Before
-    public void setup() {
-        timeService = mock(TimeService.class);
-        approvalStore = mock(ApprovalStore.class);
-        clientDetails = new BaseClientDetails(CLIENT_ID, null, "foo.read,bar.write", null, null);
-        approvalService = new ApprovalService(timeService, approvalStore);
-    }
+  @Before
+  public void setup() {
+    timeService = mock(TimeService.class);
+    approvalStore = mock(ApprovalStore.class);
+    clientDetails = new BaseClientDetails(CLIENT_ID, null, "foo.read,bar.write", null, null);
+    approvalService = new ApprovalService(timeService, approvalStore);
+  }
 
-    @Test
-    public void ensureRequiredApprovals_happyCase() {
-        long approvalExpiry = 10L;
-        Approval approval = new Approval();
-        approval.setScope("foo.read");
-        approval.setStatus(Approval.ApprovalStatus.APPROVED);
-        approval.setExpiresAt(new Date(approvalExpiry));
-        when(timeService.getCurrentTimeMillis()).thenReturn(approvalExpiry - 1L);
-        when(timeService.getCurrentDate()).thenCallRealMethod();
+  @Test
+  public void ensureRequiredApprovals_happyCase() {
+    long approvalExpiry = 10L;
+    Approval approval = new Approval();
+    approval.setScope("foo.read");
+    approval.setStatus(Approval.ApprovalStatus.APPROVED);
+    approval.setExpiresAt(new Date(approvalExpiry));
+    when(timeService.getCurrentTimeMillis()).thenReturn(approvalExpiry - 1L);
+    when(timeService.getCurrentDate()).thenCallRealMethod();
 
-        List<Approval> approvals = Lists.newArrayList(approval);
-        when(approvalStore.getApprovals(eq(USER_ID), eq(CLIENT_ID), anyString())).thenReturn(approvals);
+    List<Approval> approvals = Lists.newArrayList(approval);
+    when(approvalStore.getApprovals(eq(USER_ID), eq(CLIENT_ID), anyString())).thenReturn(approvals);
 
-        approvalService.ensureRequiredApprovals(USER_ID, Lists.newArrayList("foo.read"), GRANT_TYPE_AUTHORIZATION_CODE, clientDetails);
-    }
+    approvalService.ensureRequiredApprovals(
+        USER_ID, Lists.newArrayList("foo.read"), GRANT_TYPE_AUTHORIZATION_CODE, clientDetails);
+  }
 
-    @Test
-    public void ensureRequiredApprovals_throwsWhenApprovalsExpired() {
-        expectedException.expect(InvalidTokenException.class);
-        expectedException.expectMessage("approvals expired");
+  @Test
+  public void ensureRequiredApprovals_throwsWhenApprovalsExpired() {
+    expectedException.expect(InvalidTokenException.class);
+    expectedException.expectMessage("approvals expired");
 
-        long approvalExpiry = 10L;
-        Approval approval = new Approval();
-        approval.setScope("foo.read");
-        approval.setStatus(Approval.ApprovalStatus.APPROVED);
-        approval.setExpiresAt(new Date(approvalExpiry));
-        when(timeService.getCurrentTimeMillis()).thenReturn(approvalExpiry + 1L);
-        when(timeService.getCurrentDate()).thenCallRealMethod();
+    long approvalExpiry = 10L;
+    Approval approval = new Approval();
+    approval.setScope("foo.read");
+    approval.setStatus(Approval.ApprovalStatus.APPROVED);
+    approval.setExpiresAt(new Date(approvalExpiry));
+    when(timeService.getCurrentTimeMillis()).thenReturn(approvalExpiry + 1L);
+    when(timeService.getCurrentDate()).thenCallRealMethod();
 
-        List<Approval> approvals = Lists.newArrayList(approval);
-        when(approvalStore.getApprovals(eq(USER_ID), eq(CLIENT_ID), anyString())).thenReturn(approvals);
+    List<Approval> approvals = Lists.newArrayList(approval);
+    when(approvalStore.getApprovals(eq(USER_ID), eq(CLIENT_ID), anyString())).thenReturn(approvals);
 
-        approvalService.ensureRequiredApprovals(USER_ID, Lists.newArrayList("foo.read"), GRANT_TYPE_AUTHORIZATION_CODE, clientDetails);
-    }
+    approvalService.ensureRequiredApprovals(
+        USER_ID, Lists.newArrayList("foo.read"), GRANT_TYPE_AUTHORIZATION_CODE, clientDetails);
+  }
 
-    @Test
-    public void ensureRequiredApprovals_throwsWhenApprovalIsDenied() {
-        expectedException.expect(InvalidTokenException.class);
-        expectedException.expectMessage("requested scopes are not approved");
+  @Test
+  public void ensureRequiredApprovals_throwsWhenApprovalIsDenied() {
+    expectedException.expect(InvalidTokenException.class);
+    expectedException.expectMessage("requested scopes are not approved");
 
-        long approvalExpiry = 10L;
-        Approval approval = new Approval();
-        approval.setScope("foo.read");
-        approval.setStatus(Approval.ApprovalStatus.DENIED);
-        approval.setExpiresAt(new Date(approvalExpiry));
-        when(timeService.getCurrentTimeMillis()).thenReturn(approvalExpiry - 1L);
-        when(timeService.getCurrentDate()).thenCallRealMethod();
+    long approvalExpiry = 10L;
+    Approval approval = new Approval();
+    approval.setScope("foo.read");
+    approval.setStatus(Approval.ApprovalStatus.DENIED);
+    approval.setExpiresAt(new Date(approvalExpiry));
+    when(timeService.getCurrentTimeMillis()).thenReturn(approvalExpiry - 1L);
+    when(timeService.getCurrentDate()).thenCallRealMethod();
 
-        List<Approval> approvals = Lists.newArrayList(approval);
-        when(approvalStore.getApprovals(eq(USER_ID), eq(CLIENT_ID), anyString())).thenReturn(approvals);
+    List<Approval> approvals = Lists.newArrayList(approval);
+    when(approvalStore.getApprovals(eq(USER_ID), eq(CLIENT_ID), anyString())).thenReturn(approvals);
 
-        approvalService.ensureRequiredApprovals(USER_ID, Lists.newArrayList("foo.read"), GRANT_TYPE_AUTHORIZATION_CODE, clientDetails);
-    }
+    approvalService.ensureRequiredApprovals(
+        USER_ID, Lists.newArrayList("foo.read"), GRANT_TYPE_AUTHORIZATION_CODE, clientDetails);
+  }
 
-    @Test
-    public void ensureRequiredApprovals_iteratesThroughAllApprovalsAndScopes() {
-        long approvalExpiry = 10L;
-        Approval approval1 = new Approval();
-        approval1.setScope("foo.read");
-        approval1.setStatus(Approval.ApprovalStatus.APPROVED);
-        approval1.setExpiresAt(new Date(approvalExpiry));
-        Approval approval2 = new Approval();
-        approval2.setScope("bar.read");
-        approval2.setStatus(Approval.ApprovalStatus.APPROVED);
-        approval2.setExpiresAt(new Date(approvalExpiry));
-        Approval approval3 = new Approval();
-        approval3.setScope("baz.read");
-        approval3.setStatus(Approval.ApprovalStatus.APPROVED);
-        approval3.setExpiresAt(new Date(approvalExpiry));
+  @Test
+  public void ensureRequiredApprovals_iteratesThroughAllApprovalsAndScopes() {
+    long approvalExpiry = 10L;
+    Approval approval1 = new Approval();
+    approval1.setScope("foo.read");
+    approval1.setStatus(Approval.ApprovalStatus.APPROVED);
+    approval1.setExpiresAt(new Date(approvalExpiry));
+    Approval approval2 = new Approval();
+    approval2.setScope("bar.read");
+    approval2.setStatus(Approval.ApprovalStatus.APPROVED);
+    approval2.setExpiresAt(new Date(approvalExpiry));
+    Approval approval3 = new Approval();
+    approval3.setScope("baz.read");
+    approval3.setStatus(Approval.ApprovalStatus.APPROVED);
+    approval3.setExpiresAt(new Date(approvalExpiry));
 
-        when(timeService.getCurrentTimeMillis()).thenReturn(approvalExpiry - 1L);
-        when(timeService.getCurrentDate()).thenCallRealMethod();
+    when(timeService.getCurrentTimeMillis()).thenReturn(approvalExpiry - 1L);
+    when(timeService.getCurrentDate()).thenCallRealMethod();
 
-        List<Approval> approvals = Lists.newArrayList(approval1, approval2, approval3);
-        when(approvalStore.getApprovals(eq(USER_ID), eq(CLIENT_ID), anyString())).thenReturn(approvals);
+    List<Approval> approvals = Lists.newArrayList(approval1, approval2, approval3);
+    when(approvalStore.getApprovals(eq(USER_ID), eq(CLIENT_ID), anyString())).thenReturn(approvals);
 
-        approvalService.ensureRequiredApprovals(USER_ID, Lists.newArrayList("foo.read", "bar.read"), GRANT_TYPE_AUTHORIZATION_CODE, clientDetails);
-    }
+    approvalService.ensureRequiredApprovals(
+        USER_ID,
+        Lists.newArrayList("foo.read", "bar.read"),
+        GRANT_TYPE_AUTHORIZATION_CODE,
+        clientDetails);
+  }
 
-    @Test
-    public void ensureRequiredApprovals_throwsIfAnyRequestedScopesAreNotApproved() {
-        expectedException.expect(InvalidTokenException.class);
-        expectedException.expectMessage("requested scopes are not approved");
+  @Test
+  public void ensureRequiredApprovals_throwsIfAnyRequestedScopesAreNotApproved() {
+    expectedException.expect(InvalidTokenException.class);
+    expectedException.expectMessage("requested scopes are not approved");
 
-        long approvalExpiry = 10L;
-        Approval approval1 = new Approval();
-        approval1.setScope("foo.read");
-        approval1.setStatus(Approval.ApprovalStatus.APPROVED);
-        approval1.setExpiresAt(new Date(approvalExpiry));
-        Approval approval2 = new Approval();
-        approval2.setScope("bar.read");
-        approval2.setStatus(Approval.ApprovalStatus.DENIED);
-        approval2.setExpiresAt(new Date(approvalExpiry));
-        Approval approval3 = new Approval();
-        approval3.setScope("baz.read");
-        approval3.setStatus(Approval.ApprovalStatus.APPROVED);
-        approval3.setExpiresAt(new Date(approvalExpiry));
+    long approvalExpiry = 10L;
+    Approval approval1 = new Approval();
+    approval1.setScope("foo.read");
+    approval1.setStatus(Approval.ApprovalStatus.APPROVED);
+    approval1.setExpiresAt(new Date(approvalExpiry));
+    Approval approval2 = new Approval();
+    approval2.setScope("bar.read");
+    approval2.setStatus(Approval.ApprovalStatus.DENIED);
+    approval2.setExpiresAt(new Date(approvalExpiry));
+    Approval approval3 = new Approval();
+    approval3.setScope("baz.read");
+    approval3.setStatus(Approval.ApprovalStatus.APPROVED);
+    approval3.setExpiresAt(new Date(approvalExpiry));
 
-        when(timeService.getCurrentTimeMillis()).thenReturn(approvalExpiry - 1L);
-        when(timeService.getCurrentDate()).thenCallRealMethod();
+    when(timeService.getCurrentTimeMillis()).thenReturn(approvalExpiry - 1L);
+    when(timeService.getCurrentDate()).thenCallRealMethod();
 
-        List<Approval> approvals = Lists.newArrayList(approval1, approval2, approval3);
-        when(approvalStore.getApprovals(eq(USER_ID), eq(CLIENT_ID), anyString())).thenReturn(approvals);
+    List<Approval> approvals = Lists.newArrayList(approval1, approval2, approval3);
+    when(approvalStore.getApprovals(eq(USER_ID), eq(CLIENT_ID), anyString())).thenReturn(approvals);
 
-        approvalService.ensureRequiredApprovals(USER_ID, Lists.newArrayList("foo.read", "bar.read"), GRANT_TYPE_AUTHORIZATION_CODE, clientDetails);
-    }
+    approvalService.ensureRequiredApprovals(
+        USER_ID,
+        Lists.newArrayList("foo.read", "bar.read"),
+        GRANT_TYPE_AUTHORIZATION_CODE,
+        clientDetails);
+  }
 
-    @Test
-    public void ensureRequiredApprovals_throwsWhenApprovalsMissing() {
-        expectedException.expect(InvalidTokenException.class);
-        expectedException.expectMessage("requested scopes are not approved");
+  @Test
+  public void ensureRequiredApprovals_throwsWhenApprovalsMissing() {
+    expectedException.expect(InvalidTokenException.class);
+    expectedException.expectMessage("requested scopes are not approved");
 
-        long approvalExpiry = 10L;
-        Approval approval = new Approval();
-        approval.setScope("bar.read");
-        approval.setStatus(Approval.ApprovalStatus.APPROVED);
-        approval.setExpiresAt(new Date(approvalExpiry));
-        when(timeService.getCurrentTimeMillis()).thenReturn(approvalExpiry - 5L);
-        when(timeService.getCurrentDate()).thenCallRealMethod();
+    long approvalExpiry = 10L;
+    Approval approval = new Approval();
+    approval.setScope("bar.read");
+    approval.setStatus(Approval.ApprovalStatus.APPROVED);
+    approval.setExpiresAt(new Date(approvalExpiry));
+    when(timeService.getCurrentTimeMillis()).thenReturn(approvalExpiry - 5L);
+    when(timeService.getCurrentDate()).thenCallRealMethod();
 
-        List<Approval> approvals = Lists.newArrayList(approval);
-        when(approvalStore.getApprovals(eq(USER_ID), eq(CLIENT_ID), anyString())).thenReturn(approvals);
+    List<Approval> approvals = Lists.newArrayList(approval);
+    when(approvalStore.getApprovals(eq(USER_ID), eq(CLIENT_ID), anyString())).thenReturn(approvals);
 
-        approvalService.ensureRequiredApprovals(USER_ID, Lists.newArrayList("foo.read"), GRANT_TYPE_AUTHORIZATION_CODE, clientDetails);
-    }
+    approvalService.ensureRequiredApprovals(
+        USER_ID, Lists.newArrayList("foo.read"), GRANT_TYPE_AUTHORIZATION_CODE, clientDetails);
+  }
 
-    @Test
-    public void ensureRequiredApprovals_IfNoApprovalsNorScopes() {
-        List<Approval> approvals = Lists.newArrayList();
-        when(approvalStore.getApprovals(eq(USER_ID), eq(CLIENT_ID), anyString())).thenReturn(approvals);
+  @Test
+  public void ensureRequiredApprovals_IfNoApprovalsNorScopes() {
+    List<Approval> approvals = Lists.newArrayList();
+    when(approvalStore.getApprovals(eq(USER_ID), eq(CLIENT_ID), anyString())).thenReturn(approvals);
 
-        approvalService.ensureRequiredApprovals(USER_ID, Lists.newArrayList(), GRANT_TYPE_AUTHORIZATION_CODE, clientDetails);
-    }
+    approvalService.ensureRequiredApprovals(
+        USER_ID, Lists.newArrayList(), GRANT_TYPE_AUTHORIZATION_CODE, clientDetails);
+  }
 
-    @Test
-    public void ensureRequiredApprovals_whenPasswordGrantType_autoapprovesAllScopes() {
-        approvalService.ensureRequiredApprovals(USER_ID, Lists.newArrayList("hithere"), GRANT_TYPE_PASSWORD, clientDetails);
-        // no exception expected
-    }
+  @Test
+  public void ensureRequiredApprovals_whenPasswordGrantType_autoapprovesAllScopes() {
+    approvalService.ensureRequiredApprovals(
+        USER_ID, Lists.newArrayList("hithere"), GRANT_TYPE_PASSWORD, clientDetails);
+    // no exception expected
+  }
 }

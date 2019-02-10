@@ -22,15 +22,15 @@ import org.springframework.security.saml.trust.MetadataCredentialResolver;
 
 import java.util.Collection;
 
-
 public class NonCachingMetadataCredentialResolver extends MetadataCredentialResolver {
 
-    public NonCachingMetadataCredentialResolver(MetadataManager metadataProvider, KeyManager keyManager) {
-        super(metadataProvider, keyManager);
-    }
+  public NonCachingMetadataCredentialResolver(
+      MetadataManager metadataProvider, KeyManager keyManager) {
+    super(metadataProvider, keyManager);
+  }
 
-    @Override
-    protected void cacheCredentials(MetadataCacheKey cacheKey, Collection<Credential> credentials) {
-        //no op
-    }
+  @Override
+  protected void cacheCredentials(MetadataCacheKey cacheKey, Collection<Credential> credentials) {
+    // no op
+  }
 }

@@ -5,10 +5,10 @@ import org.springframework.context.ApplicationEventPublisherAware;
 
 public class TokenRevocationEventPublisher implements ApplicationEventPublisherAware {
 
-    private ApplicationEventPublisher eventPublisher;
+  private ApplicationEventPublisher eventPublisher;
 
-    @Override
-    public void setApplicationEventPublisher(ApplicationEventPublisher applicationEventPublisher) {
-        this.eventPublisher = applicationEventPublisher;
-    }
+  @Override
+  public void setApplicationEventPublisher(ApplicationEventPublisher applicationEventPublisher) {
+    this.eventPublisher = applicationEventPublisher;
+  }
 }

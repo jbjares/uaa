@@ -33,68 +33,74 @@ import static org.junit.Assert.assertEquals;
 
 public class DatabaseParametersTests extends JdbcTestBase {
 
+  private Vendor vendor;
 
-    private Vendor vendor;
+  @Override
+  @Before
+  public void setUp() throws Exception {
+    MockEnvironment environment = new MockEnvironment();
+    environment.setProperty("database.initialsize", "0");
+    environment.setProperty("database.validationquerytimeout", "5");
+    environment.setProperty("database.connecttimeout", "5");
+    if (System.getProperty("spring.profiles.active") != null) {
+      environment.setActiveProfiles(
+          StringUtils.commaDelimitedListToStringArray(
+              System.getProperty("spring.profiles.active")));
+    }
+    super.setUp(environment);
+    vendor = webApplicationContext.getBean(DatabaseUrlModifier.class).getDatabaseType();
+  }
 
-    @Override
-    @Before
-    public void setUp() throws Exception {
-        MockEnvironment environment = new MockEnvironment();
-        environment.setProperty("database.initialsize", "0");
-        environment.setProperty("database.validationquerytimeout", "5");
-        environment.setProperty("database.connecttimeout", "5");
-        if (System.getProperty("spring.profiles.active")!=null) {
-            environment.setActiveProfiles(StringUtils.commaDelimitedListToStringArray(System.getProperty("spring.profiles.active")));
+  @Test
+  public void initial_size() throws Exception {
+    assertEquals(0, getDataSource().getInitialSize());
+  }
+
+  @Test
+  public void validation_query_timeout() throws Exception {
+    assertEquals(5, getDataSource().getValidationQueryTimeout());
+  }
+
+  @Test
+  public void connection_timeout_property_set() throws Exception {
+    switch (vendor) {
+      case mysql:
+        {
+          assertEquals("5000", getUrlParameter("connectTimeout"));
+          break;
         }
-        super.setUp(environment);
-        vendor = webApplicationContext.getBean(DatabaseUrlModifier.class).getDatabaseType();
-    }
-
-    @Test
-    public void initial_size() throws Exception {
-        assertEquals(0, getDataSource().getInitialSize());
-    }
-
-    @Test
-    public void validation_query_timeout() throws Exception {
-        assertEquals(5, getDataSource().getValidationQueryTimeout());
-    }
-
-    @Test
-    public void connection_timeout_property_set() throws Exception {
-        switch (vendor) {
-            case mysql : {
-                assertEquals("5000", getUrlParameter("connectTimeout"));
-                break;
-            }
-            case postgresql : {
-                assertEquals("5", getUrlParameter("connectTimeout"));
-                break;
-            }
-            case sqlserver : {
-                assertEquals("5", getUrlParameter("loginTimeout"));
-                break;
-            }
-            case hsqldb : {break;}
-            default : throw new IllegalStateException("Unrecognized database: "+ vendor);
+      case postgresql:
+        {
+          assertEquals("5", getUrlParameter("connectTimeout"));
+          break;
         }
-
-    }
-
-    public DataSource getDataSource() {
-        return (DataSource)dataSource;
-    }
-
-    public String getUrlParameter(String name) throws URISyntaxException {
-        String dburl = getDataSource().getUrl();
-        URI uri = URI.create("http://localhost" + dburl.substring(dburl.indexOf("?")));
-        List<NameValuePair> pairs = URLEncodedUtils.parse(uri, StandardCharsets.UTF_8);
-        for (NameValuePair p : pairs) {
-            if (name.equals(p.getName())) {
-                return p.getValue();
-            }
+      case sqlserver:
+        {
+          assertEquals("5", getUrlParameter("loginTimeout"));
+          break;
         }
-        return null;
+      case hsqldb:
+        {
+          break;
+        }
+      default:
+        throw new IllegalStateException("Unrecognized database: " + vendor);
     }
+  }
 
+  public DataSource getDataSource() {
+    return (DataSource) dataSource;
+  }
+
+  public String getUrlParameter(String name) throws URISyntaxException {
+    String dburl = getDataSource().getUrl();
+    URI uri = URI.create("http://localhost" + dburl.substring(dburl.indexOf("?")));
+    List<NameValuePair> pairs = URLEncodedUtils.parse(uri, StandardCharsets.UTF_8);
+    for (NameValuePair p : pairs) {
+      if (name.equals(p.getName())) {
+        return p.getValue();
+      }
+    }
+    return null;
+  }
 }

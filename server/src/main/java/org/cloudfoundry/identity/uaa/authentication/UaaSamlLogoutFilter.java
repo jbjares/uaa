@@ -18,32 +18,33 @@ import java.util.List;
 
 public class UaaSamlLogoutFilter extends SAMLLogoutFilter {
 
+  public UaaSamlLogoutFilter(LogoutSuccessHandler logoutSuccessHandler, LogoutHandler... handlers) {
+    super(logoutSuccessHandler, handlers, handlers);
+    setFilterProcessesUrl("/logout.do");
+  }
 
-    public UaaSamlLogoutFilter(LogoutSuccessHandler logoutSuccessHandler, LogoutHandler... handlers) {
-        super(logoutSuccessHandler, handlers, handlers);
-        setFilterProcessesUrl("/logout.do");
+  @Override
+  protected boolean isGlobalLogout(HttpServletRequest request, Authentication auth) {
+    SAMLMessageContext context;
+    try {
+      SAMLCredential credential = (SAMLCredential) auth.getCredentials();
+      request.setAttribute(SAMLConstants.LOCAL_ENTITY_ID, credential.getLocalEntityID());
+      request.setAttribute(SAMLConstants.PEER_ENTITY_ID, credential.getRemoteEntityID());
+      context = contextProvider.getLocalAndPeerEntity(request, null);
+      IDPSSODescriptor idp = (IDPSSODescriptor) context.getPeerEntityRoleMetadata();
+      List<SingleLogoutService> singleLogoutServices = idp.getSingleLogoutServices();
+      return singleLogoutServices.size() != 0;
+    } catch (MetadataProviderException e) {
+      logger.debug("Error processing metadata", e);
+      return false;
     }
+  }
 
-    @Override
-    protected boolean isGlobalLogout(HttpServletRequest request, Authentication auth) {
-        SAMLMessageContext context;
-        try {
-            SAMLCredential credential = (SAMLCredential) auth.getCredentials();
-            request.setAttribute(SAMLConstants.LOCAL_ENTITY_ID, credential.getLocalEntityID());
-            request.setAttribute(SAMLConstants.PEER_ENTITY_ID, credential.getRemoteEntityID());
-            context = contextProvider.getLocalAndPeerEntity(request, null);
-            IDPSSODescriptor idp = (IDPSSODescriptor) context.getPeerEntityRoleMetadata();
-            List<SingleLogoutService> singleLogoutServices = idp.getSingleLogoutServices();
-            return singleLogoutServices.size() != 0;
-        } catch (MetadataProviderException e) {
-            logger.debug("Error processing metadata", e);
-            return false;
-        }
-    }
-
-    @Override
-    protected boolean requiresLogout(HttpServletRequest request, HttpServletResponse response) {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        return auth != null && auth.getCredentials() instanceof SAMLCredential && super.requiresLogout(request, response);
-    }
+  @Override
+  protected boolean requiresLogout(HttpServletRequest request, HttpServletResponse response) {
+    Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+    return auth != null
+        && auth.getCredentials() instanceof SAMLCredential
+        && super.requiresLogout(request, response);
+  }
 }

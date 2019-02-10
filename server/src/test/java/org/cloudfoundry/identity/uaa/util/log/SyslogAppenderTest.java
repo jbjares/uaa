@@ -37,44 +37,44 @@ import static org.mockito.Mockito.mock;
 
 public class SyslogAppenderTest {
 
+  private Log log;
 
-    private Log log;
+  @Test
+  public void testLargePacketHeaders() {
+    SyslogAppender appender = new SyslogAppender();
+    appender.setFacility("USER");
+    appender.setThreshold(Priority.DEBUG);
+    appender.setSyslogHost("localhost");
+    String packetHeader = "TEST HEADER: ";
+    appender.setPacketHeader(packetHeader);
 
+    char[] message = new char[3 * 1024];
+    Arrays.fill(message, 0, 1023, 'A');
+    Arrays.fill(message, 1024, 1023 + 1024, 'B');
+    Arrays.fill(message, 2048, 1023 + 2048, 'C');
 
+    SyslogQuietWriter writer = mock(SyslogQuietWriter.class);
+    ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
+    appender.sqw = writer;
 
-    @Test
-    public void testLargePacketHeaders() {
-        SyslogAppender appender = new SyslogAppender();
-        appender.setFacility("USER");
-        appender.setThreshold(Priority.DEBUG);
-        appender.setSyslogHost("localhost");
-        String packetHeader = "TEST HEADER: ";
-        appender.setPacketHeader(packetHeader);
-
-        char[] message = new char[3*1024];
-        Arrays.fill(message, 0, 1023, 'A');
-        Arrays.fill(message, 1024, 1023+1024, 'B');
-        Arrays.fill(message, 2048, 1023+2048, 'C');
-
-        SyslogQuietWriter writer = mock(SyslogQuietWriter.class);
-        ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
-        appender.sqw = writer;
-
-        LoggingEvent event = new LoggingEvent(
+    LoggingEvent event =
+        new LoggingEvent(
             "org.apache.commons.logging.impl.Log4JLogger",
             new NOPLogger(new NOPLoggerRepository(), "name"),
             Priority.ERROR,
             new String(message),
             null);
 
-        appender.append(event);
-        Mockito.verify(writer, atLeast(4)).write(captor.capture());
+    appender.append(event);
+    Mockito.verify(writer, atLeast(4)).write(captor.capture());
 
-        assertThat(captor.getAllValues(), Every.everyItem(Matchers.startsWith(packetHeader)));
-        assertThat(captor.getAllValues().stream().map(s -> s.length()).collect(Collectors.toList()), Every.everyItem(lessThan(1019)));
+    assertThat(captor.getAllValues(), Every.everyItem(Matchers.startsWith(packetHeader)));
+    assertThat(
+        captor.getAllValues().stream().map(s -> s.length()).collect(Collectors.toList()),
+        Every.everyItem(lessThan(1019)));
 
-//        log = LogFactory.getLog(getClass());
-//        log.error(new String(message));
+    //        log = LogFactory.getLog(getClass());
+    //        log.error(new String(message));
 
-    }
+  }
 }

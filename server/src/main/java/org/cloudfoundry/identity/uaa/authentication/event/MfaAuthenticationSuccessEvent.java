@@ -7,23 +7,28 @@ import org.springframework.security.core.Authentication;
 import org.springframework.util.Assert;
 
 public class MfaAuthenticationSuccessEvent extends AbstractUaaAuthenticationEvent {
-    private final UaaUser user;
-    private final String type;
+  private final UaaUser user;
+  private final String type;
 
-    public MfaAuthenticationSuccessEvent(UaaUser user, Authentication authentication, String type) {
-        super(authentication);
-        this.user = user;
-        this.type = type;
-    }
+  public MfaAuthenticationSuccessEvent(UaaUser user, Authentication authentication, String type) {
+    super(authentication);
+    this.user = user;
+    this.type = type;
+  }
 
-    @Override
-    public AuditEvent getAuditEvent() {
-        Assert.notNull(user, "UaaUser cannot be null");
-        return createAuditRecord(user.getId(), AuditEventType.MfaAuthenticationSuccess,
-                getOrigin(getAuthenticationDetails()), user.getUsername(), type, null);
-    }
+  @Override
+  public AuditEvent getAuditEvent() {
+    Assert.notNull(user, "UaaUser cannot be null");
+    return createAuditRecord(
+        user.getId(),
+        AuditEventType.MfaAuthenticationSuccess,
+        getOrigin(getAuthenticationDetails()),
+        user.getUsername(),
+        type,
+        null);
+  }
 
-    public UaaUser getUser() {
-        return user;
-    }
+  public UaaUser getUser() {
+    return user;
+  }
 }

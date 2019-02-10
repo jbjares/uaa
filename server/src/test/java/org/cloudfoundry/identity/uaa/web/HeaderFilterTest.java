@@ -29,22 +29,22 @@ import static org.junit.Assert.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 
 public class HeaderFilterTest {
-    @Test
-    public void doFilter() throws Exception {
-        FilterChain mockChain = Mockito.mock(FilterChain.class);
-        HeaderFilter filter = new HeaderFilter(emptyList());
-        MockHttpServletRequest request = new MockHttpServletRequest();
-        MockHttpServletResponse response = new MockHttpServletResponse();
-        filter.doFilter(request, response, mockChain);
-        ArgumentCaptor<HttpHeadersFilterRequestWrapper> args = ArgumentCaptor.forClass(HttpHeadersFilterRequestWrapper.class);
-        Mockito.verify(mockChain, Mockito.times(1)).doFilter(args.capture(), any());
-        Assert.assertTrue(args.getValue() instanceof HttpHeadersFilterRequestWrapper);
-    }
+  @Test
+  public void doFilter() throws Exception {
+    FilterChain mockChain = Mockito.mock(FilterChain.class);
+    HeaderFilter filter = new HeaderFilter(emptyList());
+    MockHttpServletRequest request = new MockHttpServletRequest();
+    MockHttpServletResponse response = new MockHttpServletResponse();
+    filter.doFilter(request, response, mockChain);
+    ArgumentCaptor<HttpHeadersFilterRequestWrapper> args =
+        ArgumentCaptor.forClass(HttpHeadersFilterRequestWrapper.class);
+    Mockito.verify(mockChain, Mockito.times(1)).doFilter(args.capture(), any());
+    Assert.assertTrue(args.getValue() instanceof HttpHeadersFilterRequestWrapper);
+  }
 
-    @Test
-    public void allows_null_argument() throws Exception {
-        HeaderFilter filter = new HeaderFilter(null);
-        assertNotNull(filter.getFilteredHeaderNames());
-    }
-
+  @Test
+  public void allows_null_argument() throws Exception {
+    HeaderFilter filter = new HeaderFilter(null);
+    assertNotNull(filter.getFilteredHeaderNames());
+  }
 }

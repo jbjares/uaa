@@ -11,44 +11,47 @@ import java.io.File;
 import java.util.Date;
 
 public class SlowHttpServer {
-    private final Runnable serverRunner;
-    private HttpServer httpServer;
+  private final Runnable serverRunner;
+  private HttpServer httpServer;
 
-    public SlowHttpServer() {
-            serverRunner = () -> {
-                try {
-                    HttpHeaders headers = new HttpHeaders();
-                    headers.setContentType(MediaType.APPLICATION_JSON);
-                    File keystore = NetworkTestUtils.getKeystore(new Date(), 10);
-                    httpServer = NetworkTestUtils.startHttpsServer(keystore, NetworkTestUtils.keyPass, new SlowSimpleHttpResponseHandler());
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            };
-    }
+  public SlowHttpServer() {
+    serverRunner =
+        () -> {
+          try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            File keystore = NetworkTestUtils.getKeystore(new Date(), 10);
+            httpServer =
+                NetworkTestUtils.startHttpsServer(
+                    keystore, NetworkTestUtils.keyPass, new SlowSimpleHttpResponseHandler());
+          } catch (Exception e) {
+            e.printStackTrace();
+          }
+        };
+  }
 
-    public void run() {
-        new Thread(serverRunner).run();
-    }
+  public void run() {
+    new Thread(serverRunner).run();
+  }
 
-    public void stop() {
-        if (httpServer != null) {
-            httpServer.stop(0);
-        }
+  public void stop() {
+    if (httpServer != null) {
+      httpServer.stop(0);
     }
+  }
 
-    private static class SlowSimpleHttpResponseHandler implements HttpHandler {
-        @Override
-        public void handle(HttpExchange httpExchange) {
-            try {
-                Thread.sleep(Integer.MAX_VALUE);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }
+  private static class SlowSimpleHttpResponseHandler implements HttpHandler {
+    @Override
+    public void handle(HttpExchange httpExchange) {
+      try {
+        Thread.sleep(Integer.MAX_VALUE);
+      } catch (InterruptedException e) {
+        e.printStackTrace();
+      }
     }
+  }
 
-    public String getUrl() {
-        return "https://localhost:" + httpServer.getAddress().getPort();
-    }
+  public String getUrl() {
+    return "https://localhost:" + httpServer.getAddress().getPort();
+  }
 }

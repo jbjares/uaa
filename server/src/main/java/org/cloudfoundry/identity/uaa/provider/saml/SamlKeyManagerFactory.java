@@ -1,15 +1,15 @@
-/*******************************************************************************
- *     Cloud Foundry
- *     Copyright (c) [2009-2016] Pivotal Software, Inc. All Rights Reserved.
+/**
+ * ***************************************************************************** Cloud Foundry
+ * Copyright (c) [2009-2016] Pivotal Software, Inc. All Rights Reserved.
  *
- *     This product is licensed to you under the Apache License, Version 2.0 (the "License").
- *     You may not use this product except in compliance with the License.
+ * <p>This product is licensed to you under the Apache License, Version 2.0 (the "License"). You may
+ * not use this product except in compliance with the License.
  *
- *     This product includes a number of subcomponents with
- *     separate copyright notices and license terms. Your use of these
- *     subcomponents is subject to the terms and conditions of the
- *     subcomponent's license, as noted in the LICENSE file.
- *******************************************************************************/
+ * <p>This product includes a number of subcomponents with separate copyright notices and license
+ * terms. Your use of these subcomponents is subject to the terms and conditions of the
+ * subcomponent's license, as noted in the LICENSE file.
+ * *****************************************************************************
+ */
 package org.cloudfoundry.identity.uaa.provider.saml;
 
 import org.cloudfoundry.identity.uaa.saml.SamlKey;
@@ -31,58 +31,61 @@ import static java.util.Optional.ofNullable;
 
 public final class SamlKeyManagerFactory {
 
-    protected final static Logger logger = LoggerFactory.getLogger(SamlKeyManagerFactory.class);
+  protected static final Logger logger = LoggerFactory.getLogger(SamlKeyManagerFactory.class);
 
-    private SamlKeyManagerFactory() {}
+  private SamlKeyManagerFactory() {}
 
-    public static KeyManager getKeyManager(SamlConfig config) {
-        return getKeyManager(config.getKeys(), config.getActiveKeyId());
+  public static KeyManager getKeyManager(SamlConfig config) {
+    return getKeyManager(config.getKeys(), config.getActiveKeyId());
+  }
+
+  private static KeyManager getKeyManager(Map<String, SamlKey> keys, String activeKeyId) {
+    SamlKey activeKey = keys.get(activeKeyId);
+
+    if (activeKey == null) {
+      return null;
     }
 
-    private static KeyManager getKeyManager(Map<String, SamlKey> keys, String activeKeyId) {
-        SamlKey activeKey = keys.get(activeKeyId);
+    try {
+      KeyStore keystore = KeyStore.getInstance("JKS");
+      keystore.load(null);
+      Map<String, String> aliasPasswordMap = new HashMap<>();
+      for (Map.Entry<String, SamlKey> entry : keys.entrySet()) {
+        String password = ofNullable(entry.getValue().getPassphrase()).orElse("");
+        KeyWithCert keyWithCert =
+            entry.getValue().getKey() == null
+                ? new KeyWithCert(entry.getValue().getCertificate())
+                : new KeyWithCert(
+                    entry.getValue().getKey(), password, entry.getValue().getCertificate());
 
-        if (activeKey == null) {
-            return null;
+        X509Certificate certificate = keyWithCert.getCertificate();
+
+        String alias = entry.getKey();
+        keystore.setCertificateEntry(alias, certificate);
+
+        PrivateKey privateKey = keyWithCert.getPrivateKey();
+        if (privateKey != null) {
+          keystore.setKeyEntry(
+              alias, privateKey, password.toCharArray(), new Certificate[] {certificate});
+          aliasPasswordMap.put(alias, password);
         }
+      }
 
-        try {
-            KeyStore keystore = KeyStore.getInstance("JKS");
-            keystore.load(null);
-            Map<String, String> aliasPasswordMap = new HashMap<>();
-            for (Map.Entry<String, SamlKey> entry : keys.entrySet()) {
-                String password = ofNullable(entry.getValue().getPassphrase()).orElse("");
-                KeyWithCert keyWithCert = entry.getValue().getKey() == null ?
-                    new KeyWithCert(entry.getValue().getCertificate()) :
-                    new KeyWithCert(entry.getValue().getKey(), password, entry.getValue().getCertificate());
+      JKSKeyManager keyManager = new JKSKeyManager(keystore, aliasPasswordMap, activeKeyId);
 
-                X509Certificate certificate = keyWithCert.getCertificate();
+      if (null == keyManager) {
+        throw new IllegalArgumentException(
+            "Could not load service provider certificate. Check serviceProviderKey and certificate parameters");
+      }
 
-                String alias = entry.getKey();
-                keystore.setCertificateEntry(alias, certificate);
+      logger.info("Loaded service provider certificate " + keyManager.getDefaultCredentialName());
 
-                PrivateKey privateKey = keyWithCert.getPrivateKey();
-                if (privateKey != null) {
-                    keystore.setKeyEntry(alias, privateKey, password.toCharArray(), new Certificate[]{certificate});
-                    aliasPasswordMap.put(alias, password);
-                }
-            }
-
-            JKSKeyManager keyManager = new JKSKeyManager(keystore, aliasPasswordMap, activeKeyId);
-
-            if (null == keyManager) {
-                throw new IllegalArgumentException(
-                        "Could not load service provider certificate. Check serviceProviderKey and certificate parameters");
-            }
-
-            logger.info("Loaded service provider certificate " + keyManager.getDefaultCredentialName());
-
-            return keyManager;
-        } catch (Throwable t) {
-            logger.error("Could not load certificate", t);
-            throw new IllegalArgumentException(
-                    "Could not load service provider certificate. Check serviceProviderKey and certificate parameters",
-                    t);
-        }
+      return keyManager;
+    } catch (Throwable t) {
+      logger.error("Could not load certificate", t);
+      throw new IllegalArgumentException(
+          "Could not load service provider certificate. Check serviceProviderKey and certificate parameters",
+          t);
     }
+  }
 }

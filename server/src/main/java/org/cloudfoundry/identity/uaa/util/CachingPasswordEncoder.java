@@ -25,186 +25,182 @@ import org.springframework.security.oauth2.common.util.RandomValueStringGenerato
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 
 import static org.springframework.security.crypto.util.EncodingUtils.concatenate;
 
 /**
- * Wrapper around a slow password encoder that does a fast translation in memory only
- * This uses a hash to as a key to store a list of
+ * Wrapper around a slow password encoder that does a fast translation in memory only This uses a
+ * hash to as a key to store a list of
  */
 public class CachingPasswordEncoder implements PasswordEncoder {
 
-    private final MessageDigest messageDigest;
-    private final byte[] secret;
-    private final byte[] salt;
-    private final int iterations;
+  private final MessageDigest messageDigest;
+  private final byte[] secret;
+  private final byte[] salt;
+  private final int iterations;
 
-    private int maxKeys = 1000;
-    private int maxEncodedPasswords = 5;
-    private boolean enabled = true;
-    private int expiryInSeconds = 300;
+  private int maxKeys = 1000;
+  private int maxEncodedPasswords = 5;
+  private boolean enabled = true;
+  private int expiryInSeconds = 300;
 
-    public boolean isEnabled() {
-        return enabled;
+  public boolean isEnabled() {
+    return enabled;
+  }
+
+  public void setEnabled(boolean enabled) {
+    this.enabled = enabled;
+  }
+
+  private volatile Cache<CharSequence, Set<String>> cache = null;
+
+  private PasswordEncoder passwordEncoder;
+
+  public CachingPasswordEncoder() throws NoSuchAlgorithmException {
+    messageDigest = MessageDigest.getInstance("SHA-256");
+    this.secret = Utf8.encode(new RandomValueStringGenerator().generate());
+    this.salt = KeyGenerators.secureRandom().generateKey();
+    iterations = 25;
+    buildCache();
+  }
+
+  public PasswordEncoder getPasswordEncoder() {
+    return passwordEncoder;
+  }
+
+  public void setPasswordEncoder(PasswordEncoder passwordEncoder) {
+    this.passwordEncoder = passwordEncoder;
+  }
+
+  @Override
+  public String encode(CharSequence rawPassword) throws AuthenticationException {
+    // we always use the Bcrypt mechanism, we never store repeated information
+    return getPasswordEncoder().encode(rawPassword);
+  }
+
+  @Override
+  public boolean matches(CharSequence rawPassword, String encodedPassword)
+      throws AuthenticationException {
+    if (isEnabled()) {
+      String cacheKey = cacheEncode(rawPassword);
+      return internalMatches(cacheKey, rawPassword, encodedPassword);
+    } else {
+      return getPasswordEncoder().matches(rawPassword, encodedPassword);
     }
+  }
 
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
+  protected Set<String> getOrCreateHashList(String cacheKey) {
+    Set<String> result = cache.getIfPresent(cacheKey);
+    if (result == null) {
+      if (cache.size() >= getMaxKeys()) {
+        cache.invalidateAll();
+      }
+      cache.put(cacheKey, Collections.synchronizedSet(new LinkedHashSet<>()));
     }
+    return cache.getIfPresent(cacheKey);
+  }
 
-    private volatile Cache<CharSequence, Set<String>> cache = null;
-
-    private PasswordEncoder passwordEncoder;
-
-    public CachingPasswordEncoder() throws NoSuchAlgorithmException {
-        messageDigest = MessageDigest.getInstance("SHA-256");
-        this.secret = Utf8.encode(new RandomValueStringGenerator().generate());
-        this.salt = KeyGenerators.secureRandom().generateKey();
-        iterations = 25;
-        buildCache();
+  private boolean internalMatches(
+      String cacheKey, CharSequence rawPassword, String encodedPassword) {
+    Set<String> cacheValue = cache.getIfPresent(cacheKey);
+    boolean result = false;
+    List<String> searchList =
+        (cacheValue != null ? new ArrayList(cacheValue) : Collections.<String>emptyList());
+    for (String encoded : searchList) {
+      if (hashesEquals(encoded, encodedPassword)) {
+        return true;
+      }
     }
-
-    public PasswordEncoder getPasswordEncoder() {
-        return passwordEncoder;
-    }
-
-    public void setPasswordEncoder(PasswordEncoder passwordEncoder) {
-        this.passwordEncoder = passwordEncoder;
-    }
-
-    @Override
-    public String encode(CharSequence rawPassword) throws AuthenticationException {
-        //we always use the Bcrypt mechanism, we never store repeated information
-        return getPasswordEncoder().encode(rawPassword);
-    }
-
-    @Override
-    public boolean matches(CharSequence rawPassword, String encodedPassword) throws AuthenticationException {
-        if (isEnabled()) {
-            String cacheKey = cacheEncode(rawPassword);
-            return internalMatches(cacheKey, rawPassword, encodedPassword);
-        } else {
-            return getPasswordEncoder().matches(rawPassword, encodedPassword);
+    if (!result) {
+      if (getPasswordEncoder().matches(rawPassword, encodedPassword)) {
+        result = true;
+        cacheValue = getOrCreateHashList(cacheKey);
+        if (cacheValue != null) {
+          // this list should never grow very long.
+          // Only if you store multiple versions of the same password more than once
+          if (cacheValue.size() >= getMaxEncodedPasswords()) {
+            cacheValue.clear();
+          }
+          cacheValue.add(encodedPassword);
         }
+      }
+    }
+    return result;
+  }
+
+  protected String cacheEncode(CharSequence rawPassword) {
+    byte[] digest = digest(rawPassword);
+    return new String(Hex.encode(digest));
+  }
+
+  private byte[] digest(CharSequence rawPassword) {
+    byte[] digest = digest(concatenate(salt, secret, Utf8.encode(rawPassword)));
+    return concatenate(salt, digest);
+  }
+
+  private byte[] digest(byte[] value) {
+    synchronized (messageDigest) {
+      for (int i = 0; i < iterations; i++) {
+        value = messageDigest.digest(value);
+      }
+      return value;
+    }
+  }
+
+  private boolean hashesEquals(String a, String b) {
+    char[] caa = a.toCharArray();
+    char[] cab = b.toCharArray();
+
+    if (caa.length != cab.length) {
+      return false;
     }
 
-    protected Set<String> getOrCreateHashList(String cacheKey) {
-        Set<String> result = cache.getIfPresent(cacheKey);
-        if (result==null) {
-            if (cache.size()>=getMaxKeys()) {
-                cache.invalidateAll();
-            }
-            cache.put(cacheKey, Collections.synchronizedSet(new LinkedHashSet<>()));
-        }
-        return cache.getIfPresent(cacheKey);
+    byte ret = 0;
+    for (int i = 0; i < caa.length; i++) {
+      ret |= caa[i] ^ cab[i];
     }
+    return ret == 0;
+  }
 
-    private boolean internalMatches(String cacheKey, CharSequence rawPassword, String encodedPassword) {
-        Set<String> cacheValue = cache.getIfPresent(cacheKey);
-        boolean result = false;
-        List<String> searchList = (cacheValue!=null ? new ArrayList(cacheValue) : Collections.<String>emptyList());
-        for (String encoded : searchList) {
-            if (hashesEquals(encoded, encodedPassword)) {
-                return true;
-            }
-        }
-        if (!result) {
-            if (getPasswordEncoder().matches(rawPassword, encodedPassword)) {
-                result = true;
-                cacheValue = getOrCreateHashList(cacheKey);
-                if (cacheValue!=null) {
-                    //this list should never grow very long.
-                    //Only if you store multiple versions of the same password more than once
-                    if (cacheValue.size() >= getMaxEncodedPasswords()) {
-                        cacheValue.clear();
-                    }
-                    cacheValue.add(encodedPassword);
-                }
-            }
-        }
-        return result;
-    }
+  public int getMaxKeys() {
+    return maxKeys;
+  }
 
+  public void setMaxKeys(int maxKeys) {
+    this.maxKeys = maxKeys;
+    buildCache();
+  }
 
-    protected String cacheEncode(CharSequence rawPassword) {
-        byte[] digest = digest(rawPassword);
-        return new String(Hex.encode(digest));
-    }
+  public int getMaxEncodedPasswords() {
+    return maxEncodedPasswords;
+  }
 
-    private byte[] digest(CharSequence rawPassword) {
-        byte[] digest = digest(concatenate(salt, secret, Utf8.encode(rawPassword)));
-        return concatenate(salt, digest);
-    }
+  public void setMaxEncodedPasswords(int maxEncodedPasswords) {
+    this.maxEncodedPasswords = maxEncodedPasswords;
+    buildCache();
+  }
 
-    private byte[] digest(byte[] value) {
-        synchronized (messageDigest) {
-            for (int i = 0; i < iterations; i++) {
-                value = messageDigest.digest(value);
-            }
-            return value;
-        }
-    }
+  public long getNumberOfKeys() {
+    return cache.size();
+  }
 
-    private boolean hashesEquals(String a, String b) {
-        char[] caa = a.toCharArray();
-        char[] cab = b.toCharArray();
+  public ConcurrentMap<CharSequence, Set<String>> asMap() {
+    return cache.asMap();
+  }
 
-        if (caa.length != cab.length) {
-            return false;
-        }
+  public int getExpiryInSeconds() {
+    return expiryInSeconds;
+  }
 
-        byte ret = 0;
-        for (int i = 0; i < caa.length; i++) {
-            ret |= caa[i] ^ cab[i];
-        }
-        return ret == 0;
-    }
+  public void setExpiryInSeconds(int expiryInSeconds) {
+    this.expiryInSeconds = expiryInSeconds;
+    buildCache();
+  }
 
-    public int getMaxKeys() {
-        return maxKeys;
-    }
-
-    public void setMaxKeys(int maxKeys) {
-        this.maxKeys = maxKeys;
-        buildCache();
-    }
-
-    public int getMaxEncodedPasswords() {
-        return maxEncodedPasswords;
-    }
-
-    public void setMaxEncodedPasswords(int maxEncodedPasswords) {
-        this.maxEncodedPasswords = maxEncodedPasswords;
-        buildCache();
-    }
-
-    public long getNumberOfKeys() {
-        return cache.size();
-    }
-
-    public ConcurrentMap<CharSequence, Set<String>> asMap() {
-        return cache.asMap();
-    }
-
-    public int getExpiryInSeconds() {
-        return expiryInSeconds;
-    }
-
-    public void setExpiryInSeconds(int expiryInSeconds) {
-        this.expiryInSeconds = expiryInSeconds;
-        buildCache();
-    }
-
-    protected void buildCache() {
-        cache = CacheBuilder.newBuilder()
-            .expireAfterWrite(expiryInSeconds, TimeUnit.SECONDS)
-            .build();
-    }
+  protected void buildCache() {
+    cache = CacheBuilder.newBuilder().expireAfterWrite(expiryInSeconds, TimeUnit.SECONDS).build();
+  }
 }

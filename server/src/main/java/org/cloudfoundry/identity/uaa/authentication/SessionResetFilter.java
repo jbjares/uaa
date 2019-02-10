@@ -36,68 +36,77 @@ import java.util.Date;
 
 public class SessionResetFilter extends OncePerRequestFilter {
 
-    private static Log logger = LogFactory.getLog(SessionResetFilter.class);
+  private static Log logger = LogFactory.getLog(SessionResetFilter.class);
 
-    private final RedirectStrategy strategy;
-    private final String redirectUrl;
-    private final UaaUserDatabase userDatabase;
+  private final RedirectStrategy strategy;
+  private final String redirectUrl;
+  private final UaaUserDatabase userDatabase;
 
-    public SessionResetFilter(RedirectStrategy strategy, String redirectUrl, UaaUserDatabase userDatabase) {
-        this.strategy = strategy;
-        this.redirectUrl = redirectUrl;
-        this.userDatabase = userDatabase;
-    }
+  public SessionResetFilter(
+      RedirectStrategy strategy, String redirectUrl, UaaUserDatabase userDatabase) {
+    this.strategy = strategy;
+    this.redirectUrl = redirectUrl;
+    this.userDatabase = userDatabase;
+  }
 
-    public String getRedirectUrl() {
-        return redirectUrl;
-    }
+  public String getRedirectUrl() {
+    return redirectUrl;
+  }
 
-    @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
-        SecurityContext context = SecurityContextHolder.getContext();
-        if (context!=null && context.getAuthentication()!=null && context.getAuthentication() instanceof UaaAuthentication) {
-            UaaAuthentication authentication = (UaaAuthentication)context.getAuthentication();
-            if (authentication.isAuthenticated() &&
-                OriginKeys.UAA.equals(authentication.getPrincipal().getOrigin()) &&
-                null != request.getSession(false)) {
+  @Override
+  protected void doFilterInternal(
+      HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+      throws ServletException, IOException {
+    SecurityContext context = SecurityContextHolder.getContext();
+    if (context != null
+        && context.getAuthentication() != null
+        && context.getAuthentication() instanceof UaaAuthentication) {
+      UaaAuthentication authentication = (UaaAuthentication) context.getAuthentication();
+      if (authentication.isAuthenticated()
+          && OriginKeys.UAA.equals(authentication.getPrincipal().getOrigin())
+          && null != request.getSession(false)) {
 
-                boolean redirect = false;
-                String userId = authentication.getPrincipal().getId();
-                try {
-                    logger.debug("Evaluating user-id for session reset:"+userId);
-                    UaaUser user = userDatabase.retrieveUserById(userId);
-                    Date lastModified;
-                    if ((lastModified = user.getPasswordLastModified()) != null) {
-                        long lastAuthTime = authentication.getAuthenticatedTime();
-                        long passwordModTime = lastModified.getTime();
-                        //if the password has changed after authentication time
-                        if (hasPasswordChangedAfterAuthentication(lastAuthTime, passwordModTime)) {
-                            logger.debug(String.format("Resetting user session for user ID: %s Auth Time: %s Password Change Time: %s",userId, lastAuthTime, passwordModTime));
-                            redirect = true;
-                        }
-                    }
-                } catch (UsernameNotFoundException x) {
-                    logger.info("Authenticated user ["+userId+"] was not found in DB.");
-                    redirect = true;
-                }
-                if (redirect) {
-                    handleRedirect(request, response);
-                    return;
-                }
+        boolean redirect = false;
+        String userId = authentication.getPrincipal().getId();
+        try {
+          logger.debug("Evaluating user-id for session reset:" + userId);
+          UaaUser user = userDatabase.retrieveUserById(userId);
+          Date lastModified;
+          if ((lastModified = user.getPasswordLastModified()) != null) {
+            long lastAuthTime = authentication.getAuthenticatedTime();
+            long passwordModTime = lastModified.getTime();
+            // if the password has changed after authentication time
+            if (hasPasswordChangedAfterAuthentication(lastAuthTime, passwordModTime)) {
+              logger.debug(
+                  String.format(
+                      "Resetting user session for user ID: %s Auth Time: %s Password Change Time: %s",
+                      userId, lastAuthTime, passwordModTime));
+              redirect = true;
             }
+          }
+        } catch (UsernameNotFoundException x) {
+          logger.info("Authenticated user [" + userId + "] was not found in DB.");
+          redirect = true;
         }
-        filterChain.doFilter(request,response);
-    }
-
-    protected boolean hasPasswordChangedAfterAuthentication(long lastAuthTime, long passwordModTime) {
-        return passwordModTime > lastAuthTime;
-    }
-
-    protected void handleRedirect(HttpServletRequest request, HttpServletResponse response) throws IOException {
-        HttpSession session = request.getSession(false);
-        if (session!=null) {
-            session.invalidate();
+        if (redirect) {
+          handleRedirect(request, response);
+          return;
         }
-        strategy.sendRedirect(request, response, getRedirectUrl());
+      }
     }
+    filterChain.doFilter(request, response);
+  }
+
+  protected boolean hasPasswordChangedAfterAuthentication(long lastAuthTime, long passwordModTime) {
+    return passwordModTime > lastAuthTime;
+  }
+
+  protected void handleRedirect(HttpServletRequest request, HttpServletResponse response)
+      throws IOException {
+    HttpSession session = request.getSession(false);
+    if (session != null) {
+      session.invalidate();
+    }
+    strategy.sendRedirect(request, response, getRedirectUrl());
+  }
 }

@@ -1,15 +1,15 @@
-/*******************************************************************************
- *     Cloud Foundry
- *     Copyright (c) [2009-2016] Pivotal Software, Inc. All Rights Reserved.
+/**
+ * ***************************************************************************** Cloud Foundry
+ * Copyright (c) [2009-2016] Pivotal Software, Inc. All Rights Reserved.
  *
- *     This product is licensed to you under the Apache License, Version 2.0 (the "License").
- *     You may not use this product except in compliance with the License.
+ * <p>This product is licensed to you under the Apache License, Version 2.0 (the "License"). You may
+ * not use this product except in compliance with the License.
  *
- *     This product includes a number of subcomponents with
- *     separate copyright notices and license terms. Your use of these
- *     subcomponents is subject to the terms and conditions of the
- *     subcomponent's license, as noted in the LICENSE file.
- *******************************************************************************/
+ * <p>This product includes a number of subcomponents with separate copyright notices and license
+ * terms. Your use of these subcomponents is subject to the terms and conditions of the
+ * subcomponent's license, as noted in the LICENSE file.
+ * *****************************************************************************
+ */
 package org.cloudfoundry.identity.uaa.client;
 
 import org.cloudfoundry.identity.uaa.zone.ClientServicesExtension;
@@ -33,30 +33,28 @@ import java.util.Collections;
 @Controller
 public class ClientInfoEndpoint implements InitializingBean {
 
-    private ClientServicesExtension clientDetailsService;
+  private ClientServicesExtension clientDetailsService;
 
-    /**
-     * @param clientDetailsService the clientDetailsService to set
-     */
-    public void setClientDetailsService(ClientServicesExtension clientDetailsService) {
-        this.clientDetailsService = clientDetailsService;
-    }
+  /** @param clientDetailsService the clientDetailsService to set */
+  public void setClientDetailsService(ClientServicesExtension clientDetailsService) {
+    this.clientDetailsService = clientDetailsService;
+  }
 
-    @Override
-    public void afterPropertiesSet() throws Exception {
-        Assert.notNull(clientDetailsService, "clientDetailsService must be set");
-    }
+  @Override
+  public void afterPropertiesSet() throws Exception {
+    Assert.notNull(clientDetailsService, "clientDetailsService must be set");
+  }
 
-    @RequestMapping(value = "/clientinfo")
-    @ResponseBody
-    public ClientDetails clientinfo(Principal principal) {
+  @RequestMapping(value = "/clientinfo")
+  @ResponseBody
+  public ClientDetails clientinfo(Principal principal) {
 
-        String clientId = principal.getName();
-        BaseClientDetails client = new BaseClientDetails(clientDetailsService.loadClientByClientId(clientId, IdentityZoneHolder.get().getId()));
-        client.setClientSecret(null);
-        client.setAdditionalInformation(Collections.<String, Object> emptyMap());
-        return client;
-
-    }
-
+    String clientId = principal.getName();
+    BaseClientDetails client =
+        new BaseClientDetails(
+            clientDetailsService.loadClientByClientId(clientId, IdentityZoneHolder.get().getId()));
+    client.setClientSecret(null);
+    client.setAdditionalInformation(Collections.<String, Object>emptyMap());
+    return client;
+  }
 }

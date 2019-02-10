@@ -28,43 +28,51 @@ import static org.junit.Assert.assertEquals;
 
 public class SamlConfigurationBeanTest {
 
-    @BeforeClass
-    public static void initVM() throws Exception {
-        Security.addProvider(new BouncyCastleProvider());
-        DefaultBootstrap.bootstrap();
-    }
+  @BeforeClass
+  public static void initVM() throws Exception {
+    Security.addProvider(new BouncyCastleProvider());
+    DefaultBootstrap.bootstrap();
+  }
 
-    @Test
-    public void testSHA1SignatureAlgorithm() throws Exception {
-        SamlConfigurationBean samlConfigurationBean = new SamlConfigurationBean();
-        samlConfigurationBean.setSignatureAlgorithm(SamlConfigurationBean.SignatureAlgorithm.SHA1);
-        samlConfigurationBean.afterPropertiesSet();
+  @Test
+  public void testSHA1SignatureAlgorithm() throws Exception {
+    SamlConfigurationBean samlConfigurationBean = new SamlConfigurationBean();
+    samlConfigurationBean.setSignatureAlgorithm(SamlConfigurationBean.SignatureAlgorithm.SHA1);
+    samlConfigurationBean.afterPropertiesSet();
 
-        BasicSecurityConfiguration config = (BasicSecurityConfiguration) Configuration.getGlobalSecurityConfiguration();
-        assertEquals(SignatureConstants.ALGO_ID_DIGEST_SHA1, config.getSignatureReferenceDigestMethod());
-        assertEquals(SignatureConstants.ALGO_ID_SIGNATURE_RSA_SHA1, config.getSignatureAlgorithmURI("RSA"));
-    }
+    BasicSecurityConfiguration config =
+        (BasicSecurityConfiguration) Configuration.getGlobalSecurityConfiguration();
+    assertEquals(
+        SignatureConstants.ALGO_ID_DIGEST_SHA1, config.getSignatureReferenceDigestMethod());
+    assertEquals(
+        SignatureConstants.ALGO_ID_SIGNATURE_RSA_SHA1, config.getSignatureAlgorithmURI("RSA"));
+  }
 
-    @Test
-    public void testSHA256SignatureAlgorithm() throws Exception {
-        SamlConfigurationBean samlConfigurationBean = new SamlConfigurationBean();
-        samlConfigurationBean.setSignatureAlgorithm(SamlConfigurationBean.SignatureAlgorithm.SHA256);
-        samlConfigurationBean.afterPropertiesSet();
+  @Test
+  public void testSHA256SignatureAlgorithm() throws Exception {
+    SamlConfigurationBean samlConfigurationBean = new SamlConfigurationBean();
+    samlConfigurationBean.setSignatureAlgorithm(SamlConfigurationBean.SignatureAlgorithm.SHA256);
+    samlConfigurationBean.afterPropertiesSet();
 
-        BasicSecurityConfiguration config = (BasicSecurityConfiguration) Configuration.getGlobalSecurityConfiguration();
-        assertEquals(SignatureConstants.ALGO_ID_DIGEST_SHA256, config.getSignatureReferenceDigestMethod());
-        assertEquals(SignatureConstants.ALGO_ID_SIGNATURE_RSA_SHA256, config.getSignatureAlgorithmURI("RSA"));
-    }
+    BasicSecurityConfiguration config =
+        (BasicSecurityConfiguration) Configuration.getGlobalSecurityConfiguration();
+    assertEquals(
+        SignatureConstants.ALGO_ID_DIGEST_SHA256, config.getSignatureReferenceDigestMethod());
+    assertEquals(
+        SignatureConstants.ALGO_ID_SIGNATURE_RSA_SHA256, config.getSignatureAlgorithmURI("RSA"));
+  }
 
-    @Test
-    public void testSHA512SignatureAlgorithm() throws Exception {
-        SamlConfigurationBean samlConfigurationBean = new SamlConfigurationBean();
-        samlConfigurationBean.setSignatureAlgorithm(SamlConfigurationBean.SignatureAlgorithm.SHA512);
-        samlConfigurationBean.afterPropertiesSet();
+  @Test
+  public void testSHA512SignatureAlgorithm() throws Exception {
+    SamlConfigurationBean samlConfigurationBean = new SamlConfigurationBean();
+    samlConfigurationBean.setSignatureAlgorithm(SamlConfigurationBean.SignatureAlgorithm.SHA512);
+    samlConfigurationBean.afterPropertiesSet();
 
-        BasicSecurityConfiguration config = (BasicSecurityConfiguration) Configuration.getGlobalSecurityConfiguration();
-        assertEquals(SignatureConstants.ALGO_ID_DIGEST_SHA512, config.getSignatureReferenceDigestMethod());
-        assertEquals(SignatureConstants.ALGO_ID_SIGNATURE_RSA_SHA512, config.getSignatureAlgorithmURI("RSA"));
-    }
-
+    BasicSecurityConfiguration config =
+        (BasicSecurityConfiguration) Configuration.getGlobalSecurityConfiguration();
+    assertEquals(
+        SignatureConstants.ALGO_ID_DIGEST_SHA512, config.getSignatureReferenceDigestMethod());
+    assertEquals(
+        SignatureConstants.ALGO_ID_SIGNATURE_RSA_SHA512, config.getSignatureAlgorithmURI("RSA"));
+  }
 }
