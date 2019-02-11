@@ -38,47 +38,53 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 public class LimitedModeTokenMockMvcTests extends TokenMvcMockTests {
 
-    private File existingStatusFile;
+  private File existingStatusFile;
 
-    @BeforeEach
-    @Override
-    public void setUpContext(
-            @Autowired @Qualifier("defaultUserAuthorities") Object defaultAuthorities
-    ) throws Exception {
-        super.setUpContext(defaultAuthorities);
+  @BeforeEach
+  @Override
+  public void setUpContext(
+      @Autowired @Qualifier("defaultUserAuthorities") Object defaultAuthorities) throws Exception {
+    super.setUpContext(defaultAuthorities);
 
-        existingStatusFile = getLimitedModeStatusFile(webApplicationContext);
-        setLimitedModeStatusFile(webApplicationContext);
+    existingStatusFile = getLimitedModeStatusFile(webApplicationContext);
+    setLimitedModeStatusFile(webApplicationContext);
 
-        assertTrue(isLimitedMode());
-    }
+    assertTrue(isLimitedMode());
+  }
 
-    @AfterEach
-    void tearDown() throws Exception {
-        resetLimitedModeStatusFile(webApplicationContext, existingStatusFile);
-    }
+  @AfterEach
+  void tearDown() throws Exception {
+    resetLimitedModeStatusFile(webApplicationContext, existingStatusFile);
+  }
 
-    @Test
-    void check_token_while_limited() throws Exception {
-        BaseClientDetails client = setUpClients(generator.generate().toLowerCase(),
-                                                "uaa.resource,clients.read",
-                                                "",
-                                                "client_credentials",
-                                                true);
-        String token = MockMvcUtils.getClientCredentialsOAuthAccessToken(mockMvc, client.getClientId(), SECRET, null, null, true);
-        mockMvc.perform(
+  @Test
+  void check_token_while_limited() throws Exception {
+    BaseClientDetails client =
+        setUpClients(
+            generator.generate().toLowerCase(),
+            "uaa.resource,clients.read",
+            "",
+            "client_credentials",
+            true);
+    String token =
+        MockMvcUtils.getClientCredentialsOAuthAccessToken(
+            mockMvc, client.getClientId(), SECRET, null, null, true);
+    mockMvc
+        .perform(
             post("/check_token")
                 .param("token", token)
-                .header(AUTHORIZATION,
-                        "Basic " + new String(Base64.encode((client.getClientId() + ":" + SECRET).getBytes())))
-        )
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.scope").value(containsInAnyOrder("clients.read", "uaa.resource")))
-            .andExpect(jsonPath("$.client_id").value(client.getClientId()))
-            .andExpect(jsonPath("$.jti").value(token));
-    }
+                .header(
+                    AUTHORIZATION,
+                    "Basic "
+                        + new String(
+                            Base64.encode((client.getClientId() + ":" + SECRET).getBytes()))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.scope").value(containsInAnyOrder("clients.read", "uaa.resource")))
+        .andExpect(jsonPath("$.client_id").value(client.getClientId()))
+        .andExpect(jsonPath("$.jti").value(token));
+  }
 
-    private boolean isLimitedMode() {
-        return webApplicationContext.getBean(LimitedModeUaaFilter.class).isEnabled();
-    }
+  private boolean isLimitedMode() {
+    return webApplicationContext.getBean(LimitedModeUaaFilter.class).isEnabled();
+  }
 }

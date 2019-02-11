@@ -28,24 +28,22 @@ import java.io.File;
 import static org.junit.Assert.assertTrue;
 
 class LimitedModeLoginMockMvcTests extends LoginMockMvcTests {
-    private File originalLimitedModeStatusFile;
+  private File originalLimitedModeStatusFile;
 
-    @BeforeEach
-    void setUpLimitedModeLoginMockMvcTests(
-            @Autowired WebApplicationContext webApplicationContext,
-            @Autowired LimitedModeUaaFilter limitedModeUaaFilter
-    ) throws Exception {
-        originalLimitedModeStatusFile = MockMvcUtils.getLimitedModeStatusFile(webApplicationContext);
-        MockMvcUtils.setLimitedModeStatusFile(webApplicationContext);
+  @BeforeEach
+  void setUpLimitedModeLoginMockMvcTests(
+      @Autowired WebApplicationContext webApplicationContext,
+      @Autowired LimitedModeUaaFilter limitedModeUaaFilter)
+      throws Exception {
+    originalLimitedModeStatusFile = MockMvcUtils.getLimitedModeStatusFile(webApplicationContext);
+    MockMvcUtils.setLimitedModeStatusFile(webApplicationContext);
 
-        assertTrue(isLimitedMode(limitedModeUaaFilter));
-    }
+    assertTrue(isLimitedMode(limitedModeUaaFilter));
+  }
 
-    @AfterEach
-    void tearDownLimitedModeLoginMockMvcTests(
-            @Autowired WebApplicationContext webApplicationContext
-    ) throws Exception {
-        MockMvcUtils.resetLimitedModeStatusFile(webApplicationContext, originalLimitedModeStatusFile);
-    }
-
+  @AfterEach
+  void tearDownLimitedModeLoginMockMvcTests(@Autowired WebApplicationContext webApplicationContext)
+      throws Exception {
+    MockMvcUtils.resetLimitedModeStatusFile(webApplicationContext, originalLimitedModeStatusFile);
+  }
 }

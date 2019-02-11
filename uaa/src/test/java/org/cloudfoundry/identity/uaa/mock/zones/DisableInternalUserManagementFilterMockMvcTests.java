@@ -1,15 +1,15 @@
-/*******************************************************************************
- *     Cloud Foundry
- *     Copyright (c) [2009-2015] Pivotal Software, Inc. All Rights Reserved.
+/**
+ * ***************************************************************************** Cloud Foundry
+ * Copyright (c) [2009-2015] Pivotal Software, Inc. All Rights Reserved.
  *
- *     This product is licensed to you under the Apache License, Version 2.0 (the "License").
- *     You may not use this product except in compliance with the License.
+ * <p>This product is licensed to you under the Apache License, Version 2.0 (the "License"). You may
+ * not use this product except in compliance with the License.
  *
- *     This product includes a number of subcomponents with
- *     separate copyright notices and license terms. Your use of these
- *     subcomponents is subject to the terms and conditions of the
- *     subcomponent's license, as noted in the LICENSE file.
- *******************************************************************************/
+ * <p>This product includes a number of subcomponents with separate copyright notices and license
+ * terms. Your use of these subcomponents is subject to the terms and conditions of the
+ * subcomponent's license, as noted in the LICENSE file.
+ * *****************************************************************************
+ */
 package org.cloudfoundry.identity.uaa.mock.zones;
 
 import org.cloudfoundry.identity.uaa.SpringServletAndHoneycombTestConfig;
@@ -43,38 +43,41 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ContextConfiguration(classes = SpringServletAndHoneycombTestConfig.class)
 class DisableInternalUserManagementFilterMockMvcTests {
 
-    @Autowired
-    WebApplicationContext webApplicationContext;
-    private MockMvc mockMvc;
+  @Autowired WebApplicationContext webApplicationContext;
+  private MockMvc mockMvc;
 
-    @Value("${disableInternalUserManagement:false}")
-    private boolean disableInternalUserManagement;
+  @Value("${disableInternalUserManagement:false}")
+  private boolean disableInternalUserManagement;
 
-    @BeforeEach
-    void setUp(@Autowired FilterChainProxy springSecurityFilterChain) {
-        mockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext)
-                .addFilter(springSecurityFilterChain)
-                .build();
+  @BeforeEach
+  void setUp(@Autowired FilterChainProxy springSecurityFilterChain) {
+    mockMvc =
+        MockMvcBuilders.webAppContextSetup(webApplicationContext)
+            .addFilter(springSecurityFilterChain)
+            .build();
 
-        MockMvcUtils.setDisableInternalUserManagement(true, webApplicationContext);
-    }
+    MockMvcUtils.setDisableInternalUserManagement(true, webApplicationContext);
+  }
 
-    @AfterEach
-    void resetInternalUserManagement() {
-        MockMvcUtils.setDisableInternalUserManagement(disableInternalUserManagement, webApplicationContext);
-    }
+  @AfterEach
+  void resetInternalUserManagement() {
+    MockMvcUtils.setDisableInternalUserManagement(
+        disableInternalUserManagement, webApplicationContext);
+  }
 
-    @Test
-    void createAccountNotEnabled() throws Exception {
-        mockMvc.perform(get("/login"))
-                .andExpect(status().isOk())
-                .andExpect(xpath("//a[@href='/create_account']").doesNotExist());
-    }
+  @Test
+  void createAccountNotEnabled() throws Exception {
+    mockMvc
+        .perform(get("/login"))
+        .andExpect(status().isOk())
+        .andExpect(xpath("//a[@href='/create_account']").doesNotExist());
+  }
 
-    @Test
-    void resetPasswordNotEnabled() throws Exception {
-        mockMvc.perform(get("/login"))
-                .andExpect(status().isOk())
-                .andExpect(xpath("//a[@href='/forgot_password']").doesNotExist());
-    }
+  @Test
+  void resetPasswordNotEnabled() throws Exception {
+    mockMvc
+        .perform(get("/login"))
+        .andExpect(status().isOk())
+        .andExpect(xpath("//a[@href='/forgot_password']").doesNotExist());
+  }
 }

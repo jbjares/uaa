@@ -41,65 +41,81 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ContextConfiguration(classes = SpringServletAndHoneycombTestConfig.class)
 class UserInfoEndpointDocs extends EndpointDocs {
 
-    private RandomValueStringGenerator generator = new RandomValueStringGenerator();
-    private String clientId = generator.generate().toLowerCase();
-    private String clientSecret = generator.generate().toLowerCase();
-    private ScimUser user;
+  private RandomValueStringGenerator generator = new RandomValueStringGenerator();
+  private String clientId = generator.generate().toLowerCase();
+  private String clientSecret = generator.generate().toLowerCase();
+  private ScimUser user;
 
-    @BeforeEach
-    void setUp() throws Exception {
-        String adminToken = testClient.getClientCredentialsOAuthAccessToken("admin", "adminsecret", "clients.read clients.write clients.secret scim.read scim.write clients.admin");
+  @BeforeEach
+  void setUp() throws Exception {
+    String adminToken =
+        testClient.getClientCredentialsOAuthAccessToken(
+            "admin",
+            "adminsecret",
+            "clients.read clients.write clients.secret scim.read scim.write clients.admin");
 
-        String authorities = "scim.read,scim.write,password.write,oauth.approvals,scim.create,openid";
-        MockMvcUtils.createClient(mockMvc, adminToken, clientId, clientSecret, Collections.singleton("oauth"), Arrays.asList("openid"), Arrays.asList("client_credentials", "password"), authorities);
+    String authorities = "scim.read,scim.write,password.write,oauth.approvals,scim.create,openid";
+    MockMvcUtils.createClient(
+        mockMvc,
+        adminToken,
+        clientId,
+        clientSecret,
+        Collections.singleton("oauth"),
+        Arrays.asList("openid"),
+        Arrays.asList("client_credentials", "password"),
+        authorities);
 
-        String userName = new RandomValueStringGenerator().generate() + "@test.org";
-        user = new ScimUser(null, userName, "PasswordResetUserFirst", "PasswordResetUserLast");
-        user.setPrimaryEmail(user.getUserName());
-        user.setPassword("secr3T");
-        ScimUser.PhoneNumber phoneNumber = new ScimUser.PhoneNumber("+15558880000");
-        user.setPhoneNumbers(Collections.singletonList(phoneNumber));
-        user = MockMvcUtils.createUser(mockMvc, adminToken, user);
-    }
+    String userName = new RandomValueStringGenerator().generate() + "@test.org";
+    user = new ScimUser(null, userName, "PasswordResetUserFirst", "PasswordResetUserLast");
+    user.setPrimaryEmail(user.getUserName());
+    user.setPassword("secr3T");
+    ScimUser.PhoneNumber phoneNumber = new ScimUser.PhoneNumber("+15558880000");
+    user.setPhoneNumbers(Collections.singletonList(phoneNumber));
+    user = MockMvcUtils.createUser(mockMvc, adminToken, user);
+  }
 
-    @Test
-    void test_Get_UserInfo() throws Exception {
-        String userInfoToken = testClient.getUserOAuthAccessToken(
-            clientId,
-            clientSecret,
-            user.getUserName(),
-            "secr3T",
-            "openid"
-        );
+  @Test
+  void test_Get_UserInfo() throws Exception {
+    String userInfoToken =
+        testClient.getUserOAuthAccessToken(
+            clientId, clientSecret, user.getUserName(), "secr3T", "openid");
 
-        Snippet requestHeaders = requestHeaders(
+    Snippet requestHeaders =
+        requestHeaders(
             headerWithName("Authorization")
-                .description("Access token with openid required. If the `" + USER_ATTRIBUTES + "` scope is in the token, " +
-                                "the response object will contain custom attributes, if mapped to the external identity provider." +
-                                "If  the `roles` scope is present, the response object will contain group memberships  from the external identity provider."
-
-                )
-        );
-        Snippet responseFields = responseFields(
-            fieldWithPath("sub").description("Subject Identifier. A locally unique and never reassigned identifier within the Issuer for the End-User, which is intended to be consumed by the Client."),
+                .description(
+                    "Access token with openid required. If the `"
+                        + USER_ATTRIBUTES
+                        + "` scope is in the token, "
+                        + "the response object will contain custom attributes, if mapped to the external identity provider."
+                        + "If  the `roles` scope is present, the response object will contain group memberships  from the external identity provider."));
+    Snippet responseFields =
+        responseFields(
+            fieldWithPath("sub")
+                .description(
+                    "Subject Identifier. A locally unique and never reassigned identifier within the Issuer for the End-User, which is intended to be consumed by the Client."),
             fieldWithPath("user_id").description("Unique user identifier."),
             fieldWithPath("email").description("The user's email address."),
-            fieldWithPath("email_verified").description("Indicates whether the user has verified their email address."),
-            fieldWithPath("user_name").description("User name of the user, typically an email address."),
+            fieldWithPath("email_verified")
+                .description("Indicates whether the user has verified their email address."),
+            fieldWithPath("user_name")
+                .description("User name of the user, typically an email address."),
             fieldWithPath("given_name").description("The user's first name."),
             fieldWithPath("family_name").description("The user's last name."),
             fieldWithPath("name").description("A map with the user's first name and last name."),
             fieldWithPath("phone_number").description("The user's phone number."),
-            fieldWithPath(ClaimConstants.PREVIOUS_LOGON_TIME).description("The unix epoch timestamp in milliseconds of 2nd to last successful user authentication.")
-        );
+            fieldWithPath(ClaimConstants.PREVIOUS_LOGON_TIME)
+                .description(
+                    "The unix epoch timestamp in milliseconds of 2nd to last successful user authentication."));
 
-        mockMvc.perform(get("/userinfo")
-                .header("Authorization", "Bearer " + userInfoToken))
-                .andExpect(status().isOk())
-                .andDo(document("{ClassName}/{methodName}",
-                        preprocessResponse(prettyPrint()),
-                        requestHeaders,
-                        responseFields)
-                );
-    }
+    mockMvc
+        .perform(get("/userinfo").header("Authorization", "Bearer " + userInfoToken))
+        .andExpect(status().isOk())
+        .andDo(
+            document(
+                "{ClassName}/{methodName}",
+                preprocessResponse(prettyPrint()),
+                requestHeaders,
+                responseFields));
+  }
 }

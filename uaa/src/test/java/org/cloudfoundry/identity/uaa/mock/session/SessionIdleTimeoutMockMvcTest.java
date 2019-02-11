@@ -25,46 +25,45 @@ import static org.junit.Assert.assertNotNull;
 @WebAppConfiguration
 @ContextConfiguration(classes = SpringServletAndHoneycombTestConfig.class)
 public class SessionIdleTimeoutMockMvcTest {
-    @Rule
-    public HoneycombAuditEventListenerRule honeycombAuditEventListenerRule = new HoneycombAuditEventListenerRule();
+  @Rule
+  public HoneycombAuditEventListenerRule honeycombAuditEventListenerRule =
+      new HoneycombAuditEventListenerRule();
 
-    @Autowired
-    public WebApplicationContext webApplicationContext;
+  @Autowired public WebApplicationContext webApplicationContext;
 
-    private int timeout;
-    private SessionIdleTimeoutSetter timeoutSetter;
+  private int timeout;
+  private SessionIdleTimeoutSetter timeoutSetter;
 
-    @Before
-    public void setupForSessionIdleTimeout() throws Exception {
-        timeoutSetter = webApplicationContext.getBean(SessionIdleTimeoutSetter.class);
-        timeout = timeoutSetter.getTimeout();
-    }
+  @Before
+  public void setupForSessionIdleTimeout() throws Exception {
+    timeoutSetter = webApplicationContext.getBean(SessionIdleTimeoutSetter.class);
+    timeout = timeoutSetter.getTimeout();
+  }
 
-    @After
-    public void restoreTimeout() throws Exception {
-        timeoutSetter.setTimeout(timeout);
-    }
+  @After
+  public void restoreTimeout() throws Exception {
+    timeoutSetter.setTimeout(timeout);
+  }
 
-    @Test
-    public void testSessionTimeout() throws Exception {
-        MockHttpSession session = new MockHttpSession();
-        assertEquals(0, session.getMaxInactiveInterval());
+  @Test
+  public void testSessionTimeout() throws Exception {
+    MockHttpSession session = new MockHttpSession();
+    assertEquals(0, session.getMaxInactiveInterval());
 
-        webApplicationContext.publishEvent(new HttpSessionCreatedEvent(session));
+    webApplicationContext.publishEvent(new HttpSessionCreatedEvent(session));
 
-        assertEquals(timeout, session.getMaxInactiveInterval());
-    }
+    assertEquals(timeout, session.getMaxInactiveInterval());
+  }
 
+  @Test
+  public void testSessionChangedTimeout() throws Exception {
+    timeoutSetter.setTimeout(300);
+    MockHttpSession session = new MockHttpSession();
+    assertEquals(0, session.getMaxInactiveInterval());
 
-    @Test
-    public void testSessionChangedTimeout() throws Exception {
-        timeoutSetter.setTimeout(300);
-        MockHttpSession session = new MockHttpSession();
-        assertEquals(0, session.getMaxInactiveInterval());
+    webApplicationContext.publishEvent(new HttpSessionCreatedEvent(session));
 
-        webApplicationContext.publishEvent(new HttpSessionCreatedEvent(session));
-
-        assertNotNull("session should exist", session);
-        assertEquals(300, session.getMaxInactiveInterval());
-    }
+    assertNotNull("session should exist", session);
+    assertEquals(300, session.getMaxInactiveInterval());
+  }
 }

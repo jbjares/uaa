@@ -15,13 +15,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 class UaaTokenEndpointMockMvcTest extends AbstractTokenMockMvcTests {
-    private static final String CLIENTID = "oauth_showcase_password_grant";
-    private static final String CLIENTSECRET = "secret";
+  private static final String CLIENTID = "oauth_showcase_password_grant";
+  private static final String CLIENTSECRET = "secret";
 
-    @Test
-    void methodNotAllowedReturnsError_PUT() throws Exception {
-        String username = setUpUserForPasswordGrant();
-        mockMvc.perform(
+  @Test
+  void methodNotAllowedReturnsError_PUT() throws Exception {
+    String username = setUpUserForPasswordGrant();
+    mockMvc
+        .perform(
             put("/oauth/token")
                 .param("client_id", CLIENTID)
                 .param("client_secret", CLIENTSECRET)
@@ -32,15 +33,18 @@ class UaaTokenEndpointMockMvcTest extends AbstractTokenMockMvcTests {
                 .param("response_type", "id_token")
                 .accept(APPLICATION_JSON)
                 .contentType(APPLICATION_FORM_URLENCODED))
-            .andExpect(status().isMethodNotAllowed())
-            .andExpect(jsonPath("$.error").value("method_not_allowed"))
-            .andExpect(jsonPath("$.error_description").value(HtmlUtils.htmlEscape("Request method 'PUT' not supported", "ISO-8859-1")));
-    }
+        .andExpect(status().isMethodNotAllowed())
+        .andExpect(jsonPath("$.error").value("method_not_allowed"))
+        .andExpect(
+            jsonPath("$.error_description")
+                .value(HtmlUtils.htmlEscape("Request method 'PUT' not supported", "ISO-8859-1")));
+  }
 
-    @Test
-    void methodNotAllowedReturnsError_DELETE() throws Exception {
-        String username = setUpUserForPasswordGrant();
-        mockMvc.perform(
+  @Test
+  void methodNotAllowedReturnsError_DELETE() throws Exception {
+    String username = setUpUserForPasswordGrant();
+    mockMvc
+        .perform(
             delete("/oauth/token")
                 .param("client_id", CLIENTID)
                 .param("client_secret", CLIENTSECRET)
@@ -51,8 +55,11 @@ class UaaTokenEndpointMockMvcTest extends AbstractTokenMockMvcTests {
                 .param("response_type", "id_token")
                 .accept(APPLICATION_JSON)
                 .contentType(APPLICATION_FORM_URLENCODED))
-            .andExpect(status().isMethodNotAllowed())
-            .andExpect(jsonPath("$.error").value("method_not_allowed"))
-            .andExpect(jsonPath("$.error_description").value(HtmlUtils.htmlEscape("Request method 'DELETE' not supported", "ISO-8859-1")));
-    }
+        .andExpect(status().isMethodNotAllowed())
+        .andExpect(jsonPath("$.error").value("method_not_allowed"))
+        .andExpect(
+            jsonPath("$.error_description")
+                .value(
+                    HtmlUtils.htmlEscape("Request method 'DELETE' not supported", "ISO-8859-1")));
+  }
 }

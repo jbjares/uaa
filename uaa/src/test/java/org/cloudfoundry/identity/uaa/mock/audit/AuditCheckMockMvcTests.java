@@ -329,7 +329,7 @@ class AuditCheckMockMvcTests {
             .getOrigin()
             .contains(
                 "sessionId=<SESSION>")); // PrincipalAuthenticationFailureEvent does not contain
-                                         // sessionId at all
+    // sessionId at all
   }
 
   @Test
@@ -470,7 +470,7 @@ class AuditCheckMockMvcTests {
             .getOrigin()
             .contains(
                 "sessionId=<SESSION>")); // PrincipalAuthenticationFailureEvent does not contain
-                                         // sessionId at all
+    // sessionId at all
   }
 
   @Test
@@ -549,7 +549,7 @@ class AuditCheckMockMvcTests {
             .getOrigin()
             .contains(
                 "sessionId=<SESSION>")); // PrincipalAuthenticationFailureEvent does not contain
-                                         // sessionId at all
+    // sessionId at all
   }
 
   @Test
@@ -714,7 +714,7 @@ class AuditCheckMockMvcTests {
             .getOrigin()
             .contains(
                 "sessionId=<SESSION>")); // PasswordChangeEvent does not contain session in this
-                                         // case
+    // case
   }
 
   @Test

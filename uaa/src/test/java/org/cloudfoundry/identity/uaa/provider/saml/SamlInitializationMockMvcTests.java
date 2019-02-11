@@ -30,71 +30,71 @@ import org.springframework.security.oauth2.common.util.RandomValueStringGenerato
 import org.springframework.security.saml.metadata.ExtendedMetadataDelegate;
 import org.springframework.security.saml.metadata.MetadataMemoryProvider;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 public class SamlInitializationMockMvcTests extends InjectedMockContextTest {
 
-    private NonSnarlMetadataManager spManager;
-    private NonSnarlIdpMetadataManager idpManager;
-    String entityID;
-    private String entityAlias;
-    private IdentityZoneProvisioning zoneProvisioning;
+  private NonSnarlMetadataManager spManager;
+  private NonSnarlIdpMetadataManager idpManager;
+  String entityID;
+  private String entityAlias;
+  private IdentityZoneProvisioning zoneProvisioning;
 
-    @Before
-    public void setup() throws Exception {
-        zoneProvisioning = getWebApplicationContext().getBean(IdentityZoneProvisioning.class);
-        spManager = getWebApplicationContext().getBean(NonSnarlMetadataManager.class);
-        idpManager = getWebApplicationContext().getBean(NonSnarlIdpMetadataManager.class);
-        entityID = getWebApplicationContext().getBean("samlEntityID", String.class);
-        entityAlias = getWebApplicationContext().getBean("samlSPAlias", String.class);
-    }
+  @Before
+  public void setup() throws Exception {
+    zoneProvisioning = getWebApplicationContext().getBean(IdentityZoneProvisioning.class);
+    spManager = getWebApplicationContext().getBean(NonSnarlMetadataManager.class);
+    idpManager = getWebApplicationContext().getBean(NonSnarlIdpMetadataManager.class);
+    entityID = getWebApplicationContext().getBean("samlEntityID", String.class);
+    entityAlias = getWebApplicationContext().getBean("samlSPAlias", String.class);
+  }
 
-    @Before
-    @After
-    public void clear() {
-        IdentityZoneHolder.clear();
-    }
+  @Before
+  @After
+  public void clear() {
+    IdentityZoneHolder.clear();
+  }
 
-    @Test
-    public void sp_initialized_in_non_snarl_metadata_manager() throws Exception {
-        ExtendedMetadataDelegate localServiceProvider = spManager.getLocalServiceProvider();
-        assertNotNull(localServiceProvider);
-        MetadataProvider provider = localServiceProvider.getDelegate();
-        assertNotNull(provider);
-        assertTrue(provider instanceof MetadataMemoryProvider);
-        String providerSpAlias = spManager.getProviderSpAlias(localServiceProvider);
-        assertEquals(entityAlias, providerSpAlias);
-        assertEquals(entityID, spManager.getEntityIdForAlias(providerSpAlias));
-    }
+  @Test
+  public void sp_initialized_in_non_snarl_metadata_manager() throws Exception {
+    ExtendedMetadataDelegate localServiceProvider = spManager.getLocalServiceProvider();
+    assertNotNull(localServiceProvider);
+    MetadataProvider provider = localServiceProvider.getDelegate();
+    assertNotNull(provider);
+    assertTrue(provider instanceof MetadataMemoryProvider);
+    String providerSpAlias = spManager.getProviderSpAlias(localServiceProvider);
+    assertEquals(entityAlias, providerSpAlias);
+    assertEquals(entityID, spManager.getEntityIdForAlias(providerSpAlias));
+  }
 
-    @Test
-    public void sp_initialization_in_non_snarl_metadata_manager() throws Exception {
-        String subdomain = new RandomValueStringGenerator().generate().toLowerCase();
-        IdentityZone zone = new IdentityZone()
+  @Test
+  public void sp_initialization_in_non_snarl_metadata_manager() throws Exception {
+    String subdomain = new RandomValueStringGenerator().generate().toLowerCase();
+    IdentityZone zone =
+        new IdentityZone()
             .setConfig(new IdentityZoneConfiguration())
             .setSubdomain(subdomain)
             .setId(subdomain)
             .setName(subdomain);
-        zone = zoneProvisioning.create(zone);
-        IdentityZoneHolder.set(zone);
-        ExtendedMetadataDelegate localServiceProvider = spManager.getLocalServiceProvider();
-        assertNotNull(localServiceProvider);
-        MetadataProvider provider = localServiceProvider.getDelegate();
-        assertNotNull(provider);
-        assertTrue(provider instanceof MetadataMemoryProvider);
-        String providerSpAlias = spManager.getProviderSpAlias(localServiceProvider);
-        assertEquals(subdomain + "." + entityAlias, providerSpAlias);
-        assertEquals(addSubdomainToEntityId(entityID, subdomain), spManager.getEntityIdForAlias(providerSpAlias));
-    }
+    zone = zoneProvisioning.create(zone);
+    IdentityZoneHolder.set(zone);
+    ExtendedMetadataDelegate localServiceProvider = spManager.getLocalServiceProvider();
+    assertNotNull(localServiceProvider);
+    MetadataProvider provider = localServiceProvider.getDelegate();
+    assertNotNull(provider);
+    assertTrue(provider instanceof MetadataMemoryProvider);
+    String providerSpAlias = spManager.getProviderSpAlias(localServiceProvider);
+    assertEquals(subdomain + "." + entityAlias, providerSpAlias);
+    assertEquals(
+        addSubdomainToEntityId(entityID, subdomain),
+        spManager.getEntityIdForAlias(providerSpAlias));
+  }
 
-    public String addSubdomainToEntityId(String entityId, String subdomain) {
-        if (UaaUrlUtils.isUrl(entityId)) {
-            return UaaUrlUtils.addSubdomainToUrl(entityId, subdomain);
-        } else {
-            return subdomain + "." + entityId;
-        }
+  public String addSubdomainToEntityId(String entityId, String subdomain) {
+    if (UaaUrlUtils.isUrl(entityId)) {
+      return UaaUrlUtils.addSubdomainToUrl(entityId, subdomain);
+    } else {
+      return subdomain + "." + entityId;
     }
-
+  }
 }

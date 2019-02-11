@@ -11,42 +11,42 @@ import java.io.File;
 import java.io.IOException;
 
 public class ScreenshotOnFail extends TestWatcher {
-    private WebDriver browser;
+  private WebDriver browser;
 
-    @Override
-    protected void failed(Throwable e, Description description) {
-        debugPage(description.getClassName(), description.getMethodName() + ".png");
+  @Override
+  protected void failed(Throwable e, Description description) {
+    debugPage(description.getClassName(), description.getMethodName() + ".png");
+  }
+
+  public void debugPage(String className, String description) {
+    TakesScreenshot takesScreenshot = (TakesScreenshot) browser;
+
+    File scrFile = takesScreenshot.getScreenshotAs(OutputType.FILE);
+    File destFile = getDestinationFile(className, description);
+    try {
+      FileUtils.copyFile(scrFile, destFile);
+    } catch (IOException ioe) {
+      throw new RuntimeException(ioe);
     }
 
-    public void debugPage(String className, String description) {
-        TakesScreenshot takesScreenshot = (TakesScreenshot) browser;
+    File pageSourceFile = getDestinationFile(className, description + ".html");
+    String pageSource = browser.getPageSource();
 
-        File scrFile = takesScreenshot.getScreenshotAs(OutputType.FILE);
-        File destFile = getDestinationFile(className, description);
-        try {
-            FileUtils.copyFile(scrFile, destFile);
-        } catch (IOException ioe) {
-            throw new RuntimeException(ioe);
-        }
-
-        File pageSourceFile = getDestinationFile(className, description + ".html");
-        String pageSource = browser.getPageSource();
-
-        try {
-            FileUtils.write(pageSourceFile, pageSource);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+    try {
+      FileUtils.write(pageSourceFile, pageSource);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
     }
+  }
 
-    private File getDestinationFile(String className, String description) {
-        String fileName = className + "/" + description;
-        String home = System.getProperty("user.home");
-        String absoluteFileName = home + "/build/cloudfoundry/uaa/uaa/build/reports/tests/" + fileName;
-        return new File(absoluteFileName);
-    }
+  private File getDestinationFile(String className, String description) {
+    String fileName = className + "/" + description;
+    String home = System.getProperty("user.home");
+    String absoluteFileName = home + "/build/cloudfoundry/uaa/uaa/build/reports/tests/" + fileName;
+    return new File(absoluteFileName);
+  }
 
-    public void setWebDriver(WebDriver webDriver) {
-        this.browser = webDriver;
-    }
+  public void setWebDriver(WebDriver webDriver) {
+    this.browser = webDriver;
+  }
 }

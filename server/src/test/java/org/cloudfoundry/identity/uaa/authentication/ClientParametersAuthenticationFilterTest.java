@@ -11,7 +11,6 @@ package org.cloudfoundry.identity.uaa.authentication;
  * subcomponent's license, as noted in the LICENSE file.
  * *****************************************************************************
  */
-
 import org.junit.Test;
 import org.mockito.Mockito;
 import org.springframework.http.MediaType;

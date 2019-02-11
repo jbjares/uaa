@@ -38,106 +38,92 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @DefaultTestContext
 class HealthzShouldNotBeProtectedMockMvcTests {
 
-    private SecurityFilterChainPostProcessor chainPostProcessor;
-    private boolean originalRequireHttps;
-    private MockMvc mockMvc;
+  private SecurityFilterChainPostProcessor chainPostProcessor;
+  private boolean originalRequireHttps;
+  private MockMvc mockMvc;
+
+  @BeforeEach
+  void setUp(
+      @Autowired SecurityFilterChainPostProcessor securityFilterChainPostProcessor,
+      @Autowired MockMvc mockMvc) {
+    this.mockMvc = mockMvc;
+    chainPostProcessor = securityFilterChainPostProcessor;
+    originalRequireHttps = securityFilterChainPostProcessor.isRequireHttps();
+  }
+
+  @AfterEach
+  void tearDown() {
+    chainPostProcessor.setRequireHttps(originalRequireHttps);
+  }
+
+  static class HealthzGetRequestParams implements ArgumentsProvider {
+
+    @Override
+    public Stream<? extends Arguments> provideArguments(ExtensionContext context) {
+      return Stream.of(
+          Arguments.of(get("/healthz").accept(MediaType.APPLICATION_JSON)),
+          Arguments.of(get("/healthz").accept(MediaType.TEXT_HTML)),
+          Arguments.of(get("/healthz").accept(MediaType.ALL)));
+    }
+  }
+
+  @DefaultTestContext
+  @Nested
+  class WithHttpsRequired {
 
     @BeforeEach
-    void setUp(
-            @Autowired SecurityFilterChainPostProcessor securityFilterChainPostProcessor,
-            @Autowired MockMvc mockMvc
-    ) {
-        this.mockMvc = mockMvc;
-        chainPostProcessor = securityFilterChainPostProcessor;
-        originalRequireHttps = securityFilterChainPostProcessor.isRequireHttps();
+    void setUp() {
+      chainPostProcessor.setRequireHttps(true);
     }
 
-    @AfterEach
-    void tearDown() {
-        chainPostProcessor.setRequireHttps(originalRequireHttps);
+    @ParameterizedTest
+    @ArgumentsSource(HealthzGetRequestParams.class)
+    void healthzIsNotRejected(MockHttpServletRequestBuilder getRequest) throws Exception {
+      mockMvc.perform(getRequest).andExpect(status().isOk()).andExpect(content().string("ok\n"));
     }
 
-    static class HealthzGetRequestParams implements ArgumentsProvider {
+    @Test
+    void loginRedirects() throws Exception {
+      MockHttpServletRequestBuilder getRequest = get("/login").accept(MediaType.TEXT_HTML);
 
-        @Override
-        public Stream<? extends Arguments> provideArguments(ExtensionContext context) {
-            return Stream.of(
-                    Arguments.of(get("/healthz").accept(MediaType.APPLICATION_JSON)),
-                    Arguments.of(get("/healthz").accept(MediaType.TEXT_HTML)),
-                    Arguments.of(get("/healthz").accept(MediaType.ALL))
-            );
-        }
+      mockMvc.perform(getRequest).andExpect(status().is3xxRedirection());
     }
 
-    @DefaultTestContext
-    @Nested
-    class WithHttpsRequired {
+    @Test
+    void samlMetadataRedirects() throws Exception {
+      MockHttpServletRequestBuilder getRequest = get("/saml/metadata").accept(MediaType.ALL);
 
-        @BeforeEach
-        void setUp() {
-            chainPostProcessor.setRequireHttps(true);
-        }
+      mockMvc.perform(getRequest).andExpect(status().is3xxRedirection());
+    }
+  }
 
-        @ParameterizedTest
-        @ArgumentsSource(HealthzGetRequestParams.class)
-        void healthzIsNotRejected(MockHttpServletRequestBuilder getRequest) throws Exception {
-            mockMvc.perform(getRequest)
-                    .andExpect(status().isOk())
-                    .andExpect(content().string("ok\n"));
-        }
+  @DefaultTestContext
+  @Nested
+  class WithHttpsNotRequired {
 
-        @Test
-        void loginRedirects() throws Exception {
-            MockHttpServletRequestBuilder getRequest = get("/login")
-                    .accept(MediaType.TEXT_HTML);
-
-            mockMvc.perform(getRequest)
-                    .andExpect(status().is3xxRedirection());
-        }
-
-        @Test
-        void samlMetadataRedirects() throws Exception {
-            MockHttpServletRequestBuilder getRequest = get("/saml/metadata")
-                    .accept(MediaType.ALL);
-
-            mockMvc.perform(getRequest)
-                    .andExpect(status().is3xxRedirection());
-        }
+    @BeforeEach
+    void setUp() {
+      chainPostProcessor.setRequireHttps(false);
     }
 
-    @DefaultTestContext
-    @Nested
-    class WithHttpsNotRequired {
-
-        @BeforeEach
-        void setUp() {
-            chainPostProcessor.setRequireHttps(false);
-        }
-
-        @ParameterizedTest
-        @ArgumentsSource(HealthzGetRequestParams.class)
-        void healthzIsNotRejected(MockHttpServletRequestBuilder getRequest) throws Exception {
-            mockMvc.perform(getRequest)
-                    .andExpect(status().isOk())
-                    .andExpect(content().string("ok\n"));
-        }
-
-        @Test
-        void loginReturnsOk() throws Exception {
-            MockHttpServletRequestBuilder getRequest = get("/login")
-                    .accept(MediaType.TEXT_HTML);
-
-            mockMvc.perform(getRequest)
-                    .andExpect(status().isOk());
-        }
-
-        @Test
-        void samlMetadataReturnsOk() throws Exception {
-            MockHttpServletRequestBuilder getRequest = get("/saml/metadata")
-                    .accept(MediaType.ALL);
-
-            mockMvc.perform(getRequest)
-                    .andExpect(status().isOk());
-        }
+    @ParameterizedTest
+    @ArgumentsSource(HealthzGetRequestParams.class)
+    void healthzIsNotRejected(MockHttpServletRequestBuilder getRequest) throws Exception {
+      mockMvc.perform(getRequest).andExpect(status().isOk()).andExpect(content().string("ok\n"));
     }
+
+    @Test
+    void loginReturnsOk() throws Exception {
+      MockHttpServletRequestBuilder getRequest = get("/login").accept(MediaType.TEXT_HTML);
+
+      mockMvc.perform(getRequest).andExpect(status().isOk());
+    }
+
+    @Test
+    void samlMetadataReturnsOk() throws Exception {
+      MockHttpServletRequestBuilder getRequest = get("/saml/metadata").accept(MediaType.ALL);
+
+      mockMvc.perform(getRequest).andExpect(status().isOk());
+    }
+  }
 }

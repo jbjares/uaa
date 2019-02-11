@@ -21,29 +21,44 @@ import static org.junit.Assert.*;
 @DefaultTestContext
 class LocalUaaRestTemplateMockMvcTests {
 
-    @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
-    @Autowired
-    LocalUaaRestTemplate localUaaRestTemplate;
+  @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
+  @Autowired
+  LocalUaaRestTemplate localUaaRestTemplate;
 
-    @Test
-    void testLocalUaaRestTemplateAcquireToken() {
-        LocalUaaRestTemplate restTemplate = localUaaRestTemplate;
-        OAuth2AccessToken token = restTemplate.acquireAccessToken(new DefaultOAuth2ClientContext());
-        assertTrue("Scopes should contain oauth.login", token.getScope().contains("oauth.login"));
-        assertTrue("Scopes should contain notifications.write", token.getScope().contains("notifications.write"));
-        assertTrue("Scopes should contain critical_notifications.write", token.getScope().contains("critical_notifications.write"));
-    }
+  @Test
+  void testLocalUaaRestTemplateAcquireToken() {
+    LocalUaaRestTemplate restTemplate = localUaaRestTemplate;
+    OAuth2AccessToken token = restTemplate.acquireAccessToken(new DefaultOAuth2ClientContext());
+    assertTrue("Scopes should contain oauth.login", token.getScope().contains("oauth.login"));
+    assertTrue(
+        "Scopes should contain notifications.write",
+        token.getScope().contains("notifications.write"));
+    assertTrue(
+        "Scopes should contain critical_notifications.write",
+        token.getScope().contains("critical_notifications.write"));
+  }
 
-    @Test
-    void testUaaRestTemplateContainsBearerHeader() throws Exception {
-        LocalUaaRestTemplate restTemplate = localUaaRestTemplate;
-        OAuth2AccessToken token = restTemplate.acquireAccessToken(restTemplate.getOAuth2ClientContext());
-        Method createRequest = OAuth2RestTemplate.class.getDeclaredMethod("createRequest",URI.class, HttpMethod.class);
-        ReflectionUtils.makeAccessible(createRequest);
-        ClientHttpRequest request = (ClientHttpRequest)createRequest.invoke(restTemplate, new URI("http://localhost/oauth/token"), HttpMethod.POST);
-        assertEquals("authorization bearer header should be present", 1, request.getHeaders().get("Authorization").size());
-        assertNotNull("authorization bearer header should be present", request.getHeaders().get("Authorization").get(0));
-        assertThat(request.getHeaders().get("Authorization").get(0).toLowerCase(), startsWith("bearer "));
-        assertThat(request.getHeaders().get("Authorization").get(0), endsWith(token.getValue()));
-    }
+  @Test
+  void testUaaRestTemplateContainsBearerHeader() throws Exception {
+    LocalUaaRestTemplate restTemplate = localUaaRestTemplate;
+    OAuth2AccessToken token =
+        restTemplate.acquireAccessToken(restTemplate.getOAuth2ClientContext());
+    Method createRequest =
+        OAuth2RestTemplate.class.getDeclaredMethod("createRequest", URI.class, HttpMethod.class);
+    ReflectionUtils.makeAccessible(createRequest);
+    ClientHttpRequest request =
+        (ClientHttpRequest)
+            createRequest.invoke(
+                restTemplate, new URI("http://localhost/oauth/token"), HttpMethod.POST);
+    assertEquals(
+        "authorization bearer header should be present",
+        1,
+        request.getHeaders().get("Authorization").size());
+    assertNotNull(
+        "authorization bearer header should be present",
+        request.getHeaders().get("Authorization").get(0));
+    assertThat(
+        request.getHeaders().get("Authorization").get(0).toLowerCase(), startsWith("bearer "));
+    assertThat(request.getHeaders().get("Authorization").get(0), endsWith(token.getValue()));
+  }
 }

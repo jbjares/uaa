@@ -22,31 +22,30 @@ import static org.junit.Assert.assertEquals;
 
 public class QueryMetricTests {
 
-    private QueryMetric metric;
+  private QueryMetric metric;
 
-    @Before
-    public void setup() throws Exception {
-        metric = new QueryMetric("query", 1, 5, true);
-    }
+  @Before
+  public void setup() throws Exception {
+    metric = new QueryMetric("query", 1, 5, true);
+  }
 
-    @Test
-    public void getQuery() throws Exception {
-        assertEquals("query", metric.getQuery());
-    }
+  @Test
+  public void getQuery() throws Exception {
+    assertEquals("query", metric.getQuery());
+  }
 
-    @Test
-    public void isSuccess() throws Exception {
-        assertEquals(true, metric.isIntolerable());
-    }
+  @Test
+  public void isSuccess() throws Exception {
+    assertEquals(true, metric.isIntolerable());
+  }
 
-    @Test
-    public void getRequestStartTime() throws Exception {
-        assertEquals(1, metric.getRequestStartTime());
-    }
+  @Test
+  public void getRequestStartTime() throws Exception {
+    assertEquals(1, metric.getRequestStartTime());
+  }
 
-    @Test
-    public void getRequestCompleteTime() throws Exception {
-        assertEquals(6, metric.getRequestCompleteTime());
-    }
-
+  @Test
+  public void getRequestCompleteTime() throws Exception {
+    assertEquals(6, metric.getRequestCompleteTime());
+  }
 }

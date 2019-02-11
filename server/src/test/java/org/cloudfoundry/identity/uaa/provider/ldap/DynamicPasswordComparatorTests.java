@@ -31,7 +31,7 @@ public class DynamicPasswordComparatorTests {
     "{ssha}rO4v/9dub7WYpIrDj7wvb7fNwkOImf1VVJnZpg==", // SSHA
     "{ssha256}zCVpD8Xi4JMmVcaAxi28ak8/xJxQhrg+VT1MJ16hHimXN7orxv6poQ==", // SSHA 256
     "{ssha384}7YxTGbDRHR0XwaDZSLu0dugE0wUgQ5+laFB0xRAvsvH0lC3W2IB0p3C3HQVMfzpQCpyASAjKM3I=", // SSHA
-                                                                                             // 384
+    // 384
     "{ssha512}tD7p1yhvG1aMGKWbxYgkRIwnKYwuDPjdg6DIlkUMn8zWmShQ00Y50LKVE0lW4ubdkx3PYnPS3AM64y/p5P+AOYBsj7vmQxCy", // SSHA 512
     "{md5}CY9rzUYh03PK3k6DJie09g==", // MD5
     "{smd5}Pd3O3i4CelPVsTXKIjnLpZAu00x01cx0", // SMD5

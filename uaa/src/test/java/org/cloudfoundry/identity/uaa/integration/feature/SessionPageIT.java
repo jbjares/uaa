@@ -26,113 +26,128 @@ import static org.junit.Assert.assertEquals;
 @OAuth2ContextConfiguration(OAuth2ContextConfiguration.ClientCredentials.class)
 public class SessionPageIT {
 
-    @Autowired
-    WebDriver webDriver;
+  @Autowired WebDriver webDriver;
 
-    @Value("${integration.test.base_url}")
-    String baseUrl;
+  @Value("${integration.test.base_url}")
+  String baseUrl;
 
-    @Autowired
-    TestAccounts testAccounts;
+  @Autowired TestAccounts testAccounts;
 
-    String testPage;
+  String testPage;
 
-    @Before
-    public void setUp() throws UnsupportedEncodingException {
-        testPage = "file://" + System.getProperty("user.dir") + "/src/test/resources/session_frame_test.html#~";
-    }
+  @Before
+  public void setUp() throws UnsupportedEncodingException {
+    testPage =
+        "file://"
+            + System.getProperty("user.dir")
+            + "/src/test/resources/session_frame_test.html#~";
+  }
 
-    @After
-    public void tearDown(){
-        doLogout();
-    }
+  @After
+  public void tearDown() {
+    doLogout();
+  }
 
-    @Test
-    public void testFrameReportsChangedWhenNoUser_whenLoggedIn() throws UnsupportedEncodingException, InterruptedException {
-        doLogin();
-        webDriver.get(testPage);
-        webDriver.findElement(By.id("noUser")).click();
-        assertMessage("changed");
-    }
+  @Test
+  public void testFrameReportsChangedWhenNoUser_whenLoggedIn()
+      throws UnsupportedEncodingException, InterruptedException {
+    doLogin();
+    webDriver.get(testPage);
+    webDriver.findElement(By.id("noUser")).click();
+    assertMessage("changed");
+  }
 
-    @Test
-    public void testFrameReportsUnchangedWhenSendingSameUser_whenLoggedIn() throws UnsupportedEncodingException, InterruptedException {
-        doLogin();
-        webDriver.get(testPage);
-        webDriver.findElement(By.id("sameUser")).click();
-        assertMessage("unchanged");
-    }
+  @Test
+  public void testFrameReportsUnchangedWhenSendingSameUser_whenLoggedIn()
+      throws UnsupportedEncodingException, InterruptedException {
+    doLogin();
+    webDriver.get(testPage);
+    webDriver.findElement(By.id("sameUser")).click();
+    assertMessage("unchanged");
+  }
 
-    @Test
-    public void testFrameReportsUnchangedWhenSendingDifferentUser_whenLoggedIn() throws UnsupportedEncodingException, InterruptedException {
-        doLogin();
-        webDriver.get(testPage);
-        webDriver.findElement(By.id("differentUser")).click();
-        assertMessage("changed");
-    }
+  @Test
+  public void testFrameReportsUnchangedWhenSendingDifferentUser_whenLoggedIn()
+      throws UnsupportedEncodingException, InterruptedException {
+    doLogin();
+    webDriver.get(testPage);
+    webDriver.findElement(By.id("differentUser")).click();
+    assertMessage("changed");
+  }
 
-    @Test
-    public void testFrameReportsErrorWhenSendingDifferentUser_whenLoggedIn() throws UnsupportedEncodingException, InterruptedException {
-        doLogin();
-        webDriver.get(testPage);
-        webDriver.findElement(By.id("wrongClient")).click();
-        assertMessage("error");
-    }
+  @Test
+  public void testFrameReportsErrorWhenSendingDifferentUser_whenLoggedIn()
+      throws UnsupportedEncodingException, InterruptedException {
+    doLogin();
+    webDriver.get(testPage);
+    webDriver.findElement(By.id("wrongClient")).click();
+    assertMessage("error");
+  }
 
-    @Test
-    public void testFrameReportsChangedWhenNoUser_whenLoggedOut() throws UnsupportedEncodingException, InterruptedException {
-        webDriver.get(testPage);
-        webDriver.findElement(By.id("noUser")).click();
-        assertMessage("unchanged");
-    }
+  @Test
+  public void testFrameReportsChangedWhenNoUser_whenLoggedOut()
+      throws UnsupportedEncodingException, InterruptedException {
+    webDriver.get(testPage);
+    webDriver.findElement(By.id("noUser")).click();
+    assertMessage("unchanged");
+  }
 
-    @Test
-    public void testFrameReportsChangedWhenSameUser_whenLoggedOut() throws UnsupportedEncodingException, InterruptedException {
-        webDriver.get(testPage);
-        webDriver.findElement(By.id("sameUser")).click();
-        assertMessage("unchanged");
-    }
+  @Test
+  public void testFrameReportsChangedWhenSameUser_whenLoggedOut()
+      throws UnsupportedEncodingException, InterruptedException {
+    webDriver.get(testPage);
+    webDriver.findElement(By.id("sameUser")).click();
+    assertMessage("unchanged");
+  }
 
-    @Test
-    public void testFrameReportsChangedWhenDifferentUser_whenLoggedOut() throws UnsupportedEncodingException, InterruptedException {
-        webDriver.get(testPage);
-        webDriver.findElement(By.id("differentUser")).click();
-        assertMessage("changed");
-    }
+  @Test
+  public void testFrameReportsChangedWhenDifferentUser_whenLoggedOut()
+      throws UnsupportedEncodingException, InterruptedException {
+    webDriver.get(testPage);
+    webDriver.findElement(By.id("differentUser")).click();
+    assertMessage("changed");
+  }
 
-    @Test
-    public void testFrameReportsErrorWhenSendingDifferentUser_whenLoggedOut() throws UnsupportedEncodingException, InterruptedException {
-        webDriver.get(testPage);
-        webDriver.findElement(By.id("wrongClient")).click();
-        assertMessage("error");
-    }
+  @Test
+  public void testFrameReportsErrorWhenSendingDifferentUser_whenLoggedOut()
+      throws UnsupportedEncodingException, InterruptedException {
+    webDriver.get(testPage);
+    webDriver.findElement(By.id("wrongClient")).click();
+    assertMessage("error");
+  }
 
-    @Test
-    public void testAmountOfJavascriptTests() {
-        webDriver.get(testPage);
-        assertEquals(4, webDriver.findElements(By.cssSelector("#testLinks li")).size());
-    }
+  @Test
+  public void testAmountOfJavascriptTests() {
+    webDriver.get(testPage);
+    assertEquals(4, webDriver.findElements(By.cssSelector("#testLinks li")).size());
+  }
 
-    private void assertMessage(String expected) {
-        assertEquals(expected, webDriver.findElement(By.id("message")).getText());
-    }
+  private void assertMessage(String expected) {
+    assertEquals(expected, webDriver.findElement(By.id("message")).getText());
+  }
 
-    private void doLogin() throws UnsupportedEncodingException {
+  private void doLogin() throws UnsupportedEncodingException {
 
-        webDriver.get(baseUrl + "/login");
-        webDriver.findElement(By.name("username")).sendKeys(testAccounts.getUserName());
-        webDriver.findElement(By.name("password")).sendKeys(testAccounts.getPassword());
-        webDriver.findElement(By.xpath("//input[@value='Sign in']")).click();
+    webDriver.get(baseUrl + "/login");
+    webDriver.findElement(By.name("username")).sendKeys(testAccounts.getUserName());
+    webDriver.findElement(By.name("password")).sendKeys(testAccounts.getPassword());
+    webDriver.findElement(By.xpath("//input[@value='Sign in']")).click();
 
-        Cookie currentUserCookie = webDriver.manage().getCookieNamed("Current-User");
-        CurrentUserInformation currentUserInformation = JsonUtils.readValue(URLDecoder.decode(currentUserCookie.getValue(), "UTF-8"), CurrentUserInformation.class);
+    Cookie currentUserCookie = webDriver.manage().getCookieNamed("Current-User");
+    CurrentUserInformation currentUserInformation =
+        JsonUtils.readValue(
+            URLDecoder.decode(currentUserCookie.getValue(), "UTF-8"), CurrentUserInformation.class);
 
-        String userId = currentUserInformation.getUserId();
-        testPage = "file://" + System.getProperty("user.dir") + "/src/test/resources/session_frame_test.html#" + userId;
-    }
+    String userId = currentUserInformation.getUserId();
+    testPage =
+        "file://"
+            + System.getProperty("user.dir")
+            + "/src/test/resources/session_frame_test.html#"
+            + userId;
+  }
 
-    private void doLogout() {
-        webDriver.get(baseUrl + "/logout.do");
-        webDriver.manage().deleteAllCookies();
-    }
+  private void doLogout() {
+    webDriver.get(baseUrl + "/logout.do");
+    webDriver.manage().deleteAllCookies();
+  }
 }

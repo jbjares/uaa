@@ -338,7 +338,7 @@ public class ZoneSeeder {
     IdentityZoneHolder.get()
         .setId(
             getIdentityZoneId()); // jdbcScimGroupMembershipManager#addMember needs this to be set
-                                  // :(
+    // :(
 
     jdbcScimGroupMembershipManager.addMember(
         group.getId(), new ScimGroupMember(scimUser.getId()), getIdentityZoneId());

@@ -1,6 +1,8 @@
 package org.cloudfoundry.identity.uaa.integration.feature;
 
-import org.junit.*;
+import org.junit.Assert;
+import org.junit.Rule;
+import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
@@ -13,21 +15,22 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 @ContextConfiguration(classes = DefaultIntegrationTestConfig.class)
 public class ErrorRoutingIT {
 
-    @Autowired
-    @Rule
-    public IntegrationTestRule integrationTestRule;
+  @Autowired @Rule public IntegrationTestRule integrationTestRule;
 
-    @Autowired
-    WebDriver webDriver;
+  @Autowired WebDriver webDriver;
 
-    @Value("${integration.test.base_url}")
-    String baseUrl;
+  @Value("${integration.test.base_url}")
+  String baseUrl;
 
-    @Test
-    public void testMethodNotAllowedRoutedToErrorPage() throws Exception {
-        webDriver.get(baseUrl + "/authenticate");
+  @Test
+  public void testMethodNotAllowedRoutedToErrorPage() throws Exception {
+    webDriver.get(baseUrl + "/authenticate");
 
-        Assert.assertTrue("Check if on the error page", webDriver.findElement(By.tagName("h2")).getText().contains("Uh oh."));
-        Assert.assertTrue("Check if on the error page", webDriver.findElement(By.tagName("h2")).getText().contains("Something went amiss."));
-    }
+    Assert.assertTrue(
+        "Check if on the error page",
+        webDriver.findElement(By.tagName("h2")).getText().contains("Uh oh."));
+    Assert.assertTrue(
+        "Check if on the error page",
+        webDriver.findElement(By.tagName("h2")).getText().contains("Something went amiss."));
+  }
 }

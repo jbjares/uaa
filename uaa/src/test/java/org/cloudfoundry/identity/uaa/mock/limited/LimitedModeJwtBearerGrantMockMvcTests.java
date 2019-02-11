@@ -23,24 +23,21 @@ import org.springframework.beans.factory.annotation.Qualifier;
 
 import java.io.File;
 
-import static org.cloudfoundry.identity.uaa.mock.util.MockMvcUtils.getLimitedModeStatusFile;
-import static org.cloudfoundry.identity.uaa.mock.util.MockMvcUtils.resetLimitedModeStatusFile;
-import static org.cloudfoundry.identity.uaa.mock.util.MockMvcUtils.setLimitedModeStatusFile;
+import static org.cloudfoundry.identity.uaa.mock.util.MockMvcUtils.*;
 
 public class LimitedModeJwtBearerGrantMockMvcTests extends JwtBearerGrantMockMvcTests {
-    private File existingStatusFile;
+  private File existingStatusFile;
 
-    @BeforeEach
-    public void setUpLimitedModeContext(
-            @Autowired @Qualifier("defaultUserAuthorities") Object defaultAuthorities
-    ) throws Exception {
-        super.setUpContext(defaultAuthorities);
-        existingStatusFile = getLimitedModeStatusFile(webApplicationContext);
-        setLimitedModeStatusFile(webApplicationContext);
-    }
+  @BeforeEach
+  public void setUpLimitedModeContext(
+      @Autowired @Qualifier("defaultUserAuthorities") Object defaultAuthorities) throws Exception {
+    super.setUpContext(defaultAuthorities);
+    existingStatusFile = getLimitedModeStatusFile(webApplicationContext);
+    setLimitedModeStatusFile(webApplicationContext);
+  }
 
-    @AfterEach
-    public void tearDown() throws Exception {
-        resetLimitedModeStatusFile(webApplicationContext, existingStatusFile);
-    }
+  @AfterEach
+  public void tearDown() throws Exception {
+    resetLimitedModeStatusFile(webApplicationContext, existingStatusFile);
+  }
 }

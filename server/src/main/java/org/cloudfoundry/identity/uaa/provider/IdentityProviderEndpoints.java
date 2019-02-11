@@ -175,7 +175,7 @@ public class IdentityProviderEndpoints implements ApplicationEventPublisherAware
       body.setOriginKey(
           existing
               .getOriginKey()); // we do not allow origin to change for a SAML provider, since that
-                                // can cause clashes
+      // can cause clashes
       SamlIdentityProviderDefinition definition =
           ObjectUtils.castInstance(body.getConfig(), SamlIdentityProviderDefinition.class);
       definition.setZoneId(zoneId);
